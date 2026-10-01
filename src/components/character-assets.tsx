@@ -14,6 +14,8 @@ import {
   Search, Tag, Image as ImageIcon, Loader2, Link2, Heart,
 } from 'lucide-react';
 import { CHARACTER_ROLE_LABELS, displayLabel, RELATIONSHIP_LABELS } from '@/lib/i18n';
+import { SPEECH_REGISTER_LABELS } from '@/lib/i18n';
+import { CharacterVoiceFields } from '@/components/character-voice-fields';
 
 interface Character {
   id: string;
@@ -24,6 +26,11 @@ interface Character {
   appearance: string;
   background: string;
   arc: string;
+  firstPerson: string;
+  defaultSecondPerson: string;
+  speechRegister: string;
+  speechStyleNotes: string;
+  narrationVoiceNotes: string;
   portraitUrl: string;
   portraitPrompt: string;
   tags: string;
@@ -51,6 +58,7 @@ const ROLE_OPTIONS = [
 const EMPTY_FORM = {
   name: '', age: '', role: '主角', personality: '', appearance: '',
   background: '', arc: '', portraitPrompt: '', tags: [] as string[],
+  firstPerson: '', defaultSecondPerson: '', speechRegister: '', speechStyleNotes: '', narrationVoiceNotes: '',
 };
 
 export function CharacterAssets({ projectId }: CharacterAssetsProps) {
@@ -200,6 +208,7 @@ export function CharacterAssets({ projectId }: CharacterAssetsProps) {
     setEditForm({
       name: char.name, age: char.age, role: char.role, personality: char.personality,
       appearance: char.appearance, background: char.background, arc: char.arc,
+      firstPerson: char.firstPerson || '', defaultSecondPerson: char.defaultSecondPerson || '', speechRegister: char.speechRegister || '', speechStyleNotes: char.speechStyleNotes || '', narrationVoiceNotes: char.narrationVoiceNotes || '',
       portraitPrompt: char.portraitPrompt || '', tags: parsedTags,
     });
   };
@@ -275,6 +284,7 @@ export function CharacterAssets({ projectId }: CharacterAssetsProps) {
                 <div><label className="block text-xs text-muted-foreground mb-1">外見</label><Input value={createForm.appearance} onChange={e => setCreateForm(prev => ({ ...prev, appearance: e.target.value }))} placeholder="外見を説明..." className="text-sm" /></div>
                 <div><label className="block text-xs text-muted-foreground mb-1">背景</label><Textarea value={createForm.background} onChange={e => setCreateForm(prev => ({ ...prev, background: e.target.value }))} placeholder="キャラクターの背景..." rows={2} className="text-sm resize-none" /></div>
                 <div><label className="block text-xs text-muted-foreground mb-1">成長曲線</label><Textarea value={createForm.arc} onChange={e => setCreateForm(prev => ({ ...prev, arc: e.target.value }))} placeholder="キャラクターの成長過程..." rows={2} className="text-sm resize-none" /></div>
+                <CharacterVoiceFields value={createForm} onChange={voice => setCreateForm(prev => ({ ...prev, ...voice }))} />
                 {/* Tags */}
                 <div>
                   <label className="block text-xs text-muted-foreground mb-1">タグ</label>
@@ -396,6 +406,7 @@ export function CharacterAssets({ projectId }: CharacterAssetsProps) {
                     <div><label className="block text-xs text-muted-foreground mb-1">外見</label><Input value={editForm.appearance} onChange={e => setEditForm(p => ({ ...p, appearance: e.target.value }))} className="text-sm" /></div>
                     <div><label className="block text-xs text-muted-foreground mb-1">背景</label><Textarea value={editForm.background} onChange={e => setEditForm(p => ({ ...p, background: e.target.value }))} rows={3} className="text-sm resize-none" /></div>
                     <div><label className="block text-xs text-muted-foreground mb-1">成長曲線</label><Textarea value={editForm.arc} onChange={e => setEditForm(p => ({ ...p, arc: e.target.value }))} rows={2} className="text-sm resize-none" /></div>
+                    <CharacterVoiceFields value={editForm} onChange={voice => setEditForm(prev => ({ ...prev, ...voice }))} />
                     {/* Edit Tags */}
                     <div>
                       <label className="block text-xs text-muted-foreground mb-1">タグ</label>
@@ -465,6 +476,16 @@ export function CharacterAssets({ projectId }: CharacterAssetsProps) {
                     )}
                     {selectedCharacter.arc && (
                       <div><p className="text-xs text-muted-foreground font-medium mb-1">📈 成長曲線</p><p className="text-sm text-foreground/80 whitespace-pre-wrap">{selectedCharacter.arc}</p></div>
+                    )}
+                    {(selectedCharacter.firstPerson || selectedCharacter.defaultSecondPerson || selectedCharacter.speechRegister || selectedCharacter.speechStyleNotes || selectedCharacter.narrationVoiceNotes) && (
+                      <div className="rounded-lg border border-border/60 p-3 space-y-1">
+                        <p className="text-xs text-muted-foreground font-medium">🗣️ 話し方</p>
+                        {selectedCharacter.firstPerson && <p className="text-sm">一人称：{selectedCharacter.firstPerson}</p>}
+                        {selectedCharacter.defaultSecondPerson && <p className="text-sm">基本二人称：{selectedCharacter.defaultSecondPerson}</p>}
+                        {selectedCharacter.speechRegister && <p className="text-sm">話し方：{displayLabel(SPEECH_REGISTER_LABELS, selectedCharacter.speechRegister)}</p>}
+                        {selectedCharacter.speechStyleNotes && <p className="text-sm whitespace-pre-wrap">台詞：{selectedCharacter.speechStyleNotes}</p>}
+                        {selectedCharacter.narrationVoiceNotes && <p className="text-sm whitespace-pre-wrap">地の文：{selectedCharacter.narrationVoiceNotes}</p>}
+                      </div>
                     )}
                     {/* Tags */}
                     {parsedTags(selectedCharacter.tags).length > 0 && (

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { isSpeechRegister } from '@/lib/character-voice';
 
 export async function POST(request: NextRequest) {
   try {
@@ -9,6 +10,9 @@ export async function POST(request: NextRequest) {
     if (!projectId || !fromCharacterId || !toCharacterId) {
       return NextResponse.json({ error: 'projectId, fromCharacterId, toCharacterId are required' }, { status: 400 });
     }
+    if (body.speechRegister !== undefined && !isSpeechRegister(body.speechRegister)) {
+      return NextResponse.json({ error: '敬語・話し方レベルの値が不正です' }, { status: 400 });
+    }
 
     const relationship = await db.characterRelationship.create({
       data: {
@@ -17,6 +21,9 @@ export async function POST(request: NextRequest) {
         toCharacterId,
         type: type || '盟友',
         description: description || '',
+        addressTerm: body.addressTerm || '',
+        speechRegister: body.speechRegister || '',
+        speechStyleNotes: body.speechStyleNotes || '',
       },
     });
 
@@ -35,12 +42,18 @@ export async function PUT(request: NextRequest) {
     if (!id) {
       return NextResponse.json({ error: 'Relationship ID is required' }, { status: 400 });
     }
+    if (body.speechRegister !== undefined && !isSpeechRegister(body.speechRegister)) {
+      return NextResponse.json({ error: '敬語・話し方レベルの値が不正です' }, { status: 400 });
+    }
 
     const relationship = await db.characterRelationship.update({
       where: { id },
       data: {
         ...(type !== undefined && { type }),
         ...(description !== undefined && { description }),
+        ...(body.addressTerm !== undefined && { addressTerm: body.addressTerm }),
+        ...(body.speechRegister !== undefined && { speechRegister: body.speechRegister }),
+        ...(body.speechStyleNotes !== undefined && { speechStyleNotes: body.speechStyleNotes }),
       },
     });
 

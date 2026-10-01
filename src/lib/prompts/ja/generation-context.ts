@@ -1,6 +1,7 @@
 import { formatSemanticLabel } from './semantic-labels';
 import { DEFAULT_CHAPTER_TARGET } from '@/lib/writing-settings';
-import { displayLabel, NARRATIVE_PERSPECTIVE_LABELS } from '@/lib/i18n';
+import { displayLabel, NARRATIVE_PERSPECTIVE_LABELS, SPEECH_REGISTER_LABELS } from '@/lib/i18n';
+import { resolveDirectedVoice, shouldUseNarrationVoice } from '@/lib/character-voice';
 
 export interface GenerationCharacter {
   id: string;
@@ -11,6 +12,11 @@ export interface GenerationCharacter {
   appearance?: string;
   background?: string;
   arc?: string;
+  firstPerson?: string;
+  defaultSecondPerson?: string;
+  speechRegister?: string;
+  speechStyleNotes?: string;
+  narrationVoiceNotes?: string;
 }
 
 export interface GenerationRelationship {
@@ -18,8 +24,51 @@ export interface GenerationRelationship {
   toCharacterId: string;
   type: string;
   description?: string;
+  addressTerm?: string;
+  speechRegister?: string;
+  speechStyleNotes?: string;
   fromCharacter?: { name: string };
   toCharacter?: { name: string };
+}
+
+export function buildCharacterVoiceContext(
+  characters: GenerationCharacter[],
+  relationships: GenerationRelationship[],
+  perspective?: string | null,
+  povCharacterId?: string | null,
+): string {
+  const byId = new Map(characters.map(character => [character.id, character]));
+  const characterLines = characters.flatMap(character => {
+    const details = [
+      character.firstPerson && `一人称：${character.firstPerson}`,
+      character.defaultSecondPerson && `基本二人称：${character.defaultSecondPerson}`,
+      character.speechRegister && `基本の話し方：${displayLabel(SPEECH_REGISTER_LABELS, character.speechRegister)}`,
+      character.speechStyleNotes && `台詞の話し方：${compact(character.speechStyleNotes, 600)}`,
+      character.id === povCharacterId && character.narrationVoiceNotes && shouldUseNarrationVoice(perspective)
+        ? `視点人物としての地の文：${compact(character.narrationVoiceNotes, 700)}`
+        : '',
+    ].filter(Boolean);
+    return details.length > 0 ? [`- ${character.name}\n  ${details.join('\n  ')}`] : [];
+  });
+  const relationshipLines = relationships.flatMap(relation => {
+    const speaker = byId.get(relation.fromCharacterId);
+    const listener = byId.get(relation.toCharacterId);
+    if (!speaker || !listener) return [];
+    const resolved = resolveDirectedVoice(speaker, relation);
+    const hasRelationshipOverride = Boolean(relation.addressTerm || relation.speechRegister || relation.speechStyleNotes);
+    const details = [
+      resolved.addressTerm && `呼称：${resolved.addressTerm}${relation.addressTerm ? '（相手別設定）' : '（基本設定から継承）'}`,
+      resolved.speechRegister && `話し方：${displayLabel(SPEECH_REGISTER_LABELS, resolved.speechRegister)}${relation.speechRegister ? '（相手別設定）' : '（基本設定から継承）'}`,
+      resolved.speechStyleNotes && `話し方メモ：${compact(resolved.speechStyleNotes, 500)}${relation.speechStyleNotes ? '（相手別設定）' : '（基本設定から継承）'}`,
+    ].filter(Boolean);
+    return hasRelationshipOverride && details.length > 0
+      ? [`- ${speaker.name} → ${listener.name}\n  ${details.join('\n  ')}`]
+      : [];
+  });
+  return [
+    characterLines.length > 0 && `【人物の基本音声】\n${characterLines.join('\n')}`,
+    relationshipLines.length > 0 && `【相手別の話し方（矢印の左から右への発話）】\n${relationshipLines.join('\n')}`,
+  ].filter(Boolean).join('\n\n');
 }
 
 export interface GenerationWorldSetting {
@@ -199,6 +248,13 @@ export function buildChapterGenerationContext(source: ChapterGenerationSource): 
       `- ${relation.fromCharacter?.name || relation.fromCharacterId} → ${relation.toCharacter?.name || relation.toCharacterId}：${formatSemanticLabel('relationship', relation.type)}${relation.description ? `。${compact(relation.description, 400)}` : ''}`
     ).join('\n')}`);
   }
+  const voiceContext = buildCharacterVoiceContext(
+    selectedCharacters,
+    selectedRelationships,
+    source.project?.narrativePerspective,
+    resolvedPov?.id,
+  );
+  if (voiceContext) sections.push(voiceContext);
   if (worldFallback.length > 0) {
     sections.push(`【関連世界設定】\n${worldFallback.map(setting =>
       `- ${setting.name}：${compact(setting.description, 700)}${setting.rules ? `\n  規則・制約：${compact(setting.rules, 500)}` : ''}`

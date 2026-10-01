@@ -10,6 +10,8 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { useAppStore } from '@/lib/store';
 import { Users, Plus, Trash2, Edit3, Save, X, Sparkles, Link2 } from 'lucide-react';
 import { CHARACTER_ROLE_LABELS, displayLabel, RELATIONSHIP_LABELS } from '@/lib/i18n';
+import { SPEECH_REGISTER_LABELS } from '@/lib/i18n';
+import { CharacterVoiceFields, type CharacterVoiceForm } from '@/components/character-voice-fields';
 
 interface Character {
   id: string;
@@ -20,6 +22,11 @@ interface Character {
   appearance: string;
   background: string;
   arc: string;
+  firstPerson: string;
+  defaultSecondPerson: string;
+  speechRegister: string;
+  speechStyleNotes: string;
+  narrationVoiceNotes: string;
   fromRelations?: { id: string; type: string; toCharacter: { name: string } }[];
   toRelations?: { id: string; type: string; fromCharacter: { name: string } }[];
 }
@@ -30,6 +37,9 @@ interface Relationship {
   toCharacterId: string;
   type: string;
   description: string;
+  addressTerm: string;
+  speechRegister: string;
+  speechStyleNotes: string;
   fromCharacter: { name: string };
   toCharacter: { name: string };
 }
@@ -48,17 +58,21 @@ const ROLE_OPTIONS = [
 ];
 
 const RELATION_TYPES = ['盟友', '恋人', '师徒', '父子', '母女', '兄弟', '姐妹', '仇敌', '对手', '暗恋', '上下级', '同门', '契约'];
+const EMPTY_VOICE: CharacterVoiceForm = { firstPerson: '', defaultSecondPerson: '', speechRegister: '', speechStyleNotes: '', narrationVoiceNotes: '' };
+const EMPTY_CHARACTER_FORM = { name: '', age: '', role: '主角', personality: '', appearance: '', background: '', arc: '', ...EMPTY_VOICE };
 
 export function CharacterManager({ projectId }: CharacterManagerProps) {
   const [characters, setCharacters] = useState<Character[]>([]);
   const [relationships, setRelationships] = useState<Relationship[]>([]);
   const [selectedChar, setSelectedChar] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
-  const [createForm, setCreateForm] = useState({ name: '', age: '', role: '主角', personality: '', appearance: '', background: '', arc: '' });
+  const [createForm, setCreateForm] = useState(EMPTY_CHARACTER_FORM);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editForm, setEditForm] = useState({ name: '', age: '', role: '', personality: '', appearance: '', background: '', arc: '' });
+  const [editForm, setEditForm] = useState({ ...EMPTY_CHARACTER_FORM, role: '' });
   const [showRelForm, setShowRelForm] = useState(false);
-  const [relForm, setRelForm] = useState({ fromId: '', toId: '', type: '盟友', description: '' });
+  const [relForm, setRelForm] = useState({ fromId: '', toId: '', type: '盟友', description: '', addressTerm: '', speechRegister: '', speechStyleNotes: '' });
+  const [editingRelId, setEditingRelId] = useState<string | null>(null);
+  const [relEditForm, setRelEditForm] = useState({ addressTerm: '', speechRegister: '', speechStyleNotes: '' });
   const { setActiveAgent } = useAppStore();
 
   const fetchData = useCallback(async () => {
@@ -89,7 +103,7 @@ export function CharacterManager({ projectId }: CharacterManagerProps) {
       if (res.ok) {
         await fetchData();
         setIsCreating(false);
-        setCreateForm({ name: '', age: '', role: '主角', personality: '', appearance: '', background: '', arc: '' });
+        setCreateForm(EMPTY_CHARACTER_FORM);
       }
     } catch (e) {
       console.error('Failed to create character:', e);
@@ -130,16 +144,21 @@ export function CharacterManager({ projectId }: CharacterManagerProps) {
       const res = await fetch('/api/relationships', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ projectId, fromCharacterId: relForm.fromId, toCharacterId: relForm.toId, type: relForm.type, description: relForm.description }),
+        body: JSON.stringify({ projectId, fromCharacterId: relForm.fromId, toCharacterId: relForm.toId, type: relForm.type, description: relForm.description, addressTerm: relForm.addressTerm, speechRegister: relForm.speechRegister, speechStyleNotes: relForm.speechStyleNotes }),
       });
       if (res.ok) {
         await fetchData();
         setShowRelForm(false);
-        setRelForm({ fromId: '', toId: '', type: '盟友', description: '' });
+        setRelForm({ fromId: '', toId: '', type: '盟友', description: '', addressTerm: '', speechRegister: '', speechStyleNotes: '' });
       }
     } catch (e) {
       console.error('Failed to create relationship:', e);
     }
+  };
+
+  const handleUpdateRel = async (id: string) => {
+    const res = await fetch('/api/relationships', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, ...relEditForm }) });
+    if (res.ok) { await fetchData(); setEditingRelId(null); }
   };
 
   const handleDeleteRel = async (id: string) => {
@@ -155,7 +174,7 @@ export function CharacterManager({ projectId }: CharacterManagerProps) {
 
   const startEdit = (char: Character) => {
     setEditingId(char.id);
-    setEditForm({ name: char.name, age: char.age, role: char.role, personality: char.personality, appearance: char.appearance, background: char.background, arc: char.arc });
+    setEditForm({ name: char.name, age: char.age, role: char.role, personality: char.personality, appearance: char.appearance, background: char.background, arc: char.arc, firstPerson: char.firstPerson || '', defaultSecondPerson: char.defaultSecondPerson || '', speechRegister: char.speechRegister || '', speechStyleNotes: char.speechStyleNotes || '', narrationVoiceNotes: char.narrationVoiceNotes || '' });
   };
 
   const getRoleInfo = (role: string) => ROLE_OPTIONS.find(r => r.value === role) || ROLE_OPTIONS[3];
@@ -212,7 +231,13 @@ export function CharacterManager({ projectId }: CharacterManagerProps) {
                 {characters.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
             </div>
+            <p className="text-xs text-muted-foreground">矢印の左側の人物が、右側の人物へどう話すかを設定します。</p>
             <Input value={relForm.description} onChange={e => setRelForm(prev => ({ ...prev, description: e.target.value }))} placeholder="関係の説明..." className="text-sm" />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 rounded-lg border border-border/60 p-3">
+              <div><label className="block text-xs text-muted-foreground mb-1">相手への呼び方</label><Input value={relForm.addressTerm} onChange={e => setRelForm(prev => ({ ...prev, addressTerm: e.target.value }))} placeholder="未設定時は人物の基本二人称" /></div>
+              <div><label className="block text-xs text-muted-foreground mb-1">相手への敬語・話し方</label><select value={relForm.speechRegister} onChange={e => setRelForm(prev => ({ ...prev, speechRegister: e.target.value }))} className="w-full h-9 px-3 bg-secondary border border-input rounded-md text-sm"><option value="">基本設定を使用</option>{Object.entries(SPEECH_REGISTER_LABELS).map(([id, label]) => <option key={id} value={id}>{label}</option>)}</select></div>
+              <div className="sm:col-span-2"><label className="block text-xs text-muted-foreground mb-1">この相手に対する話し方メモ</label><Textarea value={relForm.speechStyleNotes} onChange={e => setRelForm(prev => ({ ...prev, speechStyleNotes: e.target.value }))} rows={2} placeholder="空欄の場合は人物の基本設定を使用" /></div>
+            </div>
             <Button size="sm" onClick={handleCreateRel} disabled={!relForm.fromId || !relForm.toId}>
               <Save size={14} className="mr-1" />関係を保存
             </Button>
@@ -260,6 +285,7 @@ export function CharacterManager({ projectId }: CharacterManagerProps) {
               <label className="block text-xs text-muted-foreground mb-1">成長曲線</label>
               <Textarea value={createForm.arc} onChange={e => setCreateForm(prev => ({ ...prev, arc: e.target.value }))} placeholder="キャラクターの成長過程..." rows={2} className="text-sm resize-none" />
             </div>
+            <CharacterVoiceFields value={createForm} onChange={voice => setCreateForm(prev => ({ ...prev, ...voice }))} />
             <Button size="sm" onClick={handleCreate} disabled={!createForm.name.trim()}>
               <Save size={14} className="mr-1" />キャラクターを作成
             </Button>
@@ -348,6 +374,7 @@ export function CharacterManager({ projectId }: CharacterManagerProps) {
                     <div><label className="block text-xs text-muted-foreground mb-1">外見</label><Input value={editForm.appearance} onChange={e => setEditForm(p => ({ ...p, appearance: e.target.value }))} className="text-sm" /></div>
                     <div><label className="block text-xs text-muted-foreground mb-1">背景</label><Textarea value={editForm.background} onChange={e => setEditForm(p => ({ ...p, background: e.target.value }))} rows={3} className="text-sm resize-none" /></div>
                     <div><label className="block text-xs text-muted-foreground mb-1">成長曲線</label><Textarea value={editForm.arc} onChange={e => setEditForm(p => ({ ...p, arc: e.target.value }))} rows={2} className="text-sm resize-none" /></div>
+                    <CharacterVoiceFields value={editForm} onChange={voice => setEditForm(prev => ({ ...prev, ...voice }))} />
                   </div>
                 ) : (
                   <div className="space-y-3">
@@ -363,20 +390,41 @@ export function CharacterManager({ projectId }: CharacterManagerProps) {
                     {selectedCharacter.arc && (
                       <div><p className="text-xs text-muted-foreground font-medium mb-1">📈 成長曲線</p><p className="text-sm text-foreground/80 whitespace-pre-wrap">{selectedCharacter.arc}</p></div>
                     )}
+                    {(selectedCharacter.firstPerson || selectedCharacter.defaultSecondPerson || selectedCharacter.speechRegister || selectedCharacter.speechStyleNotes || selectedCharacter.narrationVoiceNotes) && (
+                      <div className="rounded-lg border border-border/60 p-3 space-y-1">
+                        <p className="text-xs text-muted-foreground font-medium">🗣️ 話し方</p>
+                        {selectedCharacter.firstPerson && <p className="text-sm">一人称：{selectedCharacter.firstPerson}</p>}
+                        {selectedCharacter.defaultSecondPerson && <p className="text-sm">基本二人称：{selectedCharacter.defaultSecondPerson}</p>}
+                        {selectedCharacter.speechRegister && <p className="text-sm">話し方：{displayLabel(SPEECH_REGISTER_LABELS, selectedCharacter.speechRegister)}</p>}
+                        {selectedCharacter.speechStyleNotes && <p className="text-sm whitespace-pre-wrap">台詞：{selectedCharacter.speechStyleNotes}</p>}
+                        {selectedCharacter.narrationVoiceNotes && <p className="text-sm whitespace-pre-wrap">地の文：{selectedCharacter.narrationVoiceNotes}</p>}
+                      </div>
+                    )}
                     {/* Relationships */}
                     {relationships.filter(r => r.fromCharacterId === selectedCharacter.id || r.toCharacterId === selectedCharacter.id).length > 0 && (
                       <div>
                         <p className="text-xs text-muted-foreground font-medium mb-2">🔗 人物関係</p>
                         <div className="space-y-1">
                           {relationships.filter(r => r.fromCharacterId === selectedCharacter.id || r.toCharacterId === selectedCharacter.id).map(rel => (
-                            <div key={rel.id} className="flex items-center gap-2 text-xs bg-secondary/50 px-2 py-1.5 rounded">
+                            <div key={rel.id} className="text-xs bg-secondary/50 px-2 py-2 rounded">
+                              <div className="flex items-center gap-2">
                               <span className="text-foreground">{rel.fromCharacter.name}</span>
                               <span className="text-muted-foreground">→</span>
                               <Badge variant="outline" className="text-[10px]">{displayLabel(RELATIONSHIP_LABELS, rel.type)}</Badge>
                               <span className="text-muted-foreground">→</span>
                               <span className="text-foreground">{rel.toCharacter.name}</span>
                               {rel.description && <span className="text-muted-foreground ml-1">({rel.description})</span>}
+                              <button onClick={() => { setEditingRelId(rel.id); setRelEditForm({ addressTerm: rel.addressTerm || '', speechRegister: rel.speechRegister || '', speechStyleNotes: rel.speechStyleNotes || '' }); }} className="ml-auto text-muted-foreground hover:text-foreground"><Edit3 size={12} /></button>
                               <button onClick={() => handleDeleteRel(rel.id)} className="ml-auto text-muted-foreground hover:text-destructive"><X size={12} /></button>
+                              </div>
+                              {(rel.addressTerm || rel.speechRegister || rel.speechStyleNotes) && editingRelId !== rel.id && <p className="mt-1 text-muted-foreground">{rel.fromCharacter.name} → {rel.toCharacter.name}：{rel.addressTerm && `呼称「${rel.addressTerm}」 `}{rel.speechRegister && displayLabel(SPEECH_REGISTER_LABELS, rel.speechRegister)}{rel.speechStyleNotes && `／${rel.speechStyleNotes}`}</p>}
+                              {editingRelId === rel.id && <div className="mt-2 grid gap-2 border-t border-border pt-2">
+                                <p className="text-muted-foreground">{rel.fromCharacter.name}が{rel.toCharacter.name}へ話すときの差分</p>
+                                <Input value={relEditForm.addressTerm} onChange={e => setRelEditForm(prev => ({ ...prev, addressTerm: e.target.value }))} placeholder="相手への呼び方" className="h-8 text-xs" />
+                                <select value={relEditForm.speechRegister} onChange={e => setRelEditForm(prev => ({ ...prev, speechRegister: e.target.value }))} className="h-8 px-2 bg-secondary border border-input rounded"><option value="">基本設定を使用</option>{relEditForm.speechRegister && !SPEECH_REGISTER_LABELS[relEditForm.speechRegister] && <option value={relEditForm.speechRegister}>{relEditForm.speechRegister}</option>}{Object.entries(SPEECH_REGISTER_LABELS).map(([id, label]) => <option key={id} value={id}>{label}</option>)}</select>
+                                <Textarea value={relEditForm.speechStyleNotes} onChange={e => setRelEditForm(prev => ({ ...prev, speechStyleNotes: e.target.value }))} rows={2} placeholder="この相手に対する話し方メモ" />
+                                <div><Button size="sm" onClick={() => handleUpdateRel(rel.id)}>保存</Button><Button size="sm" variant="ghost" onClick={() => setEditingRelId(null)}>キャンセル</Button></div>
+                              </div>}
                             </div>
                           ))}
                         </div>

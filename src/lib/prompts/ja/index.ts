@@ -18,6 +18,7 @@ export {
 export {
   buildChapterGenerationContext,
   buildChapterSemanticContext,
+  buildCharacterVoiceContext,
   type ChapterGenerationSource,
   type GenerationCharacter,
   type GenerationForeshadowing,

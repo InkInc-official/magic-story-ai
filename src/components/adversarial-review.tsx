@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Loader2, Swords, AlertTriangle, CheckCircle2 } from 'lucide-react';
-import { formatSemanticLabel } from '@/lib/prompts/ja';
+import { buildCharacterVoiceContext, formatSemanticLabel, type GenerationCharacter, type GenerationRelationship } from '@/lib/prompts/ja';
 import { displayLabel, NARRATIVE_PERSPECTIVE_LABELS } from '@/lib/i18n';
 
 interface ReviewResult {
@@ -61,9 +61,13 @@ export function AdversarialReviewPanel({ content, chapterTitle, projectId, chapt
         if (response.ok) {
           const projects = await response.json() as Array<{ id: string; title: string; genre: string; description: string; narrativePerspective?: string | null; defaultPovCharacterId?: string | null; writingStyleNotes?: string }>;
           const project = projects.find(item => item.id === projectId);
-          const characterData = characterResponse.ok ? await characterResponse.json() as { characters?: Array<{ id: string; name: string }> } : {};
+          const characterData = characterResponse.ok ? await characterResponse.json() as { characters?: GenerationCharacter[]; relationships?: GenerationRelationship[] } : {};
           const resolvedPovId = povCharacterId || project?.defaultPovCharacterId;
           const povName = characterData.characters?.find(character => character.id === resolvedPovId)?.name;
+          const reviewCharacters = (characterData.characters || []).filter(character => character.id === resolvedPovId || content.includes(character.name)).slice(0, 8);
+          const reviewCharacterIds = new Set(reviewCharacters.map(character => character.id));
+          const reviewRelationships = (characterData.relationships || []).filter(relation => reviewCharacterIds.has(relation.fromCharacterId) && reviewCharacterIds.has(relation.toCharacterId));
+          const voiceContext = buildCharacterVoiceContext(reviewCharacters, reviewRelationships, project?.narrativePerspective, resolvedPovId);
           if (project) projectContext = [
             `作品：${project.title}`,
             `ジャンル：${formatSemanticLabel('genre', project.genre)}`,
@@ -72,6 +76,7 @@ export function AdversarialReviewPanel({ content, chapterTitle, projectId, chapt
             povName && `視点人物：${povName}`,
             project.writingStyleNotes && `文体メモ：${project.writingStyleNotes}`,
             endingNotes && `章末メモ：${endingNotes}`,
+            voiceContext && `\n${voiceContext}\n設定されていない音声要素を正解として作らず、上記の明示設定との不整合だけを評価してください。`,
           ].filter(Boolean).join('\n');
         }
       } catch {

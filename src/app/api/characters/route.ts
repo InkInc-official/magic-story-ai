@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { isSpeechRegister } from '@/lib/character-voice';
 
 export async function GET(request: NextRequest) {
   try {
@@ -39,6 +40,9 @@ export async function POST(request: NextRequest) {
     if (!projectId || !name) {
       return NextResponse.json({ error: 'projectId and name are required' }, { status: 400 });
     }
+    if (body.speechRegister !== undefined && !isSpeechRegister(body.speechRegister)) {
+      return NextResponse.json({ error: '敬語・話し方レベルの値が不正です' }, { status: 400 });
+    }
 
     const character = await db.character.create({
       data: {
@@ -50,6 +54,11 @@ export async function POST(request: NextRequest) {
         appearance: appearance || '',
         background: background || '',
         arc: arc || '',
+        firstPerson: body.firstPerson || '',
+        defaultSecondPerson: body.defaultSecondPerson || '',
+        speechRegister: body.speechRegister || '',
+        speechStyleNotes: body.speechStyleNotes || '',
+        narrationVoiceNotes: body.narrationVoiceNotes || '',
         portraitPrompt: portraitPrompt || '',
         tags: tags ? JSON.stringify(tags) : '[]',
         isFavorite: false,
@@ -72,6 +81,9 @@ export async function PUT(request: NextRequest) {
     if (!id) {
       return NextResponse.json({ error: 'Character ID is required' }, { status: 400 });
     }
+    if (body.speechRegister !== undefined && !isSpeechRegister(body.speechRegister)) {
+      return NextResponse.json({ error: '敬語・話し方レベルの値が不正です' }, { status: 400 });
+    }
 
     const data: Record<string, unknown> = {};
     if (name !== undefined) data.name = name;
@@ -81,6 +93,11 @@ export async function PUT(request: NextRequest) {
     if (appearance !== undefined) data.appearance = appearance;
     if (background !== undefined) data.background = background;
     if (arc !== undefined) data.arc = arc;
+    if (body.firstPerson !== undefined) data.firstPerson = body.firstPerson;
+    if (body.defaultSecondPerson !== undefined) data.defaultSecondPerson = body.defaultSecondPerson;
+    if (body.speechRegister !== undefined) data.speechRegister = body.speechRegister;
+    if (body.speechStyleNotes !== undefined) data.speechStyleNotes = body.speechStyleNotes;
+    if (body.narrationVoiceNotes !== undefined) data.narrationVoiceNotes = body.narrationVoiceNotes;
     if (portraitUrl !== undefined) data.portraitUrl = portraitUrl;
     if (portraitPrompt !== undefined) data.portraitPrompt = portraitPrompt;
     if (isFavorite !== undefined) data.isFavorite = isFavorite;

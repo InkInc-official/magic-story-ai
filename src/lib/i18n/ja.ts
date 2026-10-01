@@ -75,6 +75,14 @@ export const CHAPTER_LENGTH_POLICY_LABELS: LabelMap = {
   strict: 'できるだけ厳密',
 };
 
+export const SPEECH_REGISTER_LABELS: LabelMap = {
+  plain: 'くだけた話し方',
+  mixed: '相手や場面で変化',
+  polite: '丁寧語中心',
+  formal: '非常に改まった話し方',
+  custom: '自由指定',
+};
+
 export const CHARACTER_ROLE_LABELS: LabelMap = {
   '主角': '主人公',
   '女主': 'ヒロイン',
