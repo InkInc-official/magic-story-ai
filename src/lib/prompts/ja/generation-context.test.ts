@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import { describe, test } from 'node:test';
-import { buildChapterGenerationContext, type ChapterGenerationSource } from './generation-context.js';
+import { buildChapterFullUserMessage, buildChapterGenerationContext, buildChapterSummaryUserMessage, buildCharacterVoiceContext, selectReviewCharacters, type ChapterGenerationSource } from './generation-context.js';
+import { buildContextWithinBudget, type ContextEntry } from './context-budget.js';
+import { buildCharacterKnowledgeContextEntries } from '../../character-knowledge.js';
 
 function source(overrides: Partial<ChapterGenerationSource> = {}): ChapterGenerationSource {
   const characters = Array.from({ length: 12 }, (_, index) => ({
@@ -112,5 +114,65 @@ describe('buildChapterGenerationContext integration', () => {
     assert.ok(!context.includes('未来だけの印'));
     assert.ok(!context.includes('非関連の知識'));
     assert.ok(!context.includes('北方の姫は生存している'));
+  });
+
+  test('keeps the authoritative knowledge boundary above conflicting free-form context', () => {
+    const secret = '実は美咲が犯人である';
+    const context = buildChapterGenerationContext(source({
+      outline: secret,
+      plots: [{ name: '事件', description: secret, status: 'active', priority: 10 }],
+      worldSettings: [{ name: '事件の真相', description: secret, rules: '' }],
+      storyFacts: [{ id: 'secret', content: '美咲が犯人', importance: 'high', readerInitiallyKnows: false }],
+      characterKnowledge: [],
+    }));
+    assert.ok(context.includes(secret));
+    assert.ok(context.includes('StoryFact／人物認識履歴側を優先する'));
+    assert.ok(context.includes('POV人物が知らない真実を内面の確定知識にしない'));
+  });
+
+  test('caps both final writer user messages while retaining required instructions and boundaries', () => {
+    const heavy = source({
+      storyFacts: [{ id: 'secret', content: '人物0の父は禁域で生存している', importance: 'high', readerInitiallyKnows: false }],
+      characterKnowledge: [],
+      scenes: Array.from({ length: 30 }, (_, index) => ({ name: `人物0の場面${index}`, description: '場面情報。'.repeat(300), location: '禁域', atmosphere: '紧张', timeOfDay: '夜晚' })),
+    });
+    const summaryMessage = buildChapterSummaryUserMessage(heavy);
+    const fullMessage = buildChapterFullUserMessage(heavy);
+    for (const message of [summaryMessage, fullMessage]) {
+      assert.ok(message.length <= 18_000);
+      assert.ok(message.includes('【タスク】'));
+      assert.ok(message.includes('視点人物：人物0'));
+      assert.ok(message.includes('章の目的：事件への関与を決意する'));
+      assert.ok(message.includes('情報開示・人物認識の優先規則'));
+    }
+    assert.ok(summaryMessage.includes('章要約へ整理する'));
+    assert.ok(fullMessage.includes('章本文を書く'));
+  });
+
+  test('prioritizes a late API-order POV in review selection and retains its voice and knowledge', () => {
+    const characters = Array.from({ length: 20 }, (_, index) => ({
+      id: `review-${index}`, name: `レビュー人物${index}`, role: '配角', firstPerson: index === 19 ? '私' : '僕', speechRegister: 'plain',
+    }));
+    const explicitCast = characters.map((character, index) => ({ characterId: character.id, participation: 'present' as const, notes: '', order: index, character }));
+    const selected = selectReviewCharacters(characters, explicitCast, '', 'review-19');
+    assert.equal(selected.length, 8);
+    assert.equal(selected[0].id, 'review-19');
+    assert.ok(!selected.some(character => character.id === 'review-7'));
+    const voice = buildCharacterVoiceContext(selected, [], 'first_person', 'review-19');
+    const fact = { id: 'review-fact', content: 'レビュー人物19が鍵を持つ', importance: 'high', readerInitiallyKnows: false };
+    const knowledge = buildCharacterKnowledgeContextEntries({
+      facts: [fact], events: [{ id: 'review-knowledge', factId: fact.id, characterId: 'review-19', status: 'knows', effectiveChapterId: null }],
+      characters: selected, factContext: { chapterId: 'chapter', chapterOrder: 10, chapterText: fact.content }, povCharacterId: 'review-19', perspective: 'first_person',
+    });
+    const reviewContext = buildContextWithinBudget([
+      { id: 'required', tier: 0, required: true, full: 'レビュー指示' },
+      { id: 'voice', tier: 1, full: voice },
+      ...knowledge,
+      ...Array.from({ length: 30 }, (_, index): ContextEntry => ({ id: `optional-${index}`, tier: 3, full: '背景。'.repeat(500) })),
+    ], 8_000).text;
+    assert.ok(reviewContext.length <= 8_000);
+    assert.ok(reviewContext.includes('レビュー人物19'));
+    assert.ok(reviewContext.includes('一人称：私'));
+    assert.ok(reviewContext.includes('真実として知っている'));
   });
 });

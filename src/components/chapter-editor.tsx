@@ -15,8 +15,8 @@ import { AdversarialReviewPanel } from '@/components/adversarial-review';
 import { ChapterPreview } from '@/components/chapter-preview';
 import { EMOTION_ARC_LABELS, EMOTION_LABELS, HOOK_LABELS } from '@/lib/i18n';
 import {
-  buildChapterGenerationContext,
-  buildChapterSemanticContext,
+  buildChapterFullUserMessage,
+  buildChapterSummaryUserMessage,
   type ChapterGenerationSource,
 } from '@/lib/prompts/ja';
 
@@ -321,24 +321,7 @@ export function ChapterEditor({ projectId }: ChapterEditorProps) {
 
     try {
       const generationSource = await loadGenerationContext();
-      const semanticContext = buildChapterSemanticContext(generationSource);
-      const selectedContext = buildChapterGenerationContext(generationSource);
-      const prompt = `以下の詳細プロットを、本文生成に使える章要約へ整理してください。
-
-【章タイトル】
-${editTitle}
-
-【詳細プロット】
-${editOutline}
-
-${semanticContext ? `【感情・章構成の指定】\n${semanticContext}\n\n` : ''}${selectedContext ? `${selectedContext}\n\n` : ''}【要約の役割】
-- 本章の目的、中心となる出来事、人物の選択と変化、必要な会話要点を整理する。
-- 視点人物が明示または文脈から特定できる場合は、その人物と知識範囲を示す。
-- 前章から持ち越す情報、関連設定、伏線のうち、本章に必要なものだけを含める。
-- 感情や章頭・章末の形式は上記指定の意味を踏まえるが、展開に合わない型を機械的に強制しない。
-- 長さは内容を過不足なく本文化できる分量とし、固定文字数に合わせるための水増しをしない。
-
-要約本文だけを日本語で出力してください。`;
+      const prompt = buildChapterSummaryUserMessage(generationSource);
 
       const res = await fetch('/api/ai', {
         method: 'POST',
@@ -395,28 +378,7 @@ ${semanticContext ? `【感情・章構成の指定】\n${semanticContext}\n\n` 
 
     try {
       const generationSource = await loadGenerationContext();
-      const semanticContext = buildChapterSemanticContext(generationSource);
-      const selectedContext = buildChapterGenerationContext(generationSource);
-      const prompt = `以下の章要約と詳細プロットから、日本語小説の章本文を書いてください。
-
-【章タイトル】
-${editTitle}
-
-【章要約】
-${editSummary}
-
-【詳細プロット】
-${editOutline || '未設定。章要約と既存設定を優先する。'}
-
-${semanticContext ? `【感情・章構成の指定】\n${semanticContext}\n\n` : ''}${selectedContext ? `${selectedContext}\n\n` : ''}【このタスクの指示】
-- 章要約を中心に、詳細プロットと既存設定に矛盾しない本文へ展開する。
-- 視点人物の知識範囲、人物の性格、関係性、呼称、話し方の手掛かりを守る。
-- 前章の状態を自然に引き継ぎ、未回収伏線や時系列は本章に関連する場合だけ反映する。
-- 説明、描写、心理、行動、台詞は場面の目的と速度に応じて選ぶ。五感描写や行動による心理表現を機械的に増やさない。
-- 章末は指定があればその意味を踏まえ、指定がなければ引き、余韻、疑問、発見、転換、静かな終了などから章の役割に合う形を選ぶ。
-- 上記の目標文字数と文字数方針を適用する。
-
-前置きや解説を付けず、章本文だけを日本語で出力してください。`;
+      const prompt = buildChapterFullUserMessage(generationSource);
 
       const res = await fetch('/api/ai', {
         method: 'POST',

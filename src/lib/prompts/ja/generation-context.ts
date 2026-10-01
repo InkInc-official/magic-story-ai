@@ -166,6 +166,16 @@ export interface ChapterGenerationSource {
   characterKnowledge?: CharacterKnowledgeEvent[];
 }
 
+export const AUTHORITATIVE_KNOWLEDGE_BOUNDARY = `【情報開示・人物認識の優先規則】
+StoryFactおよび人物認識履歴で明示された開示状態・認識状態を正規の境界として扱う。
+プロット、設定、要約、前章本文などの自由記述に同じ情報や矛盾する情報が含まれていても、StoryFact／人物認識履歴側を優先する。
+- hiddenの事実を予定より早く読者へ直接開示しない。
+- POV人物が知らない真実を内面の確定知識にしない。
+- suspectsを確定知識として扱わない。
+- believes_falseを作者の真実へ勝手に修正しない。
+- 現在章の認識変化より前に、変更後の認識を使わない。
+この規則はStoryFactまたは人物認識履歴に登録された情報だけに適用し、それ以外の一般情報は自由記述に従う。`;
+
 export function resolveChapterWritingSettings(source: ChapterGenerationSource) {
   const povCharacterId = source.povCharacterId || source.project?.defaultPovCharacterId || null;
   return {
@@ -222,7 +232,21 @@ export function selectChapterCast(source: ChapterGenerationSource) {
   return { explicit: true, resolvedPov, fullCharacters, compactPresent: present.filter(entry => !fullIds.has(entry.characterId)), mentioned };
 }
 
-export function buildChapterGenerationContext(source: ChapterGenerationSource): string {
+export function selectReviewCharacters(
+  characters: GenerationCharacter[],
+  explicitCast: GenerationChapterCharacter[],
+  content: string,
+  resolvedPovId?: string | null,
+): GenerationCharacter[] {
+  const byId = new Map(characters.map(character => [character.id, character]));
+  const pov = resolvedPovId ? byId.get(resolvedPovId) : undefined;
+  const candidates = explicitCast.length > 0
+    ? explicitCast.filter(entry => entry.participation === 'present').sort((a, b) => a.order - b.order).map(entry => byId.get(entry.characterId) || entry.character)
+    : characters.filter(character => content.includes(character.name));
+  return [...new Map([...(pov ? [pov] : []), ...candidates].map(character => [character.id, character])).values()].slice(0, 8);
+}
+
+function buildChapterGenerationContextEntries(source: ChapterGenerationSource): ContextEntry[] {
   const chapterText = `${source.title}\n${source.outline}\n${source.summary}`;
   const cast = selectChapterCast(source);
   const resolvedPov = cast.resolvedPov;
@@ -270,6 +294,9 @@ export function buildChapterGenerationContext(source: ChapterGenerationSource): 
   });
   const writingInstructions = buildChapterWritingInstructions(source);
   if (writingInstructions) entries.push({ id: 'writing-instructions', tier: 0, required: true, full: `【作品・章の執筆設定】\n${writingInstructions}` });
+  if ((source.storyFacts?.length || 0) > 0 || (source.characterKnowledge?.length || 0) > 0) {
+    entries.push({ id: 'authoritative-knowledge-boundary', tier: 0, required: true, full: AUTHORITATIVE_KNOWLEDGE_BOUNDARY });
+  }
   if (source.project) entries.push({
     id: 'project', tier: 0, required: true,
     full: `【プロジェクト】\n作品名：${source.project.title}\nジャンル：${formatSemanticLabel('genre', source.project.genre)}\n作品概要：${safeContextExcerpt(source.project.description || '未設定', 1600)}`,
@@ -374,10 +401,52 @@ export function buildChapterGenerationContext(source: ChapterGenerationSource): 
     entries.push({ id: `edge:${index}`, tier: 4, relevance: -index, full: `【ノード間関係】\n- ${relation}`, minimum: `【物語ノード関係】${relation}` });
   });
 
-  const result = buildContextWithinBudget(entries);
+  return entries;
+}
+
+function withOmissionNote(result: ReturnType<typeof buildContextWithinBudget>): string {
   if (result.omitted.length === 0 || result.text.length > 17_950) return result.text;
   const note = '\n\n（追加の背景設定はコンテキスト上限のため省略）';
   return result.text.length + note.length <= 18_000 ? `${result.text}${note}` : result.text;
+}
+
+export function buildChapterGenerationContext(source: ChapterGenerationSource): string {
+  return withOmissionNote(buildContextWithinBudget(buildChapterGenerationContextEntries(source)));
+}
+
+const SUMMARY_TASK_INSTRUCTION = `【タスク】
+以下のコンテキストに従い、詳細プロットを本文生成に使える章要約へ整理する。
+- 本章の目的、中心となる出来事、人物の選択と変化、必要な会話要点を整理する。
+- 視点人物が特定できる場合は、その人物と知識範囲を反映する。
+- 前章から持ち越す情報、関連設定、伏線は本章に必要なものだけを含める。
+- 感情や章頭・章末の形式は指定の意味を踏まえるが、展開に合わない型を機械的に強制しない。
+- 長さは内容を過不足なく本文化できる分量とし、固定文字数に合わせるための水増しをしない。
+要約本文だけを日本語で出力する。`;
+
+const FULL_TASK_INSTRUCTION = `【タスク】
+以下のコンテキストに従い、章要約と詳細プロットから日本語小説の章本文を書く。
+- 章要約を中心に、詳細プロットと既存設定に矛盾しない本文へ展開する。
+- 視点人物の知識範囲、人物の性格、関係性、呼称、話し方を守る。
+- 前章の状態を自然に引き継ぎ、未回収伏線や時系列は本章に関連する場合だけ反映する。
+- 説明、描写、心理、行動、台詞は場面の目的と速度に応じて選ぶ。
+- 章末は指定があればその意味を踏まえ、なければ章の役割に合う形を選ぶ。
+- 目標文字数と文字数方針を適用する。
+前置きや解説を付けず、章本文だけを日本語で出力する。`;
+
+function buildWriterUserMessage(source: ChapterGenerationSource, task: string): string {
+  const entries: ContextEntry[] = [
+    { id: 'writer-task', tier: 0, required: true, full: task },
+    ...buildChapterGenerationContextEntries(source),
+  ];
+  return withOmissionNote(buildContextWithinBudget(entries));
+}
+
+export function buildChapterSummaryUserMessage(source: ChapterGenerationSource): string {
+  return buildWriterUserMessage(source, SUMMARY_TASK_INSTRUCTION);
+}
+
+export function buildChapterFullUserMessage(source: ChapterGenerationSource): string {
+  return buildWriterUserMessage(source, FULL_TASK_INSTRUCTION);
 }
 
 export function buildChapterSemanticContext(values: Pick<ChapterGenerationSource, 'emotionTarget' | 'emotionArc' | 'hookStart' | 'hookEnd'>): string {

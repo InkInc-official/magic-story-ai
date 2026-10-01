@@ -78,4 +78,18 @@ describe('StoryFact prompt boundaries', () => {
     assert.ok(STORY_FACT_REVIEW_GUIDANCE.includes('未開示を機械的に誤りと断定しない'));
     assert.ok(STORY_FACT_REVIEW_GUIDANCE.includes('読者が知らない前提'));
   });
+  test('orders equal-condition facts by explicit importance rank instead of alphabetically', () => {
+    const entries = buildStoryFactContextEntries([
+      fact({ id: 'low', content: '美咲の低重要度情報', importance: 'low' }),
+      fact({ id: 'medium', content: '美咲の中重要度情報', importance: 'medium' }),
+      fact({ id: 'high', content: '美咲の高重要度情報', importance: 'high' }),
+      fact({ id: 'unknown', content: '美咲の未知重要度情報', importance: 'legacy' }),
+    ], context);
+    assert.deepEqual(entries.map(entry => entry.id), [
+      'story-fact:hidden-relevant:high',
+      'story-fact:hidden-relevant:medium',
+      'story-fact:hidden-relevant:low',
+      'story-fact:hidden-relevant:unknown',
+    ]);
+  });
 });

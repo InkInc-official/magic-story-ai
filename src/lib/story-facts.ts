@@ -28,6 +28,8 @@ export interface StoryFactContext {
   forceRelevantFactIds?: ReadonlySet<string>;
 }
 
+const STORY_FACT_IMPORTANCE_RANK: Record<string, number> = { high: 3, medium: 2, low: 1 };
+
 export function validateStoryFactInput(value: Record<string, unknown>, partial = false): string | null {
   if (!partial || value.content !== undefined) {
     if (typeof value.content !== 'string' || !value.content.trim()) return '事実の内容を入力してください';
@@ -83,6 +85,9 @@ export function buildStoryFactContextEntries(facts: StoryFactValue[], context: S
   for (const fact of facts) {
     const audience = classifyStoryFact(fact, context);
     if (audience !== 'excluded') groups.get(audience)?.push(fact);
+  }
+  for (const values of groups.values()) {
+    values.sort((a, b) => (STORY_FACT_IMPORTANCE_RANK[b.importance] ?? 0) - (STORY_FACT_IMPORTANCE_RANK[a.importance] ?? 0));
   }
   const definitions = {
     'reveal-now': { title: '【この章で読者へ開示してよい事実】', tier: 1 as const, relevance: 145, suffix: '開示予定であり、必ず開示する絶対条件ではない。' },

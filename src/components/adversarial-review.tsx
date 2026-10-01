@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Loader2, Swords, AlertTriangle, CheckCircle2 } from 'lucide-react';
-import { buildCharacterVoiceContext, buildContextWithinBudget, formatSemanticLabel, type ContextEntry, type GenerationChapterCharacter, type GenerationCharacter, type GenerationRelationship } from '@/lib/prompts/ja';
+import { AUTHORITATIVE_KNOWLEDGE_BOUNDARY, buildCharacterVoiceContext, buildContextWithinBudget, formatSemanticLabel, selectReviewCharacters, type ContextEntry, type GenerationChapterCharacter, type GenerationCharacter, type GenerationRelationship } from '@/lib/prompts/ja';
 import { displayLabel, NARRATIVE_PERSPECTIVE_LABELS } from '@/lib/i18n';
 import { buildStoryFactContextEntries, STORY_FACT_REVIEW_GUIDANCE, type StoryFactValue } from '@/lib/story-facts';
 import { buildCharacterKnowledgeContextEntries, CHARACTER_KNOWLEDGE_REVIEW_GUIDANCE, type CharacterKnowledgeEvent } from '@/lib/character-knowledge';
@@ -78,8 +78,7 @@ export function AdversarialReviewPanel({ content, chapterTitle, projectId, chapt
           const knowledgeEvents = knowledgeResponse.ok ? await knowledgeResponse.json() as CharacterKnowledgeEvent[] : [];
           const resolvedPovId = povCharacterId || project?.defaultPovCharacterId;
           const povName = characterData.characters?.find(character => character.id === resolvedPovId)?.name;
-          const presentIds = new Set(explicitCast.filter(entry => entry.participation === 'present').map(entry => entry.characterId));
-          const reviewCharacters = (characterData.characters || []).filter(character => character.id === resolvedPovId || (explicitCast.length > 0 ? presentIds.has(character.id) : content.includes(character.name))).slice(0, 8);
+          const reviewCharacters = selectReviewCharacters(characterData.characters || [], explicitCast, content, resolvedPovId);
           const reviewCharacterIds = new Set(reviewCharacters.map(character => character.id));
           const reviewRelationships = (characterData.relationships || []).filter(relation => reviewCharacterIds.has(relation.fromCharacterId) && reviewCharacterIds.has(relation.toCharacterId));
           const voiceContext = buildCharacterVoiceContext(reviewCharacters, reviewRelationships, project?.narrativePerspective, resolvedPovId);
@@ -97,6 +96,10 @@ export function AdversarialReviewPanel({ content, chapterTitle, projectId, chapt
             if (castContext) reviewEntries.push({ id: 'review-cast', tier: 1, relevance: 90, full: `【明示章キャスト】\n${castContext}`, compact: `【明示章キャスト】\n${castContext.split('\n').slice(0, 2).join('\n')}` });
             const currentChapter = chapters.find(chapter => chapter.id === chapterId);
             if (chapterId && currentChapter) {
+              if (storyFacts.length > 0 || knowledgeEvents.length > 0) reviewEntries.push({
+                id: 'review-authoritative-knowledge-boundary', tier: 0, required: true,
+                full: `${AUTHORITATIVE_KNOWLEDGE_BOUNDARY}\nレビューでは自由記述に秘密が書かれていること自体を即座に誤りとせず、評価対象本文がこの境界を破っているかを確認する。`,
+              });
               const currentKnowledgeFactIds = new Set(knowledgeEvents.filter(event => event.effectiveChapterId === chapterId).map(event => event.factId));
               const factContext = { chapterId, chapterOrder: currentChapter.order, chapterText: `${chapterTitle}\n${chapterPurpose || ''}\n${content}`, forceRelevantFactIds: currentKnowledgeFactIds };
               reviewEntries.push(...buildStoryFactContextEntries(storyFacts, factContext));

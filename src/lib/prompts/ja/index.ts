@@ -16,10 +16,14 @@ export {
   type SemanticLabelCategory,
 } from './semantic-labels';
 export {
+  AUTHORITATIVE_KNOWLEDGE_BOUNDARY,
+  buildChapterFullUserMessage,
   buildChapterGenerationContext,
   buildChapterSemanticContext,
+  buildChapterSummaryUserMessage,
   buildCharacterVoiceContext,
   selectChapterCast,
+  selectReviewCharacters,
   type ChapterGenerationSource,
   type GenerationCharacter,
   type GenerationChapterCharacter,

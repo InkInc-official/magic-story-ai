@@ -81,15 +81,16 @@ export function buildCharacterKnowledgeContextEntries(args: {
       if (!state.startingState && !state.currentChapterChange && !(isPov && hidden)) continue;
       const scope = isPov ? 'POV人物' : '登場人物';
       const narrationRule = isPov && strongPov ? 'POVの内面・地の文にこの認識境界を強く適用する。' : objective ? '台詞・行動・反応・情報漏洩の整合性に使用し、客観描写へ内面を追加しない。' : '台詞・行動・反応の整合性に使用する。';
+      const startingAuthorNote = state.startingState?.notes ? `\n- 作者向け運用メモ：${state.startingState.notes}` : '';
       entries.push({
         id: `knowledge:start:${fact.id}:${character.id}`, tier: isPov ? 1 : 2, relevance: isPov ? 144 : 125 - index,
-        full: `【${scope}の章開始時点の認識】\n${character.name}\n- ${stateText(state.startingState, fact, hidden)}\n- ${narrationRule}`,
+        full: `【${scope}の章開始時点の認識】\n${character.name}\n- ${stateText(state.startingState, fact, hidden)}${startingAuthorNote}\n- ${narrationRule}`,
         compact: `【${scope}の章開始時点の認識】\n${character.name}：${stateText(state.startingState, fact, hidden)}`,
         minimum: `【人物認識】${character.name}：${stateText(state.startingState, fact, hidden)}`,
       });
       if (state.currentChapterChange) entries.push({
         id: `knowledge:change:${fact.id}:${character.id}`, tier: isPov ? 1 : 2, relevance: isPov ? 145 : 130 - index,
-        full: `【この章で予定されている認識変化】\n${character.name}\n- ${stateText(state.currentChapterChange, fact, false)}\n- この認識は章開始時点ではなく、章中の変化後にのみ使用する。`,
+        full: `【この章で予定されている認識変化】\n${character.name}\n- ${stateText(state.currentChapterChange, fact, false)}${state.currentChapterChange.notes ? `\n- 作者向け運用メモ：${state.currentChapterChange.notes}` : ''}\n- この認識は章開始時点ではなく、章中の変化後にのみ使用する。`,
         compact: `【この章での認識変化】${character.name}：${stateText(state.currentChapterChange, fact, false)}（章中の変化後から有効）`,
         minimum: `【認識変化】${character.name}：章中に${state.currentChapterChange.status}へ変化`,
       });

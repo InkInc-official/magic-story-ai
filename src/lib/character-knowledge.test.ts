@@ -50,6 +50,19 @@ describe('POV and perception prompt boundaries', () => {
     assert.ok(build([], 'third_person_limited').includes('内面・地の文'));
     assert.ok(build([event({ status: 'suspects' })], 'third_person_objective').includes('客観描写へ内面を追加しない'));
   });
+  test('includes author notes only in the full representation without changing the false belief', () => {
+    const entries = buildCharacterKnowledgeContextEntries({
+      facts: [fact],
+      events: [event({ status: 'believes_false', beliefNotes: '健一が犯人だと確信している', notes: 'ただし内心では少し迷っている' })],
+      characters: [{ id: 'c', name: '太郎' }], factContext: context, povCharacterId: 'c', perspective: 'first_person',
+    });
+    const entry = entries[0];
+    assert.ok(entry.full.includes('健一が犯人だと確信している'));
+    assert.ok(entry.full.includes('作者向け運用メモ：ただし内心では少し迷っている'));
+    assert.ok(!entry.compact?.includes('ただし内心では少し迷っている'));
+    assert.ok(!entry.minimum?.includes('ただし内心では少し迷っている'));
+    assert.ok(entry.full.includes('作者の真実「美咲が犯人である」'));
+  });
   test('review guidance covers leakage, certainty, false belief and timing', () => {
     assert.ok(CHARACTER_KNOWLEDGE_REVIEW_GUIDANCE.includes('知らない作者専用の真実'));
     assert.ok(CHARACTER_KNOWLEDGE_REVIEW_GUIDANCE.includes('疑いを確定知識'));
