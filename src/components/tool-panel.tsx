@@ -8,13 +8,14 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight, Wrench } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { displayLabel, TOOL_DESCRIPTION_LABELS, TOOL_LABELS } from '@/lib/i18n';
 
 const CATEGORY_CONFIG: Record<string, { label: string; color: string; bgColor: string }> = {
-  outline:   { label: '大纲', color: 'text-amber-400', bgColor: 'bg-amber-400/10' },
-  character: { label: '角色', color: 'text-rose-400', bgColor: 'bg-rose-400/10' },
-  world:     { label: '世界', color: 'text-teal-400', bgColor: 'bg-teal-400/10' },
-  scene:     { label: '场景', color: 'text-orange-400', bgColor: 'bg-orange-400/10' },
-  graph:     { label: '图谱', color: 'text-blue-400', bgColor: 'bg-blue-400/10' },
+  outline:   { label: 'プロット', color: 'text-amber-400', bgColor: 'bg-amber-400/10' },
+  character: { label: 'キャラクター', color: 'text-rose-400', bgColor: 'bg-rose-400/10' },
+  world:     { label: '世界観', color: 'text-teal-400', bgColor: 'bg-teal-400/10' },
+  scene:     { label: 'シーン', color: 'text-orange-400', bgColor: 'bg-orange-400/10' },
+  graph:     { label: 'グラフ', color: 'text-blue-400', bgColor: 'bg-blue-400/10' },
 };
 
 interface ToolPanelProps {
@@ -56,7 +57,7 @@ export function ToolPanel({ collapsed, onToggleCollapse }: ToolPanelProps) {
               className="flex items-center gap-2"
             >
               <Wrench size={14} className="text-primary" />
-              <span className="text-xs font-medium text-foreground">工具面板</span>
+              <span className="text-xs font-medium text-foreground">ツールパネル</span>
               <Badge variant="outline" className="text-[10px] px-1.5 py-0">
                 {enabledCount}/{totalCount}
               </Badge>
@@ -67,7 +68,7 @@ export function ToolPanel({ collapsed, onToggleCollapse }: ToolPanelProps) {
             size="sm"
             onClick={onToggleCollapse}
             className="h-7 w-7 p-0 shrink-0"
-            title={collapsed ? '展开工具面板' : '收起工具面板'}
+            title={collapsed ? 'ツールパネルを開く' : 'ツールパネルを閉じる'}
           >
             {collapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
           </Button>
@@ -107,11 +108,11 @@ export function ToolPanel({ collapsed, onToggleCollapse }: ToolPanelProps) {
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-1">
                               <span className={`text-xs font-medium truncate ${tool.enabled ? 'text-foreground' : 'text-muted-foreground'}`}>
-                                {tool.name}
+                                {displayLabel(TOOL_LABELS, tool.id)}
                               </span>
                             </div>
                             <p className="text-[10px] text-muted-foreground truncate leading-tight mt-0.5">
-                              {tool.description}
+                              {displayLabel(TOOL_DESCRIPTION_LABELS, tool.id)}
                             </p>
                           </div>
                           <Switch
@@ -141,7 +142,7 @@ export function ToolPanel({ collapsed, onToggleCollapse }: ToolPanelProps) {
                   className={`w-8 h-8 rounded-lg flex items-center justify-center cursor-pointer transition-colors ${
                     tool.enabled ? config.bgColor : 'opacity-40 hover:opacity-60'
                   }`}
-                  title={`${tool.name}${tool.enabled ? '' : ' (已禁用)'}`}
+                  title={`${displayLabel(TOOL_LABELS, tool.id)}${tool.enabled ? '' : '（無効）'}`}
                   onClick={() => toggleTool(tool.id)}
                 >
                   <span className="text-xs">{tool.icon}</span>
@@ -156,7 +157,7 @@ export function ToolPanel({ collapsed, onToggleCollapse }: ToolPanelProps) {
           <div className="p-3 border-t border-border shrink-0">
             <div className="flex items-center justify-between">
               <span className="text-[10px] text-muted-foreground">
-                已启用 {enabledCount} 个工具
+                {enabledCount}個のツールが有効
               </span>
               <Button
                 variant="ghost"
@@ -169,7 +170,7 @@ export function ToolPanel({ collapsed, onToggleCollapse }: ToolPanelProps) {
                   });
                 }}
               >
-                {enabledCount === totalCount ? '全部禁用' : '全部启用'}
+                {enabledCount === totalCount ? 'すべて無効' : 'すべて有効'}
               </Button>
             </div>
           </div>

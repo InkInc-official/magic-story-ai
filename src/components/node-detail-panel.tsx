@@ -92,7 +92,7 @@ export function NodeDetailPanel({
               {config.label}
             </span>
             <h3 className="text-sm font-semibold text-foreground truncate max-w-[200px]">
-              {data.title || '未命名节点'}
+              {data.title || '無題のノード'}
             </h3>
           </div>
           <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onClose}>
@@ -106,7 +106,7 @@ export function NodeDetailPanel({
             {/* Description */}
             {data.description && (
               <div>
-                <label className="text-xs text-muted-foreground font-medium mb-1 block">描述</label>
+                <label className="text-xs text-muted-foreground font-medium mb-1 block">説明</label>
                 <p className="text-sm text-foreground/80 leading-relaxed whitespace-pre-wrap">
                   {data.description}
                 </p>
@@ -117,7 +117,7 @@ export function NodeDetailPanel({
             {connectedNodes.length > 0 && (
               <div>
                 <label className="text-xs text-muted-foreground font-medium mb-2 block">
-                  关联节点 ({connectedNodes.length})
+                  関連ノード（{connectedNodes.length}）
                 </label>
                 <div className="space-y-1.5">
                   {connectedNodes.map((cn) => {
@@ -148,7 +148,7 @@ export function NodeDetailPanel({
                           }}
                         />
                         <span className="text-xs text-foreground truncate flex-1">
-                          {cnData?.title || '未命名'}
+                          {cnData?.title || '無題'}
                         </span>
                         <span className="text-muted-foreground">
                           {isOutgoing ? <ArrowRight size={10} /> : <ArrowRight size={10} className="rotate-180" />}
@@ -164,7 +164,7 @@ export function NodeDetailPanel({
             {characters.length > 0 && (
               <div>
                 <label className="text-xs text-muted-foreground font-medium mb-2 flex items-center gap-1">
-                  <Users size={11} /> 关联角色 ({characters.length})
+                  <Users size={11} /> 関連キャラクター（{characters.length}）
                 </label>
                 <div className="flex flex-wrap gap-1.5">
                   {characters.map((char, idx) => (
@@ -180,7 +180,7 @@ export function NodeDetailPanel({
             {scenes.length > 0 && (
               <div>
                 <label className="text-xs text-muted-foreground font-medium mb-2 flex items-center gap-1">
-                  <MapPin size={11} /> 关联场景 ({scenes.length})
+                  <MapPin size={11} /> 関連シーン（{scenes.length}）
                 </label>
                 <div className="flex flex-wrap gap-1.5">
                   {scenes.map((scene, idx) => (
@@ -196,7 +196,7 @@ export function NodeDetailPanel({
             {foreshadowing.length > 0 && (
               <div>
                 <label className="text-xs text-amber-400/70 font-medium mb-2 flex items-center gap-1">
-                  <Sparkles size={11} /> 伏笔 ({foreshadowing.length})
+                  <Sparkles size={11} /> 伏線（{foreshadowing.length}）
                 </label>
                 <div className="space-y-1">
                   {foreshadowing.map((fs, idx) => (
@@ -227,7 +227,7 @@ export function NodeDetailPanel({
               className="flex-1 text-xs gap-1"
               onClick={() => onEdit(node.id)}
             >
-              <Edit3 size={12} /> 编辑
+              <Edit3 size={12} /> 編集
             </Button>
             <Button
               variant="outline"
@@ -235,7 +235,7 @@ export function NodeDetailPanel({
               className="flex-1 text-xs gap-1"
               onClick={onOpenInCreation}
             >
-              <ExternalLink size={12} /> 在创作中心打开
+              <ExternalLink size={12} /> 創作センターで開く
             </Button>
           </div>
           {!showDeleteConfirm ? (
@@ -245,7 +245,7 @@ export function NodeDetailPanel({
               className="w-full text-xs text-destructive hover:text-destructive gap-1"
               onClick={() => setShowDeleteConfirm(true)}
             >
-              <Trash2 size={12} /> 删除节点
+              <Trash2 size={12} /> ノードを削除
             </Button>
           ) : (
             <div className="flex gap-2">
@@ -255,7 +255,7 @@ export function NodeDetailPanel({
                 className="flex-1 text-xs"
                 onClick={() => setShowDeleteConfirm(false)}
               >
-                取消
+                キャンセル
               </Button>
               <Button
                 variant="destructive"
@@ -266,7 +266,7 @@ export function NodeDetailPanel({
                   setShowDeleteConfirm(false);
                 }}
               >
-                确认删除
+                削除する
               </Button>
             </div>
           )}

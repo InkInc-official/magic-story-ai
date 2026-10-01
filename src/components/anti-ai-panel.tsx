@@ -14,12 +14,12 @@ interface AntiAIPanelProps {
 }
 
 const DIMENSION_LABELS: Record<string, string> = {
-  bannedWordDensity: '禁用词密度',
-  parallelPattern: '并列句式',
-  psychologicalTelling: '心理直白',
-  rhythmUniformity: '节奏均匀',
-  dialogueSameness: '对话同质',
-  endingGrandiosity: '结尾升华',
+  bannedWordDensity: '頻出表現の密度',
+  parallelPattern: '並列構文',
+  psychologicalTelling: '直接的な心理説明',
+  rhythmUniformity: 'リズムの均一さ',
+  dialogueSameness: '会話の均質さ',
+  endingGrandiosity: '大げさな結末',
 };
 
 export function AntiAIPanel({ content, onApplyFix }: AntiAIPanelProps) {
@@ -108,8 +108,8 @@ ${content}
 
   const getScoreLabel = (score: number) => {
     if (score < 30) return '自然';
-    if (score < 60) return '偏AI';
-    return 'AI味重';
+    if (score < 60) return 'ややAI的';
+    return 'AIらしさが強い';
   };
 
   const radarData = result ? Object.entries(result.dimensions).map(([key, value]) => ({
@@ -123,7 +123,7 @@ ${content}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Shield size={18} className="text-rose-400" />
-          <h3 className="text-sm font-bold text-foreground">去AI味分析</h3>
+          <h3 className="text-sm font-bold text-foreground">AIらしさ分析</h3>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={handleAnalyze} disabled={isAnalyzing || !content.trim()}>
@@ -132,7 +132,7 @@ ${content}
           </Button>
           <Button size="sm" onClick={handleAIFix} disabled={isFixing || !content.trim()}>
             {isFixing ? <Loader2 size={14} className="mr-1 animate-spin" /> : <Sparkles size={14} className="mr-1" />}
-            AI去AI味
+            AIで自然な表現に修正
           </Button>
         </div>
       </div>
@@ -140,7 +140,7 @@ ${content}
       {!result && !isAnalyzing && (
         <div className="text-center py-8 text-muted-foreground">
           <Shield size={32} className="mx-auto mb-2 opacity-30" />
-          <p className="text-xs">点击"分析"检测文本中的AI写作痕迹</p>
+          <p className="text-xs">「分析」を押すと、文章に残るAI的な特徴を確認できます</p>
         </div>
       )}
 
@@ -162,7 +162,7 @@ ${content}
                 {getScoreLabel(result.overallScore)}
               </Badge>
               <p className="text-xs text-muted-foreground mt-1">
-                AI痕迹指数 (0=最自然, 100=最AI)
+                AIらしさ指数（0＝自然、100＝AI的）
               </p>
             </CardContent>
           </Card>
@@ -176,7 +176,7 @@ ${content}
                   <PolarAngleAxis dataKey="dimension" tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }} />
                   <PolarRadiusAxis angle={30} domain={[0, 100]} tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 8 }} />
                   <Radar
-                    name="AI痕迹"
+                    name="AIらしさ"
                     dataKey="score"
                     stroke="hsl(var(--primary))"
                     fill="hsl(var(--primary))"
@@ -191,7 +191,7 @@ ${content}
           {result.bannedWordsFound.length > 0 && (
             <Card className="bg-amber-400/5 border-amber-400/30">
               <CardContent className="p-3">
-                <p className="text-xs font-medium text-amber-400 mb-2">🚫 发现AI常用词</p>
+                <p className="text-xs font-medium text-amber-400 mb-2">🚫 AIで頻出する表現を検出</p>
                 <div className="flex flex-wrap gap-1">
                   {result.bannedWordsFound.map(word => (
                     <code key={word} className="text-[10px] px-1.5 py-0.5 bg-amber-400/10 text-amber-400 rounded">{word}</code>
@@ -204,7 +204,7 @@ ${content}
           {/* Suggestions */}
           <Card className="bg-card/50 border-border/50">
             <CardHeader className="pb-2">
-              <CardTitle className="text-xs font-medium text-foreground">改进建议</CardTitle>
+              <CardTitle className="text-xs font-medium text-foreground">改善案</CardTitle>
             </CardHeader>
             <CardContent>
               <ul className="space-y-1">

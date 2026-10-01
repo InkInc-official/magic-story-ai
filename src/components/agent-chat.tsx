@@ -132,7 +132,7 @@ export function AgentChat({ projectId, agentType }: AgentChatProps) {
         setMessages(prev =>
           prev.map(m =>
             m.id === assistantId
-              ? { ...m, content: '⚠️ 请求失败，请重试' }
+              ? { ...m, content: '⚠️ リクエストに失敗しました。もう一度お試しください' }
               : m
           )
         );
@@ -171,10 +171,10 @@ export function AgentChat({ projectId, agentType }: AgentChatProps) {
             <span className={`text-sm font-medium ${agent.color}`}>{agent.name}</span>
           </div>
           <div className="flex items-center gap-1">
-            <Button variant="ghost" size="sm" onClick={handleClear} title="清空对话">
+            <Button variant="ghost" size="sm" onClick={handleClear} title="会話を消去">
               <Trash2 size={14} className="text-muted-foreground" />
             </Button>
-            <Button variant="ghost" size="sm" onClick={() => setActiveAgent(null)} title="关闭">
+            <Button variant="ghost" size="sm" onClick={() => setActiveAgent(null)} title="閉じる">
               <X size={14} className="text-muted-foreground" />
             </Button>
           </div>
@@ -224,7 +224,7 @@ export function AgentChat({ projectId, agentType }: AgentChatProps) {
                   handleSend();
                 }
               }}
-              placeholder={`向${agent.name}提问...`}
+              placeholder={`${agent.name}に質問...`}
               rows={2}
               className="text-sm resize-none flex-1 min-h-[60px]"
               disabled={isStreaming}

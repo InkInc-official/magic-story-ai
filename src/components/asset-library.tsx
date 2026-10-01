@@ -11,6 +11,10 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Archive, Search, Download, Check, Users, GitBranch, Film, Globe, ListTree,
 } from 'lucide-react';
+import {
+  CHARACTER_ROLE_LABELS, displayLabel, GENRE_LABELS, PLOT_TYPE_LABELS,
+  WORLD_SETTING_TYPE_LABELS,
+} from '@/lib/i18n';
 
 interface Project {
   id: string;
@@ -35,10 +39,10 @@ interface AssetLibraryProps {
 type AssetTab = 'character' | 'plot' | 'scene' | 'world';
 
 const ASSET_TABS: { id: AssetTab; label: string; icon: React.ReactNode; accent: string }[] = [
-  { id: 'character', label: '角色', icon: <Users size={14} />, accent: 'text-rose-400' },
-  { id: 'plot', label: '剧情', icon: <GitBranch size={14} />, accent: 'text-amber-400' },
-  { id: 'scene', label: '场景', icon: <Film size={14} />, accent: 'text-orange-400' },
-  { id: 'world', label: '世界观', icon: <Globe size={14} />, accent: 'text-teal-400' },
+  { id: 'character', label: 'キャラクター', icon: <Users size={14} />, accent: 'text-rose-400' },
+  { id: 'plot', label: 'ストーリー', icon: <GitBranch size={14} />, accent: 'text-amber-400' },
+  { id: 'scene', label: 'シーン', icon: <Film size={14} />, accent: 'text-orange-400' },
+  { id: 'world', label: '世界観', icon: <Globe size={14} />, accent: 'text-teal-400' },
 ];
 
 export function AssetLibrary({ projectId }: AssetLibraryProps) {
@@ -161,22 +165,22 @@ export function AssetLibrary({ projectId }: AssetLibraryProps) {
       {/* Header */}
       <div className="flex items-center gap-2">
         <Archive size={20} className="text-blue-400" />
-        <h2 className="text-lg font-bold text-foreground">跨项目资产库</h2>
-        <Badge variant="secondary" className="text-xs">{linkedIds.size} 已导入</Badge>
+        <h2 className="text-lg font-bold text-foreground">プロジェクト間アセットライブラリ</h2>
+        <Badge variant="secondary" className="text-xs">{linkedIds.size}件インポート済み</Badge>
       </div>
 
       {/* Project Selector */}
       <Card className="bg-card/50 border-blue-500/20">
         <CardContent className="p-4">
           <div className="flex items-center gap-3">
-            <label className="text-xs text-muted-foreground font-medium shrink-0">源项目</label>
+            <label className="text-xs text-muted-foreground font-medium shrink-0">参照元プロジェクト</label>
             <select
               value={selectedProjectId}
               onChange={e => setSelectedProjectId(e.target.value)}
               className="flex-1 h-9 px-3 bg-secondary border border-input rounded-md text-sm text-foreground focus:outline-none"
             >
               {projects.map(p => (
-                <option key={p.id} value={p.id}>{p.title} ({p.genre})</option>
+                <option key={p.id} value={p.id}>{p.title} ({displayLabel(GENRE_LABELS, p.genre)})</option>
               ))}
             </select>
             {sourceProject && (
@@ -213,7 +217,7 @@ export function AssetLibrary({ projectId }: AssetLibraryProps) {
         <Input
           value={searchQuery}
           onChange={e => setSearchQuery(e.target.value)}
-          placeholder={`搜索${ASSET_TABS.find(t => t.id === activeTab)?.label}...`}
+          placeholder={`${ASSET_TABS.find(t => t.id === activeTab)?.label}を検索...`}
           className="pl-8 text-sm h-8"
         />
       </div>
@@ -228,11 +232,11 @@ export function AssetLibrary({ projectId }: AssetLibraryProps) {
       ) : !selectedProjectId ? (
         <div className="text-center py-12 text-muted-foreground">
           <Archive size={40} className="mx-auto mb-3 opacity-30" />
-          <p className="text-sm">请选择一个源项目</p>
+          <p className="text-sm">参照元プロジェクトを選択してください</p>
         </div>
       ) : filteredAssets.length === 0 ? (
         <div className="text-center py-12 text-muted-foreground">
-          <p className="text-sm">该项目没有{ASSET_TABS.find(t => t.id === activeTab)?.label}资产</p>
+          <p className="text-sm">このプロジェクトには{ASSET_TABS.find(t => t.id === activeTab)?.label}アセットがありません</p>
         </div>
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
@@ -262,13 +266,13 @@ export function AssetLibrary({ projectId }: AssetLibraryProps) {
                       <div className="flex items-center gap-1.5 mb-1">
                         <span className="font-medium text-foreground text-sm truncate">{asset.name as string}</span>
                         {asset.role && (
-                          <Badge variant="outline" className="text-[9px] shrink-0">{asset.role as string}</Badge>
+                          <Badge variant="outline" className="text-[9px] shrink-0">{displayLabel(CHARACTER_ROLE_LABELS, asset.role as string)}</Badge>
                         )}
                         {asset.plotType && (
-                          <Badge variant="outline" className="text-[9px] shrink-0">{asset.plotType as string}</Badge>
+                          <Badge variant="outline" className="text-[9px] shrink-0">{displayLabel(PLOT_TYPE_LABELS, asset.plotType as string)}</Badge>
                         )}
                         {asset.type && (
-                          <Badge variant="outline" className="text-[9px] shrink-0">{asset.type as string}</Badge>
+                          <Badge variant="outline" className="text-[9px] shrink-0">{displayLabel(WORLD_SETTING_TYPE_LABELS, asset.type as string)}</Badge>
                         )}
                       </div>
                       {(asset.description as string) && (
@@ -281,7 +285,7 @@ export function AssetLibrary({ projectId }: AssetLibraryProps) {
                     <div className="mt-2">
                       {isLinked ? (
                         <Button size="sm" variant="ghost" className="w-full h-7 text-xs text-emerald-400" disabled>
-                          <Check size={12} className="mr-1" />已导入
+                          <Check size={12} className="mr-1" />インポート済み
                         </Button>
                       ) : (
                         <Button
@@ -291,8 +295,8 @@ export function AssetLibrary({ projectId }: AssetLibraryProps) {
                           disabled={isImporting}
                           onClick={() => handleImport(assetId)}
                         >
-                          {isImporting ? '导入中...' : (
-                            <><Download size={12} className="mr-1" />导入</>
+                          {isImporting ? 'インポート中...' : (
+                            <><Download size={12} className="mr-1" />インポート</>
                           )}
                         </Button>
                       )}

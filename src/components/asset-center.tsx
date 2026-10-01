@@ -22,12 +22,12 @@ interface AssetCenterProps {
 }
 
 const SUB_NAV_ITEMS: { id: AssetSubView; label: string; icon: React.ReactNode; accent: string }[] = [
-  { id: 'overview', label: '总览', icon: <LayoutDashboard size={16} />, accent: 'text-amber-400' },
-  { id: 'characters', label: '角色', icon: <Users size={16} />, accent: 'text-rose-400' },
-  { id: 'plots', label: '剧情', icon: <GitBranch size={16} />, accent: 'text-amber-400' },
-  { id: 'scenes', label: '场景', icon: <Film size={16} />, accent: 'text-orange-400' },
-  { id: 'world', label: '世界观', icon: <Globe size={16} />, accent: 'text-teal-400' },
-  { id: 'library', label: '资产库', icon: <Archive size={16} />, accent: 'text-blue-400' },
+  { id: 'overview', label: '概要', icon: <LayoutDashboard size={16} />, accent: 'text-amber-400' },
+  { id: 'characters', label: 'キャラクター', icon: <Users size={16} />, accent: 'text-rose-400' },
+  { id: 'plots', label: 'プロット', icon: <GitBranch size={16} />, accent: 'text-amber-400' },
+  { id: 'scenes', label: 'シーン', icon: <Film size={16} />, accent: 'text-orange-400' },
+  { id: 'world', label: '世界観', icon: <Globe size={16} />, accent: 'text-teal-400' },
+  { id: 'library', label: '素材ライブラリ', icon: <Archive size={16} />, accent: 'text-blue-400' },
 ];
 
 export function AssetCenter({ projectId }: AssetCenterProps) {

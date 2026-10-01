@@ -13,6 +13,7 @@ import { BookOpen, Plus, Trash2, Save, Sparkles, ChevronRight, ChevronDown, Shie
 import { AntiAIPanel } from '@/components/anti-ai-panel';
 import { AdversarialReviewPanel } from '@/components/adversarial-review';
 import { ChapterPreview } from '@/components/chapter-preview';
+import { EMOTION_ARC_LABELS, EMOTION_LABELS, HOOK_LABELS } from '@/lib/i18n';
 
 interface Chapter {
   id: string;
@@ -34,46 +35,25 @@ interface ChapterEditorProps {
 }
 
 const STATUS_OPTIONS = [
-  { value: 'draft', label: '草稿', color: 'text-muted-foreground' },
-  { value: 'writing', label: '写作中', color: 'text-amber-400' },
-  { value: 'review', label: '审稿中', color: 'text-blue-400' },
-  { value: 'completed', label: '已完成', color: 'text-emerald-400' },
+  { value: 'draft', label: '下書き', color: 'text-muted-foreground' },
+  { value: 'writing', label: '執筆中', color: 'text-amber-400' },
+  { value: 'review', label: 'レビュー中', color: 'text-blue-400' },
+  { value: 'completed', label: '完成', color: 'text-emerald-400' },
 ];
 
 const EMOTION_TARGETS = [
-  { value: '', label: '未设定' },
-  { value: '爽快', label: '🔥 爽快' },
-  { value: '感动', label: '💧 感动' },
-  { value: '紧张', label: '😰 紧张' },
-  { value: '期待', label: '✨ 期待' },
-  { value: '愤怒', label: '😡 愤怒' },
-  { value: '悲伤', label: '😢 悲伤' },
-  { value: '惊喜', label: '😮 惊喜' },
-  { value: '恐惧', label: '👻 恐惧' },
-  { value: '温暖', label: '☀️ 温暖' },
-  { value: '震撼', label: '💥 震撼' },
+  { value: '', label: '未設定' },
+  ...Object.entries(EMOTION_LABELS).map(([value, label]) => ({ value, label })),
 ];
 
 const EMOTION_ARCS = [
-  { value: '', label: '未设定' },
-  { value: 'V型', label: '📉 V型 (低→高)' },
-  { value: '倒V型', label: '📈 倒V型 (高→低)' },
-  { value: 'W型', label: '📊 W型 (起伏)' },
-  { value: '递进', label: '📈 递进 (持续升高)' },
-  { value: '延迟满足', label: '⏳ 延迟满足' },
-  { value: '突变', label: '⚡ 突变' },
+  { value: '', label: '未設定' },
+  ...Object.entries(EMOTION_ARC_LABELS).map(([value, label]) => ({ value, label })),
 ];
 
 const HOOK_TYPES = [
-  { value: '', label: '未设定' },
-  { value: '悬念', label: '❓ 悬念' },
-  { value: '反转', label: '🔄 反转' },
-  { value: '冲突', label: '⚔️ 冲突' },
-  { value: '揭秘', label: '💡 揭秘' },
-  { value: '危机', label: '🚨 危机' },
-  { value: '承诺', label: '🤝 承诺' },
-  { value: '回忆', label: '💭 回忆' },
-  { value: '对比', label: '⚖️ 对比' },
+  { value: '', label: '未設定' },
+  ...Object.entries(HOOK_LABELS).map(([value, label]) => ({ value, label })),
 ];
 
 export function ChapterEditor({ projectId }: ChapterEditorProps) {
@@ -361,7 +341,7 @@ export function ChapterEditor({ projectId }: ChapterEditorProps) {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <BookOpen size={20} className="text-emerald-400" />
-          <h2 className="text-lg font-bold text-foreground">章节创作</h2>
+          <h2 className="text-lg font-bold text-foreground">章の執筆</h2>
           <Badge variant="secondary" className="text-xs">{chapters.length} 章</Badge>
           <Badge variant="outline" className="text-xs">{totalWords.toLocaleString()} 字</Badge>
           <Badge variant="outline" className="text-xs text-emerald-400">{completedCount}/{chapters.length} 完成</Badge>
@@ -372,10 +352,10 @@ export function ChapterEditor({ projectId }: ChapterEditorProps) {
             size="sm"
             onClick={() => setSidePanel(sidePanel === 'preview' ? 'none' : 'preview')}
             className={sidePanel === 'preview' ? 'text-cyan-400 bg-cyan-400/10 hover:bg-cyan-400/20 border-cyan-400/30' : 'text-cyan-400 border-cyan-400/30 hover:bg-cyan-400/10'}
-            title="实时预览"
+            title="リアルタイムプレビュー"
           >
             <Eye size={14} className="mr-1" />
-            预览
+            プレビュー
           </Button>
           <Button
             variant="outline"
@@ -384,11 +364,11 @@ export function ChapterEditor({ projectId }: ChapterEditorProps) {
             className="text-emerald-400 border-emerald-400/30 hover:bg-emerald-400/10"
           >
             <Sparkles size={14} className="mr-1" />
-            AI写作
+            AI執筆
           </Button>
           <Button size="sm" onClick={() => setIsCreating(true)}>
             <Plus size={14} className="mr-1" />
-            新增章节
+            章を追加
           </Button>
         </div>
       </div>
@@ -400,12 +380,12 @@ export function ChapterEditor({ projectId }: ChapterEditorProps) {
             <Input
               value={newTitle}
               onChange={e => setNewTitle(e.target.value)}
-              placeholder="章节标题..."
+              placeholder="章タイトル..."
               className="text-sm flex-1"
               autoFocus
             />
             <Button size="sm" onClick={handleCreate}>
-              <Plus size={14} className="mr-1" />创建
+              <Plus size={14} className="mr-1" />作成
             </Button>
             <Button size="sm" variant="ghost" onClick={() => setIsCreating(false)}>
               ✕
@@ -454,7 +434,7 @@ export function ChapterEditor({ projectId }: ChapterEditorProps) {
               {chapters.length === 0 && (
                 <div className="text-center py-8 text-muted-foreground">
                   <BookOpen size={32} className="mx-auto mb-2 opacity-30" />
-                  <p className="text-xs">暂无章节</p>
+                  <p className="text-xs">章がまだありません</p>
                 </div>
               )}
             </div>
@@ -472,7 +452,7 @@ export function ChapterEditor({ projectId }: ChapterEditorProps) {
                       value={editTitle}
                       onChange={e => setEditTitle(e.target.value)}
                       className="text-sm font-medium border-0 bg-transparent p-0 h-auto focus-visible:ring-0"
-                      placeholder="章节标题"
+                      placeholder="章タイトル"
                     />
                     <select
                       value={editStatus}
@@ -491,7 +471,7 @@ export function ChapterEditor({ projectId }: ChapterEditorProps) {
                       size="sm"
                       onClick={() => setSidePanel(sidePanel === 'preview' ? 'none' : 'preview')}
                       className={`text-cyan-400 hover:bg-cyan-400/10 ${sidePanel === 'preview' ? 'bg-cyan-400/10' : ''}`}
-                      title="实时预览"
+                      title="リアルタイムプレビュー"
                     >
                       <Eye size={14} />
                     </Button>
@@ -500,7 +480,7 @@ export function ChapterEditor({ projectId }: ChapterEditorProps) {
                       size="sm"
                       onClick={() => setSidePanel(sidePanel === 'antiAi' ? 'none' : 'antiAi')}
                       className={`text-rose-400 hover:bg-rose-400/10 ${sidePanel === 'antiAi' ? 'bg-rose-400/10' : ''}`}
-                      title="去AI味分析"
+                      title="AIらしさ分析"
                     >
                       <Shield size={14} />
                     </Button>
@@ -509,7 +489,7 @@ export function ChapterEditor({ projectId }: ChapterEditorProps) {
                       size="sm"
                       onClick={() => setSidePanel(sidePanel === 'adversarial' ? 'none' : 'adversarial')}
                       className={`text-purple-400 hover:bg-purple-400/10 ${sidePanel === 'adversarial' ? 'bg-purple-400/10' : ''}`}
-                      title="对抗评审"
+                      title="多角的レビュー"
                     >
                       <Swords size={14} />
                     </Button>
@@ -528,14 +508,14 @@ export function ChapterEditor({ projectId }: ChapterEditorProps) {
                     className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors mb-1"
                   >
                     {showEmotion ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                    情感设定
+                    感情設定
                     {editEmotionTarget && <Badge variant="outline" className="text-[9px] ml-1">{editEmotionTarget}</Badge>}
                     {editEmotionArc && <Badge variant="outline" className="text-[9px] ml-1">{editEmotionArc}</Badge>}
                   </button>
                   {showEmotion && (
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-2 p-2 bg-secondary/30 rounded-lg">
                       <div>
-                        <label className="block text-[10px] text-muted-foreground mb-0.5">情感目标</label>
+                        <label className="block text-[10px] text-muted-foreground mb-0.5">感情目標</label>
                         <select
                           value={editEmotionTarget}
                           onChange={e => setEditEmotionTarget(e.target.value)}
@@ -545,7 +525,7 @@ export function ChapterEditor({ projectId }: ChapterEditorProps) {
                         </select>
                       </div>
                       <div>
-                        <label className="block text-[10px] text-muted-foreground mb-0.5">情感弧线</label>
+                        <label className="block text-[10px] text-muted-foreground mb-0.5">感情曲線</label>
                         <select
                           value={editEmotionArc}
                           onChange={e => setEditEmotionArc(e.target.value)}
@@ -555,7 +535,7 @@ export function ChapterEditor({ projectId }: ChapterEditorProps) {
                         </select>
                       </div>
                       <div>
-                        <label className="block text-[10px] text-muted-foreground mb-0.5">开头钩子</label>
+                        <label className="block text-[10px] text-muted-foreground mb-0.5">冒頭のフック</label>
                         <select
                           value={editHookStart}
                           onChange={e => setEditHookStart(e.target.value)}
@@ -565,7 +545,7 @@ export function ChapterEditor({ projectId }: ChapterEditorProps) {
                         </select>
                       </div>
                       <div>
-                        <label className="block text-[10px] text-muted-foreground mb-0.5">结尾钩子</label>
+                        <label className="block text-[10px] text-muted-foreground mb-0.5">末尾のフック</label>
                         <select
                           value={editHookEnd}
                           onChange={e => setEditHookEnd(e.target.value)}
@@ -585,13 +565,13 @@ export function ChapterEditor({ projectId }: ChapterEditorProps) {
                     className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors mb-1"
                   >
                     {showOutline ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                    章节细纲
+                    章の詳細プロット
                   </button>
                   {showOutline && (
                     <Textarea
                       value={editOutline}
                       onChange={e => setEditOutline(e.target.value)}
-                      placeholder="本章细纲/情节要点..."
+                      placeholder="この章の詳細プロット／要点..."
                       rows={3}
                       className="text-sm resize-none bg-secondary/30"
                     />
@@ -612,7 +592,7 @@ export function ChapterEditor({ projectId }: ChapterEditorProps) {
                       {generatingPhase === 'summary' ? (
                         <><Loader2 size={12} className="mr-1 animate-spin" />生成中...</>
                       ) : (
-                        <><FileText size={12} className="mr-1" />AI生成摘要</>
+                        <><FileText size={12} className="mr-1" />AIで要約を生成</>
                       )}
                     </Button>
 
@@ -630,9 +610,9 @@ export function ChapterEditor({ projectId }: ChapterEditorProps) {
                       className="text-emerald-400 border-emerald-400/30 hover:bg-emerald-400/10 text-xs"
                     >
                       {generatingPhase === 'full' ? (
-                        <><Loader2 size={12} className="mr-1 animate-spin" />展开中...</>
+                        <><Loader2 size={12} className="mr-1 animate-spin" />展開中...</>
                       ) : (
-                        <><Zap size={12} className="mr-1" />展开全文</>
+                        <><Zap size={12} className="mr-1" />本文へ展開</>
                       )}
                     </Button>
                   </div>
@@ -640,7 +620,7 @@ export function ChapterEditor({ projectId }: ChapterEditorProps) {
                   {/* Progress indicator */}
                   {generatingPhase !== 'none' && (
                     <Badge variant="outline" className="text-xs text-primary">
-                      {generatingPhase === 'summary' ? 'Phase 1/2: 生成摘要' : 'Phase 2/2: 展开全文'}
+                      {generatingPhase === 'summary' ? 'Phase 1/2：要約を生成' : 'Phase 2/2：本文へ展開'}
                     </Badge>
                   )}
                 </div>
@@ -649,13 +629,13 @@ export function ChapterEditor({ projectId }: ChapterEditorProps) {
                 {editSummary && (
                   <div>
                     <div className="flex items-center justify-between mb-1">
-                      <span className="text-xs text-muted-foreground">📝 章节摘要</span>
+                      <span className="text-xs text-muted-foreground">📝 章の要約</span>
                       <Badge variant="outline" className="text-[9px]">{editSummary.length}字</Badge>
                     </div>
                     <Textarea
                       value={editSummary}
                       onChange={e => setEditSummary(e.target.value)}
-                      placeholder="章节摘要..."
+                      placeholder="章の要約..."
                       rows={3}
                       className="text-sm resize-none bg-amber-400/5 border-amber-400/20"
                     />
@@ -666,7 +646,7 @@ export function ChapterEditor({ projectId }: ChapterEditorProps) {
                 <Textarea
                   value={editContent}
                   onChange={e => setEditContent(e.target.value)}
-                  placeholder="开始写作本章内容..."
+                  placeholder="この章の本文を書き始めましょう..."
                   rows={18}
                   className="text-sm leading-relaxed resize-none min-h-[350px]"
                 />
@@ -675,8 +655,8 @@ export function ChapterEditor({ projectId }: ChapterEditorProps) {
           ) : (
             <div className="flex flex-col items-center justify-center h-64 text-muted-foreground">
               <BookOpen size={40} className="mb-3 opacity-30" />
-              <p className="text-sm">选择左侧章节开始编辑</p>
-              <p className="text-xs mt-1">或创建新章节开始创作</p>
+              <p className="text-sm">左側から章を選択して編集を始めます</p>
+              <p className="text-xs mt-1">または新しい章を作成してください</p>
             </div>
           )}
         </div>
@@ -707,7 +687,7 @@ export function ChapterEditor({ projectId }: ChapterEditorProps) {
               {sidePanel === 'antiAi' && !selectedChapter && (
                 <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground px-6">
                   <Shield size={28} className="mb-3 opacity-30" />
-                  <p className="text-sm">选择章节后可进行去AI味分析</p>
+                  <p className="text-sm">章を選択するとAIらしさを分析できます</p>
                 </div>
               )}
               {sidePanel === 'adversarial' && selectedChapter && (
@@ -719,7 +699,7 @@ export function ChapterEditor({ projectId }: ChapterEditorProps) {
               {sidePanel === 'adversarial' && !selectedChapter && (
                 <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground px-6">
                   <Swords size={28} className="mb-3 opacity-30" />
-                  <p className="text-sm">选择章节后可进行对抗评审</p>
+                  <p className="text-sm">章を選択すると多角的レビューを実行できます</p>
                 </div>
               )}
             </Card>

@@ -22,7 +22,7 @@ interface AdversarialReviewProps {
 }
 
 const REVIEW_PERSPECTIVES = [
-  { id: 'structure', label: '结构评审', emoji: '🏗️', color: 'text-amber-400', systemPrompt: `你是一位专注于故事结构的评审专家。请从以下维度评审小说章节：
+  { id: 'structure', label: '構成レビュー', emoji: '🏗️', color: 'text-amber-400', systemPrompt: `你是一位专注于故事结构的评审专家。请从以下维度评审小说章节：
 
 1. 情节推进（事件是否有因果关系）
 2. 节奏把控（张弛有度还是一路紧绷/松散）
@@ -45,7 +45,7 @@ const REVIEW_PERSPECTIVES = [
 
 ### 改进建议
 1. 具体建议` },
-  { id: 'character', label: '角色评审', emoji: '👤', color: 'text-rose-400', systemPrompt: `你是一位专注于角色塑造的评审专家。请从以下维度评审：
+  { id: 'character', label: '人物レビュー', emoji: '👤', color: 'text-rose-400', systemPrompt: `你是一位专注于角色塑造的评审专家。请从以下维度评审：
 
 1. 角色行为一致性（是否OOC）
 2. 对话质量（是否有个人特色）
@@ -53,7 +53,7 @@ const REVIEW_PERSPECTIVES = [
 4. 情感表达（是否真实自然）
 
 请用S1-S4严重度标注问题。输出格式同上。` },
-  { id: 'narrative', label: '叙事评审', emoji: '✍️', color: 'text-blue-400', systemPrompt: `你是一位专注于叙事技巧的评审专家。请从以下维度评审：
+  { id: 'narrative', label: '語り口レビュー', emoji: '✍️', color: 'text-blue-400', systemPrompt: `你是一位专注于叙事技巧的评审专家。请从以下维度评审：
 
 1. 叙事视角（是否统一，有无越界）
 2. 展示vs叙述（是否用场景展示而非平铺直叙）
@@ -61,7 +61,7 @@ const REVIEW_PERSPECTIVES = [
 4. 沉浸感（读者是否能代入场景）
 
 请用S1-S4严重度标注问题。输出格式同上。` },
-  { id: 'consistency', label: '一致性检查', emoji: '🔍', color: 'text-emerald-400', systemPrompt: `你是一位专注于事实一致性的评审专家。请从以下维度评审：
+  { id: 'consistency', label: '整合性チェック', emoji: '🔍', color: 'text-emerald-400', systemPrompt: `你是一位专注于事实一致性的评审专家。请从以下维度评审：
 
 1. 事实冲突（前后矛盾之处）
 2. 伏笔一致性（已埋伏笔是否被尊重）
@@ -141,7 +141,7 @@ export function AdversarialReviewPanel({ content, chapterTitle }: AdversarialRev
           perspective: perspective.id,
           emoji: perspective.emoji,
           color: perspective.color,
-          content: '⚠️ 评审失败，请重试',
+          content: '⚠️ レビューに失敗しました。もう一度お試しください',
           severity: [],
         } as ReviewResult;
       }
@@ -168,7 +168,7 @@ export function AdversarialReviewPanel({ content, chapterTitle }: AdversarialRev
       const s1Reviewers = results.filter(r => r.severity.some(s => s.level === 'S1' && s.count > 0)).map(r => r.perspective);
       const noS1Reviewers = results.filter(r => !r.severity.some(s => s.level === 'S1' && s.count > 0)).map(r => r.perspective);
       if (s1Reviewers.length > 0 && noS1Reviewers.length > 0) {
-        conflicts.push(`${s1Reviewers.map(p => REVIEW_PERSPECTIVES.find(rp => rp.id === p)?.emoji).join('')} 发现致命问题，但 ${noS1Reviewers.map(p => REVIEW_PERSPECTIVES.find(rp => rp.id === p)?.emoji).join('')} 未发现`);
+        conflicts.push(`${s1Reviewers.map(p => REVIEW_PERSPECTIVES.find(rp => rp.id === p)?.emoji).join('')} は重大な問題を検出しましたが、${noS1Reviewers.map(p => REVIEW_PERSPECTIVES.find(rp => rp.id === p)?.emoji).join('')} は検出していません`);
       }
     }
   }
@@ -180,7 +180,7 @@ export function AdversarialReviewPanel({ content, chapterTitle }: AdversarialRev
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Swords size={18} className="text-purple-400" />
-          <h3 className="text-sm font-bold text-foreground">对抗评审</h3>
+          <h3 className="text-sm font-bold text-foreground">多角的レビュー</h3>
         </div>
         <div className="flex items-center gap-2">
           {isReviewing ? (
@@ -189,7 +189,7 @@ export function AdversarialReviewPanel({ content, chapterTitle }: AdversarialRev
             </Button>
           ) : (
             <Button size="sm" onClick={handleReview} disabled={!content.trim()}>
-              <Swords size={14} className="mr-1" />开始评审
+              <Swords size={14} className="mr-1" />レビュー開始
             </Button>
           )}
         </div>
@@ -199,7 +199,7 @@ export function AdversarialReviewPanel({ content, chapterTitle }: AdversarialRev
         <Card className="bg-card/50 border-primary/30">
           <CardContent className="p-4 text-center">
             <Loader2 size={24} className="animate-spin mx-auto text-primary mb-2" />
-            <p className="text-sm text-foreground">4位评审专家正在并行审稿...</p>
+            <p className="text-sm text-foreground">4人の専門Reviewerが並行して確認しています...</p>
             <div className="flex items-center justify-center gap-4 mt-3">
               {REVIEW_PERSPECTIVES.map(p => (
                 <div key={p.id} className="text-center">
@@ -222,7 +222,7 @@ export function AdversarialReviewPanel({ content, chapterTitle }: AdversarialRev
               <CardContent className="p-3">
                 <div className="flex items-center gap-2 mb-2">
                   <AlertTriangle size={14} className="text-amber-400" />
-                  <span className="text-xs font-medium text-amber-400">评审冲突</span>
+                  <span className="text-xs font-medium text-amber-400">レビュー結果の相違</span>
                 </div>
                 {conflicts.map((conflict, i) => (
                   <p key={i} className="text-xs text-foreground/80">{conflict}</p>
@@ -270,7 +270,7 @@ export function AdversarialReviewPanel({ content, chapterTitle }: AdversarialRev
                     <ScrollArea className="max-h-[50vh]">
                       <div className="prose prose-sm prose-invert max-w-none">
                         <pre className="text-sm text-foreground/90 whitespace-pre-wrap font-sans leading-relaxed">
-                          {results.find(r => r.perspective === p.id)?.content || '暂无评审结果'}
+                          {results.find(r => r.perspective === p.id)?.content || 'レビュー結果はまだありません'}
                         </pre>
                       </div>
                     </ScrollArea>
@@ -285,8 +285,8 @@ export function AdversarialReviewPanel({ content, chapterTitle }: AdversarialRev
       {results.length === 0 && !isReviewing && (
         <div className="text-center py-8 text-muted-foreground">
           <Swords size={32} className="mx-auto mb-2 opacity-30" />
-          <p className="text-xs">4位评审专家将从不同角度审稿</p>
-          <p className="text-xs mt-1">结构 · 角色 · 叙事 · 一致性</p>
+          <p className="text-xs">4人の専門Reviewerが異なる観点から確認します</p>
+          <p className="text-xs mt-1">構成 · 人物 · 語り口 · 整合性</p>
         </div>
       )}
     </div>

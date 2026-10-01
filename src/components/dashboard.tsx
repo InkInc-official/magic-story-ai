@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { BookOpen, Users, Globe, ListTree, PenTool, Trash2 } from 'lucide-react';
+import { AGENT_DESCRIPTION_LABELS, AGENT_LABELS, APP_LOCALE, displayLabel, GENRE_LABELS } from '@/lib/i18n';
 
 interface Project {
   id: string;
@@ -80,7 +81,7 @@ export function Dashboard({ project, onDeleteProject }: DashboardProps) {
   if (!project) {
     return (
       <div className="flex items-center justify-center h-64 text-muted-foreground">
-        请选择或创建一个项目
+        プロジェクトを選択するか、新しく作成してください
       </div>
     );
   }
@@ -95,12 +96,12 @@ export function Dashboard({ project, onDeleteProject }: DashboardProps) {
             {project.title}
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            {project.description || '暂无简介'}
+            {project.description || 'あらすじはまだありません'}
           </p>
           <div className="flex items-center gap-2 mt-2">
-            <Badge variant="secondary" className="text-xs">{project.genre}</Badge>
+            <Badge variant="secondary" className="text-xs">{displayLabel(GENRE_LABELS, project.genre)}</Badge>
             <span className="text-xs text-muted-foreground">
-              创建于 {new Date(project.createdAt).toLocaleDateString('zh-CN')}
+              作成日: {new Date(project.createdAt).toLocaleDateString(APP_LOCALE)}
             </span>
           </div>
         </div>
@@ -124,7 +125,7 @@ export function Dashboard({ project, onDeleteProject }: DashboardProps) {
               </div>
               <div>
                 <p className="text-2xl font-bold text-foreground">{stats.totalWords.toLocaleString()}</p>
-                <p className="text-xs text-muted-foreground">总字数</p>
+                <p className="text-xs text-muted-foreground">総文字数</p>
               </div>
             </div>
           </CardContent>
@@ -138,7 +139,7 @@ export function Dashboard({ project, onDeleteProject }: DashboardProps) {
               </div>
               <div>
                 <p className="text-2xl font-bold text-foreground">{stats.chapterCount}</p>
-                <p className="text-xs text-muted-foreground">章节数</p>
+                <p className="text-xs text-muted-foreground">章数</p>
               </div>
             </div>
           </CardContent>
@@ -152,7 +153,7 @@ export function Dashboard({ project, onDeleteProject }: DashboardProps) {
               </div>
               <div>
                 <p className="text-2xl font-bold text-foreground">{stats.characterCount}</p>
-                <p className="text-xs text-muted-foreground">角色数</p>
+                <p className="text-xs text-muted-foreground">登場人物</p>
               </div>
             </div>
           </CardContent>
@@ -166,7 +167,7 @@ export function Dashboard({ project, onDeleteProject }: DashboardProps) {
               </div>
               <div>
                 <p className="text-2xl font-bold text-foreground">{stats.worldSettingCount}</p>
-                <p className="text-xs text-muted-foreground">世界设定</p>
+                <p className="text-xs text-muted-foreground">世界設定</p>
               </div>
             </div>
           </CardContent>
@@ -178,7 +179,7 @@ export function Dashboard({ project, onDeleteProject }: DashboardProps) {
         {/* Quick Actions */}
         <Card className="bg-card/50 border-border/50">
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-foreground">快速操作</CardTitle>
+            <CardTitle className="text-sm font-medium text-foreground">クイック操作</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
             <button
@@ -187,8 +188,8 @@ export function Dashboard({ project, onDeleteProject }: DashboardProps) {
             >
               <span className="text-lg">🌍</span>
               <div>
-                <p className="text-sm font-medium text-foreground">构建世界观</p>
-                <p className="text-xs text-muted-foreground">让世界观Agent帮你搭建世界</p>
+                <p className="text-sm font-medium text-foreground">世界観を作る</p>
+                <p className="text-xs text-muted-foreground">世界観Agentと舞台設定を組み立てます</p>
               </div>
             </button>
             <button
@@ -197,8 +198,8 @@ export function Dashboard({ project, onDeleteProject }: DashboardProps) {
             >
               <span className="text-lg">👤</span>
               <div>
-                <p className="text-sm font-medium text-foreground">设计角色</p>
-                <p className="text-xs text-muted-foreground">让角色Agent帮你塑造人物</p>
+                <p className="text-sm font-medium text-foreground">キャラクターを作る</p>
+                <p className="text-xs text-muted-foreground">キャラクターAgentと人物像を作ります</p>
               </div>
             </button>
             <button
@@ -207,8 +208,8 @@ export function Dashboard({ project, onDeleteProject }: DashboardProps) {
             >
               <span className="text-lg">🎯</span>
               <div>
-                <p className="text-sm font-medium text-foreground">规划大纲</p>
-                <p className="text-xs text-muted-foreground">让策划Agent帮你构建故事框架</p>
+                <p className="text-sm font-medium text-foreground">プロットを作る</p>
+                <p className="text-xs text-muted-foreground">企画Agentと物語の構成を考えます</p>
               </div>
             </button>
             <button
@@ -217,8 +218,8 @@ export function Dashboard({ project, onDeleteProject }: DashboardProps) {
             >
               <span className="text-lg">✍️</span>
               <div>
-                <p className="text-sm font-medium text-foreground">开始创作</p>
-                <p className="text-xs text-muted-foreground">让写手Agent帮你撰写章节</p>
+                <p className="text-sm font-medium text-foreground">執筆を始める</p>
+                <p className="text-xs text-muted-foreground">執筆Agentと章を書き進めます</p>
               </div>
             </button>
           </CardContent>
@@ -227,7 +228,7 @@ export function Dashboard({ project, onDeleteProject }: DashboardProps) {
         {/* Agent Status */}
         <Card className="bg-card/50 border-border/50">
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-foreground">Agent 状态</CardTitle>
+            <CardTitle className="text-sm font-medium text-foreground">Agentの状態</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
             {AGENTS.map(agent => (
@@ -238,8 +239,8 @@ export function Dashboard({ project, onDeleteProject }: DashboardProps) {
               >
                 <span className="text-base">{agent.emoji}</span>
                 <div className="flex-1 min-w-0">
-                  <p className={`text-sm font-medium ${agent.color}`}>{agent.name}</p>
-                  <p className="text-xs text-muted-foreground truncate">{agent.description}</p>
+                  <p className={`text-sm font-medium ${agent.color}`}>{displayLabel(AGENT_LABELS, agent.id)}</p>
+                  <p className="text-xs text-muted-foreground truncate">{displayLabel(AGENT_DESCRIPTION_LABELS, agent.id)}</p>
                 </div>
                 <div className="w-2 h-2 rounded-full bg-emerald-400 shrink-0" />
               </button>
@@ -252,7 +253,7 @@ export function Dashboard({ project, onDeleteProject }: DashboardProps) {
       {recentLogs.length > 0 && (
         <Card className="bg-card/50 border-border/50">
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-foreground">最近活动</CardTitle>
+            <CardTitle className="text-sm font-medium text-foreground">最近のアクティビティ</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
@@ -263,7 +264,7 @@ export function Dashboard({ project, onDeleteProject }: DashboardProps) {
                     <span>{agent?.emoji || '🤖'}</span>
                     <span className="text-foreground">{log.action}</span>
                     <span className="text-xs text-muted-foreground ml-auto">
-                      {new Date(log.createdAt).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}
+                      {new Date(log.createdAt).toLocaleTimeString(APP_LOCALE, { hour: '2-digit', minute: '2-digit' })}
                     </span>
                   </div>
                 );

@@ -9,6 +9,7 @@ import { PanoramaGraph } from '@/components/panorama-graph';
 import { ProjectWizard } from '@/components/project-wizard';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Archive, Network, PenTool } from 'lucide-react';
+import { displayLabel, GENRE_LABELS, ja } from '@/lib/i18n';
 
 interface Project {
   id: string;
@@ -25,9 +26,9 @@ interface Project {
 }
 
 const MODULE_CONFIG = {
-  creation: { label: '创作中心', icon: PenTool, color: 'text-amber-400' },
-  assets: { label: '项目管理', icon: Archive, color: 'text-rose-400' },
-  graph: { label: '全景图谱', icon: Network, color: 'text-teal-400' },
+  creation: { label: ja.nav.creation, icon: PenTool, color: 'text-amber-400' },
+  assets: { label: ja.nav.assets, icon: Archive, color: 'text-rose-400' },
+  graph: { label: ja.nav.graph, icon: Network, color: 'text-teal-400' },
 };
 
 export default function NovelPlatform() {
@@ -82,15 +83,15 @@ export default function NovelPlatform() {
       return (
         <div className="flex flex-col items-center justify-center h-full min-h-[60vh] text-center">
           <div className="text-6xl mb-6">📚</div>
-          <h2 className="text-2xl font-bold text-foreground mb-2">欢迎使用小说创作Agent平台</h2>
+          <h2 className="text-2xl font-bold text-foreground mb-2">小説創作Agentへようこそ</h2>
           <p className="text-muted-foreground mb-6 max-w-md">
-            创建你的第一个项目，开始AI驱动的多Agent协作创作之旅
+            最初のプロジェクトを作成して、AI Agentと一緒に物語を書き始めましょう
           </p>
           <button
             onClick={() => setShowWizard(true)}
             className="px-6 py-3 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 transition-colors"
           >
-            + 创建新项目
+            + 新規プロジェクト
           </button>
         </div>
       );
@@ -125,7 +126,7 @@ export default function NovelPlatform() {
             {currentProject && (
               <>
                 <span className="text-sm font-medium text-foreground">{currentProject.title}</span>
-                <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-full">{currentProject.genre}</span>
+                <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-full">{displayLabel(GENRE_LABELS, currentProject.genre)}</span>
                 {/* Module indicator */}
                 <span className="text-xs text-muted-foreground flex items-center gap-1">
                   / {(() => { const cfg = MODULE_CONFIG[coreModule]; const Icon = cfg.icon; return <><Icon size={12} className={cfg.color} />{cfg.label}</>; })()}
@@ -139,7 +140,7 @@ export default function NovelPlatform() {
                 href={`/api/export?projectId=${currentProjectId}`}
                 className="text-xs text-muted-foreground hover:text-primary transition-colors px-2 py-1 rounded hover:bg-secondary"
               >
-                📥 导出TXT
+                📥 TXT書き出し
               </a>
             )}
           </div>

@@ -13,6 +13,7 @@ import {
   Users, Plus, Trash2, Edit3, Save, X, Star, Sparkles,
   Search, Tag, Image as ImageIcon, Loader2, Link2, Heart,
 } from 'lucide-react';
+import { CHARACTER_ROLE_LABELS, displayLabel, RELATIONSHIP_LABELS } from '@/lib/i18n';
 
 interface Character {
   id: string;
@@ -39,12 +40,12 @@ interface CharacterAssetsProps {
 }
 
 const ROLE_OPTIONS = [
-  { value: '主角', label: '主角', color: 'text-amber-400' },
-  { value: '女主', label: '女主', color: 'text-rose-400' },
-  { value: '反派', label: '反派', color: 'text-red-400' },
-  { value: '配角', label: '配角', color: 'text-blue-400' },
-  { value: '导师', label: '导师', color: 'text-teal-400' },
-  { value: '路人', label: '路人', color: 'text-muted-foreground' },
+  { value: '主角', label: displayLabel(CHARACTER_ROLE_LABELS, '主角'), color: 'text-amber-400' },
+  { value: '女主', label: displayLabel(CHARACTER_ROLE_LABELS, '女主'), color: 'text-rose-400' },
+  { value: '反派', label: displayLabel(CHARACTER_ROLE_LABELS, '反派'), color: 'text-red-400' },
+  { value: '配角', label: displayLabel(CHARACTER_ROLE_LABELS, '配角'), color: 'text-blue-400' },
+  { value: '导师', label: displayLabel(CHARACTER_ROLE_LABELS, '导师'), color: 'text-teal-400' },
+  { value: '路人', label: displayLabel(CHARACTER_ROLE_LABELS, '路人'), color: 'text-muted-foreground' },
 ];
 
 const EMPTY_FORM = {
@@ -220,12 +221,12 @@ export function CharacterAssets({ projectId }: CharacterAssetsProps) {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Users size={20} className="text-rose-400" />
-          <h2 className="text-lg font-bold text-foreground">角色资产</h2>
-          <Badge variant="secondary" className="text-xs">{characters.length} 个角色</Badge>
+          <h2 className="text-lg font-bold text-foreground">キャラクター素材</h2>
+          <Badge variant="secondary" className="text-xs">{characters.length} 人</Badge>
         </div>
         <Button size="sm" onClick={() => setIsCreating(true)}>
           <Plus size={14} className="mr-1" />
-          添加角色
+          キャラクターを追加
         </Button>
       </div>
 
@@ -236,7 +237,7 @@ export function CharacterAssets({ projectId }: CharacterAssetsProps) {
           <Input
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
-            placeholder="搜索角色..."
+            placeholder="キャラクターを検索..."
             className="pl-8 text-sm h-8"
           />
         </div>
@@ -245,7 +246,7 @@ export function CharacterAssets({ projectId }: CharacterAssetsProps) {
           onChange={e => setFilterRole(e.target.value)}
           className="h-8 px-2 bg-secondary border border-input rounded-md text-xs text-foreground focus:outline-none"
         >
-          <option value="all">全部角色</option>
+          <option value="all">すべての役割</option>
           {ROLE_OPTIONS.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
         </select>
       </div>
@@ -257,26 +258,26 @@ export function CharacterAssets({ projectId }: CharacterAssetsProps) {
             <Card className="bg-card/50 border-rose-500/20">
               <CardContent className="p-4 space-y-3">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-medium text-foreground">新建角色</h3>
+                  <h3 className="text-sm font-medium text-foreground">キャラクターを作成</h3>
                   <Button variant="ghost" size="sm" onClick={() => { setIsCreating(false); setCreateForm(EMPTY_FORM); }}><X size={14} /></Button>
                 </div>
                 <div className="grid grid-cols-3 gap-3">
-                  <div><label className="block text-xs text-muted-foreground mb-1">姓名</label><Input value={createForm.name} onChange={e => setCreateForm(prev => ({ ...prev, name: e.target.value }))} placeholder="角色名" className="text-sm" /></div>
-                  <div><label className="block text-xs text-muted-foreground mb-1">年龄</label><Input value={createForm.age} onChange={e => setCreateForm(prev => ({ ...prev, age: e.target.value }))} placeholder="年龄" className="text-sm" /></div>
+                  <div><label className="block text-xs text-muted-foreground mb-1">名前</label><Input value={createForm.name} onChange={e => setCreateForm(prev => ({ ...prev, name: e.target.value }))} placeholder="キャラクター名" className="text-sm" /></div>
+                  <div><label className="block text-xs text-muted-foreground mb-1">年齢</label><Input value={createForm.age} onChange={e => setCreateForm(prev => ({ ...prev, age: e.target.value }))} placeholder="年齢" className="text-sm" /></div>
                   <div>
-                    <label className="block text-xs text-muted-foreground mb-1">角色定位</label>
+                    <label className="block text-xs text-muted-foreground mb-1">役割</label>
                     <select value={createForm.role} onChange={e => setCreateForm(prev => ({ ...prev, role: e.target.value }))} className="w-full h-9 px-3 bg-secondary border border-input rounded-md text-sm text-foreground focus:outline-none">
                       {ROLE_OPTIONS.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
                     </select>
                   </div>
                 </div>
-                <div><label className="block text-xs text-muted-foreground mb-1">性格特征</label><Input value={createForm.personality} onChange={e => setCreateForm(prev => ({ ...prev, personality: e.target.value }))} placeholder="性格描述..." className="text-sm" /></div>
-                <div><label className="block text-xs text-muted-foreground mb-1">外貌描写</label><Input value={createForm.appearance} onChange={e => setCreateForm(prev => ({ ...prev, appearance: e.target.value }))} placeholder="外貌描述..." className="text-sm" /></div>
-                <div><label className="block text-xs text-muted-foreground mb-1">背景故事</label><Textarea value={createForm.background} onChange={e => setCreateForm(prev => ({ ...prev, background: e.target.value }))} placeholder="角色背景..." rows={2} className="text-sm resize-none" /></div>
-                <div><label className="block text-xs text-muted-foreground mb-1">成长弧线</label><Textarea value={createForm.arc} onChange={e => setCreateForm(prev => ({ ...prev, arc: e.target.value }))} placeholder="角色成长轨迹..." rows={2} className="text-sm resize-none" /></div>
+                <div><label className="block text-xs text-muted-foreground mb-1">性格</label><Input value={createForm.personality} onChange={e => setCreateForm(prev => ({ ...prev, personality: e.target.value }))} placeholder="性格を説明..." className="text-sm" /></div>
+                <div><label className="block text-xs text-muted-foreground mb-1">外見</label><Input value={createForm.appearance} onChange={e => setCreateForm(prev => ({ ...prev, appearance: e.target.value }))} placeholder="外見を説明..." className="text-sm" /></div>
+                <div><label className="block text-xs text-muted-foreground mb-1">背景</label><Textarea value={createForm.background} onChange={e => setCreateForm(prev => ({ ...prev, background: e.target.value }))} placeholder="キャラクターの背景..." rows={2} className="text-sm resize-none" /></div>
+                <div><label className="block text-xs text-muted-foreground mb-1">成長曲線</label><Textarea value={createForm.arc} onChange={e => setCreateForm(prev => ({ ...prev, arc: e.target.value }))} placeholder="キャラクターの成長過程..." rows={2} className="text-sm resize-none" /></div>
                 {/* Tags */}
                 <div>
-                  <label className="block text-xs text-muted-foreground mb-1">标签</label>
+                  <label className="block text-xs text-muted-foreground mb-1">タグ</label>
                   <div className="flex flex-wrap gap-1 mb-1.5">
                     {createForm.tags.map(tag => (
                       <Badge key={tag} variant="outline" className="text-[10px] gap-1 pr-1">
@@ -286,12 +287,12 @@ export function CharacterAssets({ projectId }: CharacterAssetsProps) {
                     ))}
                   </div>
                   <div className="flex gap-1">
-                    <Input value={tagInput} onChange={e => setTagInput(e.target.value)} placeholder="添加标签..." className="text-xs h-7" onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addTag(tagInput, false))} />
+                    <Input value={tagInput} onChange={e => setTagInput(e.target.value)} placeholder="タグを追加..." className="text-xs h-7" onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addTag(tagInput, false))} />
                     <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => addTag(tagInput, false)}><Tag size={12} /></Button>
                   </div>
                 </div>
                 <Button size="sm" onClick={handleCreate} disabled={!createForm.name.trim()}>
-                  <Save size={14} className="mr-1" />创建角色
+                  <Save size={14} className="mr-1" />作成
                 </Button>
               </CardContent>
             </Card>
@@ -329,7 +330,7 @@ export function CharacterAssets({ projectId }: CharacterAssetsProps) {
             {filteredCharacters.length === 0 && (
               <div className="text-center py-8 text-muted-foreground">
                 <Users size={32} className="mx-auto mb-2 opacity-30" />
-                <p className="text-xs">暂无角色</p>
+                <p className="text-xs">キャラクターがまだありません</p>
               </div>
             )}
           </ScrollArea>
@@ -356,12 +357,12 @@ export function CharacterAssets({ projectId }: CharacterAssetsProps) {
                           {editingId === selectedCharacter.id ? editForm.name : selectedCharacter.name}
                         </CardTitle>
                         <Badge variant="outline" className={`text-[10px] ${getRoleInfo(selectedCharacter.role).color}`}>
-                          {selectedCharacter.role}
+                          {getRoleInfo(selectedCharacter.role).label}
                         </Badge>
                         {selectedCharacter.isFavorite && <Heart size={12} className="text-rose-400 fill-rose-400" />}
                       </div>
                       <div className="flex items-center gap-2 mt-0.5">
-                        {selectedCharacter.age && <span className="text-xs text-muted-foreground">{selectedCharacter.age}岁</span>}
+                        {selectedCharacter.age && <span className="text-xs text-muted-foreground">{selectedCharacter.age}歳</span>}
                         <span className="text-[10px] text-muted-foreground">v{selectedCharacter.version}</span>
                       </div>
                     </div>
@@ -370,7 +371,7 @@ export function CharacterAssets({ projectId }: CharacterAssetsProps) {
                     {editingId === selectedCharacter.id ? (
                       <>
                         <Button size="sm" onClick={() => handleUpdate(selectedCharacter.id)}><Save size={14} className="mr-1" />保存</Button>
-                        <Button size="sm" variant="ghost" onClick={() => setEditingId(null)}>取消</Button>
+                        <Button size="sm" variant="ghost" onClick={() => setEditingId(null)}>キャンセル</Button>
                       </>
                     ) : (
                       <>
@@ -388,16 +389,16 @@ export function CharacterAssets({ projectId }: CharacterAssetsProps) {
                 {editingId === selectedCharacter.id ? (
                   <div className="space-y-3">
                     <div className="grid grid-cols-2 gap-3">
-                      <div><label className="block text-xs text-muted-foreground mb-1">姓名</label><Input value={editForm.name} onChange={e => setEditForm(p => ({ ...p, name: e.target.value }))} className="text-sm" /></div>
-                      <div><label className="block text-xs text-muted-foreground mb-1">年龄</label><Input value={editForm.age} onChange={e => setEditForm(p => ({ ...p, age: e.target.value }))} className="text-sm" /></div>
+                      <div><label className="block text-xs text-muted-foreground mb-1">名前</label><Input value={editForm.name} onChange={e => setEditForm(p => ({ ...p, name: e.target.value }))} className="text-sm" /></div>
+                      <div><label className="block text-xs text-muted-foreground mb-1">年齢</label><Input value={editForm.age} onChange={e => setEditForm(p => ({ ...p, age: e.target.value }))} className="text-sm" /></div>
                     </div>
                     <div><label className="block text-xs text-muted-foreground mb-1">性格</label><Input value={editForm.personality} onChange={e => setEditForm(p => ({ ...p, personality: e.target.value }))} className="text-sm" /></div>
-                    <div><label className="block text-xs text-muted-foreground mb-1">外貌</label><Input value={editForm.appearance} onChange={e => setEditForm(p => ({ ...p, appearance: e.target.value }))} className="text-sm" /></div>
+                    <div><label className="block text-xs text-muted-foreground mb-1">外見</label><Input value={editForm.appearance} onChange={e => setEditForm(p => ({ ...p, appearance: e.target.value }))} className="text-sm" /></div>
                     <div><label className="block text-xs text-muted-foreground mb-1">背景</label><Textarea value={editForm.background} onChange={e => setEditForm(p => ({ ...p, background: e.target.value }))} rows={3} className="text-sm resize-none" /></div>
-                    <div><label className="block text-xs text-muted-foreground mb-1">成长弧线</label><Textarea value={editForm.arc} onChange={e => setEditForm(p => ({ ...p, arc: e.target.value }))} rows={2} className="text-sm resize-none" /></div>
+                    <div><label className="block text-xs text-muted-foreground mb-1">成長曲線</label><Textarea value={editForm.arc} onChange={e => setEditForm(p => ({ ...p, arc: e.target.value }))} rows={2} className="text-sm resize-none" /></div>
                     {/* Edit Tags */}
                     <div>
-                      <label className="block text-xs text-muted-foreground mb-1">标签</label>
+                      <label className="block text-xs text-muted-foreground mb-1">タグ</label>
                       <div className="flex flex-wrap gap-1 mb-1.5">
                         {editForm.tags.map(tag => (
                           <Badge key={tag} variant="outline" className="text-[10px] gap-1 pr-1">
@@ -407,14 +408,14 @@ export function CharacterAssets({ projectId }: CharacterAssetsProps) {
                         ))}
                       </div>
                       <div className="flex gap-1">
-                        <Input value={editTagInput} onChange={e => setEditTagInput(e.target.value)} placeholder="添加标签..." className="text-xs h-7" onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addTag(editTagInput, true))} />
+                        <Input value={editTagInput} onChange={e => setEditTagInput(e.target.value)} placeholder="タグを追加..." className="text-xs h-7" onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addTag(editTagInput, true))} />
                         <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => addTag(editTagInput, true)}><Tag size={12} /></Button>
                       </div>
                     </div>
                     {/* Portrait style prompt */}
                     <div>
-                      <label className="block text-xs text-muted-foreground mb-1">风格提示词</label>
-                      <Input value={editForm.portraitPrompt} onChange={e => setEditForm(p => ({ ...p, portraitPrompt: e.target.value }))} placeholder="如: 水墨风, 赛博朋克..." className="text-sm" />
+                      <label className="block text-xs text-muted-foreground mb-1">スタイル指定</label>
+                      <Input value={editForm.portraitPrompt} onChange={e => setEditForm(p => ({ ...p, portraitPrompt: e.target.value }))} placeholder="例：水墨画風、サイバーパンク..." className="text-sm" />
                     </div>
                   </div>
                 ) : (
@@ -429,13 +430,13 @@ export function CharacterAssets({ projectId }: CharacterAssetsProps) {
                     <div className="p-3 bg-rose-500/5 border border-rose-500/15 rounded-lg">
                       <div className="flex items-center gap-2 mb-2">
                         <Sparkles size={14} className="text-rose-400" />
-                        <span className="text-xs font-medium text-rose-400">AI 肖像生成</span>
+                        <span className="text-xs font-medium text-rose-400">AIポートレート生成</span>
                       </div>
                       <div className="flex gap-2">
                         <Input
                           value={portraitStylePrompt || selectedCharacter.portraitPrompt}
                           onChange={e => setPortraitStylePrompt(e.target.value)}
-                          placeholder="风格提示词 (如: 水墨风, 二次元...)"
+                          placeholder="スタイル指定（例：水墨画風、アニメ風...）"
                           className="text-xs h-8 flex-1"
                         />
                         <Button
@@ -457,13 +458,13 @@ export function CharacterAssets({ projectId }: CharacterAssetsProps) {
                       <div><p className="text-xs text-muted-foreground font-medium mb-1">🧠 性格</p><p className="text-sm text-foreground/80 whitespace-pre-wrap">{selectedCharacter.personality}</p></div>
                     )}
                     {selectedCharacter.appearance && (
-                      <div><p className="text-xs text-muted-foreground font-medium mb-1">👤 外貌</p><p className="text-sm text-foreground/80 whitespace-pre-wrap">{selectedCharacter.appearance}</p></div>
+                      <div><p className="text-xs text-muted-foreground font-medium mb-1">👤 外見</p><p className="text-sm text-foreground/80 whitespace-pre-wrap">{selectedCharacter.appearance}</p></div>
                     )}
                     {selectedCharacter.background && (
                       <div><p className="text-xs text-muted-foreground font-medium mb-1">📖 背景</p><p className="text-sm text-foreground/80 whitespace-pre-wrap">{selectedCharacter.background}</p></div>
                     )}
                     {selectedCharacter.arc && (
-                      <div><p className="text-xs text-muted-foreground font-medium mb-1">📈 成长弧线</p><p className="text-sm text-foreground/80 whitespace-pre-wrap">{selectedCharacter.arc}</p></div>
+                      <div><p className="text-xs text-muted-foreground font-medium mb-1">📈 成長曲線</p><p className="text-sm text-foreground/80 whitespace-pre-wrap">{selectedCharacter.arc}</p></div>
                     )}
                     {/* Tags */}
                     {parsedTags(selectedCharacter.tags).length > 0 && (
@@ -477,13 +478,13 @@ export function CharacterAssets({ projectId }: CharacterAssetsProps) {
                     {selectedCharacter.fromRelations && selectedCharacter.toRelations && 
                       [...selectedCharacter.fromRelations, ...selectedCharacter.toRelations].length > 0 && (
                       <div>
-                        <p className="text-xs text-muted-foreground font-medium mb-2">🔗 人物关系</p>
+                        <p className="text-xs text-muted-foreground font-medium mb-2">🔗 人物関係</p>
                         <div className="space-y-1">
                           {selectedCharacter.fromRelations.map(rel => (
                             <div key={rel.id} className="flex items-center gap-2 text-xs bg-secondary/50 px-2 py-1.5 rounded">
                               <span className="text-foreground">{selectedCharacter.name}</span>
                               <span className="text-muted-foreground">→</span>
-                              <Badge variant="outline" className="text-[10px]">{rel.type}</Badge>
+                              <Badge variant="outline" className="text-[10px]">{displayLabel(RELATIONSHIP_LABELS, rel.type)}</Badge>
                               <span className="text-muted-foreground">→</span>
                               <span className="text-foreground">{rel.toCharacter.name}</span>
                             </div>
@@ -492,7 +493,7 @@ export function CharacterAssets({ projectId }: CharacterAssetsProps) {
                             <div key={rel.id} className="flex items-center gap-2 text-xs bg-secondary/50 px-2 py-1.5 rounded">
                               <span className="text-foreground">{rel.fromCharacter.name}</span>
                               <span className="text-muted-foreground">→</span>
-                              <Badge variant="outline" className="text-[10px]">{rel.type}</Badge>
+                              <Badge variant="outline" className="text-[10px]">{displayLabel(RELATIONSHIP_LABELS, rel.type)}</Badge>
                               <span className="text-muted-foreground">→</span>
                               <span className="text-foreground">{selectedCharacter.name}</span>
                             </div>
@@ -506,7 +507,7 @@ export function CharacterAssets({ projectId }: CharacterAssetsProps) {
             </Card>
           ) : (
             <div className="flex items-center justify-center h-48 text-muted-foreground text-sm">
-              选择左侧角色查看详情
+              左側からキャラクターを選択してください
             </div>
           )}
         </div>
@@ -543,7 +544,7 @@ function CharacterListItem({
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5">
           <span className="font-medium text-foreground text-sm truncate">{char.name}</span>
-          <Badge variant="outline" className={`text-[10px] shrink-0 ${roleInfo.color}`}>{char.role}</Badge>
+          <Badge variant="outline" className={`text-[10px] shrink-0 ${roleInfo.color}`}>{roleInfo.label}</Badge>
         </div>
         {char.personality && <p className="text-xs text-muted-foreground mt-0.5 truncate">{char.personality}</p>}
         {parsedTags(char.tags).length > 0 && (

@@ -5,6 +5,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useAppStore } from '@/lib/store';
+import { APP_LOCALE } from '@/lib/i18n';
 import { motion } from 'framer-motion';
 import {
   Users,
@@ -30,11 +31,11 @@ interface AssetCounts {
 }
 
 const STAT_CARDS = [
-  { key: 'characters' as keyof AssetCounts, label: '角色', icon: Users, color: 'rose', accent: 'text-rose-400', bg: 'bg-rose-500/10', border: 'border-rose-500/20', subView: 'characters' as const },
-  { key: 'plots' as keyof AssetCounts, label: '剧情', icon: GitBranch, color: 'amber', accent: 'text-amber-400', bg: 'bg-amber-500/10', border: 'border-amber-500/20', subView: 'plots' as const },
-  { key: 'scenes' as keyof AssetCounts, label: '场景', icon: Film, color: 'orange', accent: 'text-orange-400', bg: 'bg-orange-500/10', border: 'border-orange-500/20', subView: 'scenes' as const },
-  { key: 'worldSettings' as keyof AssetCounts, label: '世界观', icon: Globe, color: 'teal', accent: 'text-teal-400', bg: 'bg-teal-500/10', border: 'border-teal-500/20', subView: 'world' as const },
-  { key: 'outlines' as keyof AssetCounts, label: '大纲', icon: ListTree, color: 'blue', accent: 'text-blue-400', bg: 'bg-blue-500/10', border: 'border-blue-500/20', subView: 'overview' as const },
+  { key: 'characters' as keyof AssetCounts, label: 'キャラクター', icon: Users, color: 'rose', accent: 'text-rose-400', bg: 'bg-rose-500/10', border: 'border-rose-500/20', subView: 'characters' as const },
+  { key: 'plots' as keyof AssetCounts, label: 'ストーリー', icon: GitBranch, color: 'amber', accent: 'text-amber-400', bg: 'bg-amber-500/10', border: 'border-amber-500/20', subView: 'plots' as const },
+  { key: 'scenes' as keyof AssetCounts, label: 'シーン', icon: Film, color: 'orange', accent: 'text-orange-400', bg: 'bg-orange-500/10', border: 'border-orange-500/20', subView: 'scenes' as const },
+  { key: 'worldSettings' as keyof AssetCounts, label: '世界観', icon: Globe, color: 'teal', accent: 'text-teal-400', bg: 'bg-teal-500/10', border: 'border-teal-500/20', subView: 'world' as const },
+  { key: 'outlines' as keyof AssetCounts, label: 'プロット', icon: ListTree, color: 'blue', accent: 'text-blue-400', bg: 'bg-blue-500/10', border: 'border-blue-500/20', subView: 'overview' as const },
 ];
 
 const container = {
@@ -71,28 +72,28 @@ export function AssetOverview({ projectId }: AssetOverviewProps) {
         const data = await charRes.json();
         newCounts.characters = data.characters?.length || 0;
         (data.characters || []).slice(-3).forEach((c: { name: string; updatedAt: string }) => {
-          recent.push({ type: '角色', name: c.name, time: c.updatedAt });
+          recent.push({ type: 'キャラクター', name: c.name, time: c.updatedAt });
         });
       }
       if (plotRes.ok) {
         const data = await plotRes.json();
         newCounts.plots = data.length || 0;
         (data || []).slice(-2).forEach((p: { name: string; updatedAt: string }) => {
-          recent.push({ type: '剧情', name: p.name, time: p.updatedAt });
+          recent.push({ type: 'ストーリー', name: p.name, time: p.updatedAt });
         });
       }
       if (sceneRes.ok) {
         const data = await sceneRes.json();
         newCounts.scenes = data.length || 0;
         (data || []).slice(-2).forEach((s: { name: string; updatedAt: string }) => {
-          recent.push({ type: '场景', name: s.name, time: s.updatedAt });
+          recent.push({ type: 'シーン', name: s.name, time: s.updatedAt });
         });
       }
       if (worldRes.ok) {
         const data = await worldRes.json();
         newCounts.worldSettings = data.length || 0;
         (data || []).slice(-2).forEach((w: { name: string; updatedAt: string }) => {
-          recent.push({ type: '世界观', name: w.name, time: w.updatedAt });
+          recent.push({ type: '世界観', name: w.name, time: w.updatedAt });
         });
       }
       if (outlineRes.ok) {
@@ -122,8 +123,8 @@ export function AssetOverview({ projectId }: AssetOverviewProps) {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-bold text-foreground">项目资产总览</h2>
-          <p className="text-sm text-muted-foreground mt-1">共 {totalAssets} 项资产</p>
+          <h2 className="text-xl font-bold text-foreground">プロジェクトアセット概要</h2>
+          <p className="text-sm text-muted-foreground mt-1">合計{totalAssets}件</p>
         </div>
         <Button
           variant="outline"
@@ -132,7 +133,7 @@ export function AssetOverview({ projectId }: AssetOverviewProps) {
           className="text-blue-400 border-blue-400/30 hover:bg-blue-400/10"
         >
           <Import size={14} className="mr-1.5" />
-          从资产库导入
+          ライブラリからインポート
         </Button>
       </div>
 
@@ -160,7 +161,7 @@ export function AssetOverview({ projectId }: AssetOverviewProps) {
                     onClick={(e) => { e.stopPropagation(); setAssetSubView(card.subView); }}
                     className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground mt-2 transition-colors"
                   >
-                    查看全部 <ArrowRight size={10} />
+                    すべて表示 <ArrowRight size={10} />
                   </button>
                 </CardContent>
               </Card>
@@ -174,7 +175,7 @@ export function AssetOverview({ projectId }: AssetOverviewProps) {
         <CardContent className="p-4">
           <div className="flex items-center gap-2 mb-3">
             <Clock size={16} className="text-muted-foreground" />
-            <h3 className="text-sm font-medium text-foreground">最近更新</h3>
+            <h3 className="text-sm font-medium text-foreground">最近の更新</h3>
           </div>
           {loading ? (
             <div className="space-y-2">
@@ -189,14 +190,14 @@ export function AssetOverview({ projectId }: AssetOverviewProps) {
                   <Badge variant="outline" className="text-[10px] shrink-0">{r.type}</Badge>
                   <span className="text-foreground truncate">{r.name}</span>
                   <span className="text-muted-foreground ml-auto shrink-0">
-                    {new Date(r.time).toLocaleDateString('zh-CN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                    {new Date(r.time).toLocaleDateString(APP_LOCALE, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
                   </span>
                 </div>
               ))}
             </div>
           ) : (
             <div className="text-center py-6 text-muted-foreground text-xs">
-              暂无最近更新
+              最近の更新はありません
             </div>
           )}
         </CardContent>
@@ -205,19 +206,19 @@ export function AssetOverview({ projectId }: AssetOverviewProps) {
       {/* Quick Actions */}
       <Card className="bg-card/50 border-border/50">
         <CardContent className="p-4">
-          <h3 className="text-sm font-medium text-foreground mb-3">快速创建</h3>
+          <h3 className="text-sm font-medium text-foreground mb-3">クイック作成</h3>
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" size="sm" onClick={() => setAssetSubView('characters')} className="text-rose-400 border-rose-400/20 hover:bg-rose-400/10">
-              <Users size={14} className="mr-1.5" />新建角色
+              <Users size={14} className="mr-1.5" />キャラクターを作成
             </Button>
             <Button variant="outline" size="sm" onClick={() => setAssetSubView('plots')} className="text-amber-400 border-amber-400/20 hover:bg-amber-400/10">
-              <GitBranch size={14} className="mr-1.5" />新建剧情
+              <GitBranch size={14} className="mr-1.5" />ストーリーを作成
             </Button>
             <Button variant="outline" size="sm" onClick={() => setAssetSubView('scenes')} className="text-orange-400 border-orange-400/20 hover:bg-orange-400/10">
-              <Film size={14} className="mr-1.5" />新建场景
+              <Film size={14} className="mr-1.5" />シーンを作成
             </Button>
             <Button variant="outline" size="sm" onClick={() => setAssetSubView('world')} className="text-teal-400 border-teal-400/20 hover:bg-teal-400/10">
-              <Globe size={14} className="mr-1.5" />新建世界观
+              <Globe size={14} className="mr-1.5" />世界観を作成
             </Button>
           </div>
         </CardContent>

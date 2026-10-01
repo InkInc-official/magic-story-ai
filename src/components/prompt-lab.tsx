@@ -8,6 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { useAppStore } from '@/lib/store';
 import { extractVariables } from '@/lib/variable-resolver';
+import { displayLabel, PROMPT_PRESET_NAME_LABELS } from '@/lib/i18n';
 import { FlaskConical, Plus, Trash2, Edit3, Save, X, Code, Star } from 'lucide-react';
 
 interface PromptTemplate {
@@ -23,13 +24,13 @@ interface PromptLabProps {
 }
 
 const PROMPT_TYPES = [
-  { value: 'general', label: '通用', emoji: '📝' },
-  { value: 'world', label: '世界观', emoji: '🌍' },
-  { value: 'character', label: '角色', emoji: '👤' },
-  { value: 'outline', label: '大纲', emoji: '📋' },
-  { value: 'chapter', label: '章节', emoji: '📖' },
-  { value: 'review', label: '评审', emoji: '🔍' },
-  { value: 'edit', label: '润色', emoji: '✏️' },
+  { value: 'general', label: '汎用', emoji: '📝' },
+  { value: 'world', label: '世界観', emoji: '🌍' },
+  { value: 'character', label: 'キャラクター', emoji: '👤' },
+  { value: 'outline', label: 'プロット', emoji: '📋' },
+  { value: 'chapter', label: '章', emoji: '📖' },
+  { value: 'review', label: 'レビュー', emoji: '🔍' },
+  { value: 'edit', label: '推敲', emoji: '✏️' },
 ];
 
 const PRESET_TEMPLATES = [
@@ -166,19 +167,19 @@ export function PromptLab({ projectId }: PromptLabProps) {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <FlaskConical size={20} className="text-purple-400" />
-          <h2 className="text-lg font-bold text-foreground">提示词工坊</h2>
-          <Badge variant="secondary" className="text-xs">{prompts.length} 个模板</Badge>
+          <h2 className="text-lg font-bold text-foreground">プロンプトラボ</h2>
+          <Badge variant="secondary" className="text-xs">{prompts.length}件のテンプレート</Badge>
         </div>
         <div className="flex items-center gap-2">
           {prompts.length === 0 && (
             <Button variant="outline" size="sm" onClick={handleLoadPresets}>
               <Star size={14} className="mr-1" />
-              加载预设
+              プリセットを読み込む
             </Button>
           )}
           <Button size="sm" onClick={() => setIsCreating(true)}>
             <Plus size={14} className="mr-1" />
-            新建模板
+            テンプレートを作成
           </Button>
         </div>
       </div>
@@ -188,7 +189,7 @@ export function PromptLab({ projectId }: PromptLabProps) {
         <CardContent className="p-3">
           <p className="text-xs text-muted-foreground font-medium mb-2">
             <Code size={12} className="inline mr-1" />
-            可用变量
+            使用可能な変数
           </p>
           <div className="flex flex-wrap gap-1.5">
             {['${background}', '${characters}', '${relationships}', '${plot}', '${style}', '${outline}', '${chapter_outline}', '${selected_text}', '${genre}', '${world_rules}'].map(v => (
@@ -205,41 +206,41 @@ export function PromptLab({ projectId }: PromptLabProps) {
         <Card className="bg-card/50 border-primary/30 glow-amber">
           <CardContent className="p-4 space-y-3">
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-medium text-foreground">新建提示词模板</h3>
+              <h3 className="text-sm font-medium text-foreground">プロンプトテンプレートを作成</h3>
               <Button variant="ghost" size="sm" onClick={() => setIsCreating(false)}><X size={14} /></Button>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs text-muted-foreground mb-1">名称</label>
-                <Input value={createForm.name} onChange={e => setCreateForm(prev => ({ ...prev, name: e.target.value }))} placeholder="模板名称" className="text-sm" />
+                <label className="block text-xs text-muted-foreground mb-1">名前</label>
+                <Input value={createForm.name} onChange={e => setCreateForm(prev => ({ ...prev, name: e.target.value }))} placeholder="テンプレート名" className="text-sm" />
               </div>
               <div>
-                <label className="block text-xs text-muted-foreground mb-1">类型</label>
+                <label className="block text-xs text-muted-foreground mb-1">種類</label>
                 <select value={createForm.type} onChange={e => setCreateForm(prev => ({ ...prev, type: e.target.value }))} className="w-full h-9 px-3 bg-secondary border border-input rounded-md text-sm text-foreground focus:outline-none">
                   {PROMPT_TYPES.map(t => <option key={t.value} value={t.value}>{t.emoji} {t.label}</option>)}
                 </select>
               </div>
             </div>
             <div>
-              <label className="block text-xs text-muted-foreground mb-1">提示词内容</label>
+              <label className="block text-xs text-muted-foreground mb-1">プロンプト本文</label>
               <Textarea
                 value={createForm.content}
                 onChange={e => { setCreateForm(prev => ({ ...prev, content: e.target.value })); updatePreviewVars(e.target.value); }}
-                placeholder="输入提示词，使用 ${variable} 插入变量..."
+                placeholder="プロンプトを入力。${variable} で変数を挿入できます..."
                 rows={8}
                 className="text-sm font-mono resize-none"
               />
             </div>
             {previewVars.length > 0 && (
               <div className="flex flex-wrap gap-1">
-                <span className="text-xs text-muted-foreground">检测到变量：</span>
+                <span className="text-xs text-muted-foreground">検出した変数：</span>
                 {previewVars.map(v => (
                   <code key={v} className="text-[10px] px-1.5 py-0.5 bg-primary/10 text-primary rounded font-mono">${`{${v}}`}</code>
                 ))}
               </div>
             )}
             <Button size="sm" onClick={handleCreate} disabled={!createForm.name.trim() || !createForm.content.trim()}>
-              <Save size={14} className="mr-1" />保存模板
+              <Save size={14} className="mr-1" />テンプレートを保存
             </Button>
           </CardContent>
         </Card>
@@ -265,7 +266,7 @@ export function PromptLab({ projectId }: PromptLabProps) {
                     <Textarea value={editForm.content} onChange={e => setEditForm(p => ({ ...p, content: e.target.value }))} rows={6} className="text-sm font-mono resize-none" />
                     <div className="flex gap-2">
                       <Button size="sm" onClick={() => handleUpdate(prompt.id)}><Save size={14} className="mr-1" />保存</Button>
-                      <Button size="sm" variant="ghost" onClick={() => setEditingId(null)}>取消</Button>
+                      <Button size="sm" variant="ghost" onClick={() => setEditingId(null)}>キャンセル</Button>
                     </div>
                   </div>
                 ) : (
@@ -273,9 +274,9 @@ export function PromptLab({ projectId }: PromptLabProps) {
                     <div className="flex items-start justify-between mb-2">
                       <div className="flex items-center gap-2">
                         <span className="text-sm">{typeInfo.emoji}</span>
-                        <h3 className="font-medium text-foreground text-sm">{prompt.name}</h3>
+                        <h3 className="font-medium text-foreground text-sm">{displayLabel(PROMPT_PRESET_NAME_LABELS, prompt.name)}</h3>
                         <Badge variant="outline" className="text-xs">{typeInfo.label}</Badge>
-                        {prompt.isDefault && <Badge className="text-xs bg-primary/20 text-primary">默认</Badge>}
+                        {prompt.isDefault && <Badge className="text-xs bg-primary/20 text-primary">標準</Badge>}
                       </div>
                       <div className="flex items-center gap-1">
                         <Button variant="ghost" size="sm" onClick={() => { setEditingId(prompt.id); setEditForm({ name: prompt.name, type: prompt.type, content: prompt.content }); }}>
@@ -304,8 +305,8 @@ export function PromptLab({ projectId }: PromptLabProps) {
         {prompts.length === 0 && !isCreating && (
           <div className="text-center py-12 text-muted-foreground">
             <FlaskConical size={40} className="mx-auto mb-3 opacity-30" />
-            <p className="text-sm">还没有提示词模板</p>
-            <p className="text-xs mt-1">点击"加载预设"添加默认模板，或手动创建</p>
+            <p className="text-sm">プロンプトテンプレートはまだありません</p>
+            <p className="text-xs mt-1">「プリセットを読み込む」から標準テンプレートを追加するか、手動で作成してください</p>
           </div>
         )}
       </div>

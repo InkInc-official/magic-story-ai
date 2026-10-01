@@ -24,13 +24,13 @@ interface WorldSetupProps {
 }
 
 const SETTING_TYPES = [
-  { value: 'background', label: '背景设定', emoji: '🗺️' },
-  { value: 'power', label: '力量体系', emoji: '⚡' },
-  { value: 'location', label: '地理环境', emoji: '🏔️' },
-  { value: 'society', label: '社会结构', emoji: '🏛️' },
-  { value: 'history', label: '历史文化', emoji: '📜' },
-  { value: 'rules', label: '世界规则', emoji: '📋' },
-  { value: 'other', label: '其他', emoji: '✨' },
+  { value: 'background', label: '背景設定', emoji: '🗺️' },
+  { value: 'power', label: '能力体系', emoji: '⚡' },
+  { value: 'location', label: '地理・環境', emoji: '🏔️' },
+  { value: 'society', label: '社会構造', emoji: '🏛️' },
+  { value: 'history', label: '歴史・文化', emoji: '📜' },
+  { value: 'rules', label: '世界のルール', emoji: '📋' },
+  { value: 'other', label: 'その他', emoji: '✨' },
 ];
 
 export function WorldSetup({ projectId }: WorldSetupProps) {
@@ -120,8 +120,8 @@ export function WorldSetup({ projectId }: WorldSetupProps) {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Globe size={20} className="text-teal-400" />
-          <h2 className="text-lg font-bold text-foreground">世界观设定</h2>
-          <Badge variant="secondary" className="text-xs">{settings.length} 项设定</Badge>
+          <h2 className="text-lg font-bold text-foreground">世界観設定</h2>
+          <Badge variant="secondary" className="text-xs">{settings.length}件</Badge>
         </div>
         <div className="flex items-center gap-2">
           <Button
@@ -131,11 +131,11 @@ export function WorldSetup({ projectId }: WorldSetupProps) {
             className="text-teal-400 border-teal-400/30 hover:bg-teal-400/10"
           >
             <Sparkles size={14} className="mr-1" />
-            AI构建
+            AIで構築
           </Button>
           <Button size="sm" onClick={() => setIsCreating(true)}>
             <Plus size={14} className="mr-1" />
-            添加设定
+            設定を追加
           </Button>
         </div>
       </div>
@@ -145,23 +145,23 @@ export function WorldSetup({ projectId }: WorldSetupProps) {
         <Card className="bg-card/50 border-primary/30 glow-amber">
           <CardContent className="p-4 space-y-3">
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-medium text-foreground">新建世界设定</h3>
+              <h3 className="text-sm font-medium text-foreground">世界設定を新規作成</h3>
               <Button variant="ghost" size="sm" onClick={() => setIsCreating(false)}>
                 <X size={14} />
               </Button>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs text-muted-foreground mb-1">名称</label>
+                <label className="block text-xs text-muted-foreground mb-1">名前</label>
                 <Input
                   value={createForm.name}
                   onChange={e => setCreateForm(prev => ({ ...prev, name: e.target.value }))}
-                  placeholder="设定名称..."
+                  placeholder="設定名を入力..."
                   className="text-sm"
                 />
               </div>
               <div>
-                <label className="block text-xs text-muted-foreground mb-1">类型</label>
+                <label className="block text-xs text-muted-foreground mb-1">種類</label>
                 <select
                   value={createForm.type}
                   onChange={e => setCreateForm(prev => ({ ...prev, type: e.target.value }))}
@@ -174,28 +174,28 @@ export function WorldSetup({ projectId }: WorldSetupProps) {
               </div>
             </div>
             <div>
-              <label className="block text-xs text-muted-foreground mb-1">描述</label>
+              <label className="block text-xs text-muted-foreground mb-1">説明</label>
               <Textarea
                 value={createForm.description}
                 onChange={e => setCreateForm(prev => ({ ...prev, description: e.target.value }))}
-                placeholder="详细描述这个世界设定..."
+                placeholder="この世界設定を詳しく説明..."
                 rows={3}
                 className="text-sm resize-none"
               />
             </div>
             <div>
-              <label className="block text-xs text-muted-foreground mb-1">规则与限制</label>
+              <label className="block text-xs text-muted-foreground mb-1">ルールと制約</label>
               <Textarea
                 value={createForm.rules}
                 onChange={e => setCreateForm(prev => ({ ...prev, rules: e.target.value }))}
-                placeholder="这个设定的规则、限制和运作机制..."
+                placeholder="この設定のルール、制約、仕組み..."
                 rows={2}
                 className="text-sm resize-none"
               />
             </div>
             <Button size="sm" onClick={handleCreate} disabled={!createForm.name.trim()}>
               <Save size={14} className="mr-1" />
-              保存设定
+              設定を保存
             </Button>
           </CardContent>
         </Card>
@@ -239,7 +239,7 @@ export function WorldSetup({ projectId }: WorldSetupProps) {
                       onChange={e => setEditForm(prev => ({ ...prev, rules: e.target.value }))}
                       rows={2}
                       className="text-sm resize-none"
-                      placeholder="规则与限制"
+                      placeholder="ルールと制約"
                     />
                     <div className="flex gap-2">
                       <Button size="sm" onClick={() => handleUpdate(setting.id)}>
@@ -247,7 +247,7 @@ export function WorldSetup({ projectId }: WorldSetupProps) {
                         保存
                       </Button>
                       <Button size="sm" variant="ghost" onClick={() => setEditingId(null)}>
-                        取消
+                        キャンセル
                       </Button>
                     </div>
                   </div>
@@ -273,7 +273,7 @@ export function WorldSetup({ projectId }: WorldSetupProps) {
                     )}
                     {setting.rules && (
                       <div className="mt-2 p-2 bg-secondary/50 rounded-md">
-                        <p className="text-xs text-muted-foreground font-medium mb-1">📋 规则</p>
+                        <p className="text-xs text-muted-foreground font-medium mb-1">📋 ルール</p>
                         <p className="text-sm text-foreground/80 whitespace-pre-wrap">{setting.rules}</p>
                       </div>
                     )}
@@ -287,8 +287,8 @@ export function WorldSetup({ projectId }: WorldSetupProps) {
         {settings.length === 0 && !isCreating && (
           <div className="text-center py-12 text-muted-foreground">
             <Globe size={40} className="mx-auto mb-3 opacity-30" />
-            <p className="text-sm">还没有世界设定</p>
-            <p className="text-xs mt-1">点击"添加设定"或让AI帮你构建世界观</p>
+            <p className="text-sm">世界設定はまだありません</p>
+            <p className="text-xs mt-1">「設定を追加」を選ぶか、AIに世界観の構築を依頼してください</p>
           </div>
         )}
       </div>

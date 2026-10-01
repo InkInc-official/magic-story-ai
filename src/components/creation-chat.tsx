@@ -12,6 +12,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { AntiAIPanel } from '@/components/anti-ai-panel';
 import { AdversarialReviewPanel } from '@/components/adversarial-review';
 import { ChapterPreview } from '@/components/chapter-preview';
+import { APP_LOCALE, displayLabel, TOOL_LABELS } from '@/lib/i18n';
 import {
   Send, Loader2, Trash2, StopCircle, Sparkles,
   ChevronDown, ChevronRight, Wrench, Eye, Shield, Swords,
@@ -43,14 +44,14 @@ function ToolCallCard({ toolCall, onExecute }: {
         >
           {expanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
           <span className="text-sm">{toolDef?.icon || '🔧'}</span>
-          <span className="text-xs font-medium text-primary">{toolDef?.name || toolCall.toolId}</span>
+          <span className="text-xs font-medium text-primary">{displayLabel(TOOL_LABELS, toolCall.toolId)}</span>
           {executed ? (
             <Badge variant="outline" className="text-[9px] text-emerald-400 border-emerald-400/30 ml-auto">
-              <CheckCircle2 size={10} className="mr-0.5" /> 已执行
+              <CheckCircle2 size={10} className="mr-0.5" /> 実行済み
             </Badge>
           ) : (
             <Badge variant="outline" className="text-[9px] text-amber-400 border-amber-400/30 ml-auto">
-              <Zap size={10} className="mr-0.5" /> 待执行
+              <Zap size={10} className="mr-0.5" /> 実行待ち
             </Badge>
           )}
         </button>
@@ -69,7 +70,7 @@ function ToolCallCard({ toolCall, onExecute }: {
                 onClick={() => onExecute(toolCall)}
               >
                 <Zap size={12} className="mr-1" />
-                执行此工具
+                このツールを実行
               </Button>
             )}
             {result && (
@@ -112,10 +113,10 @@ function MessageBubble({ message, onExecuteTool, toolResults }: {
             </div>
           )}
           <span className="text-[10px] text-muted-foreground">
-            {isUser ? '你' : '墨灵'}
+            {isUser ? 'あなた' : '墨霊'}
           </span>
           <span className="text-[9px] text-muted-foreground/50">
-            {new Date(message.timestamp).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}
+            {new Date(message.timestamp).toLocaleTimeString(APP_LOCALE, { hour: '2-digit', minute: '2-digit' })}
           </span>
         </div>
 
@@ -172,9 +173,9 @@ function SidePanel({ type, onClose }: {
   }, [activeChapterId, type]);
 
   const panelConfig = {
-    preview: { icon: Eye, label: '实时预览', color: 'text-cyan-400' },
-    antiAi: { icon: Shield, label: '去AI味', color: 'text-rose-400' },
-    adversarial: { icon: Swords, label: '对抗评审', color: 'text-purple-400' },
+    preview: { icon: Eye, label: 'リアルタイムプレビュー', color: 'text-cyan-400' },
+    antiAi: { icon: Shield, label: 'AIらしさ分析', color: 'text-rose-400' },
+    adversarial: { icon: Swords, label: '多角的レビュー', color: 'text-purple-400' },
   }[type];
 
   return (
@@ -220,7 +221,7 @@ function SidePanel({ type, onClose }: {
         {type === 'antiAi' && !chapter && (
           <div className="flex flex-col items-center justify-center h-full text-muted-foreground px-6">
             <Shield size={28} className="mb-3 opacity-30" />
-            <p className="text-sm">选择章节后可进行去AI味分析</p>
+            <p className="text-sm">章を選択するとAIらしさを分析できます</p>
           </div>
         )}
         {type === 'adversarial' && chapter && (
@@ -234,7 +235,7 @@ function SidePanel({ type, onClose }: {
         {type === 'adversarial' && !chapter && (
           <div className="flex flex-col items-center justify-center h-full text-muted-foreground px-6">
             <Swords size={28} className="mb-3 opacity-30" />
-            <p className="text-sm">选择章节后可进行对抗评审</p>
+            <p className="text-sm">章を選択すると多角的レビューを実行できます</p>
           </div>
         )}
       </div>
@@ -274,7 +275,7 @@ export function CreationChat({ projectId }: { projectId: string }) {
       addAgentMessage(projectId, {
         id: 'welcome',
         role: 'assistant',
-        content: '你好！我是墨灵，你的全能创作代理 ✨\n\n我可以帮你规划大纲、创建角色、构建世界观、撰写章节、润色文字——所有创作环节一气呵成。\n\n试试跟我说：\n• "帮我构思一个玄幻故事"\n• "设计一个有魅力的反派"\n• "帮我把第三章写出来"\n• "审查一下这段文字的AI味"\n\n左侧的工具面板可以开关我使用的工具，按需配置即可。',
+        content: 'こんにちは！創作をお手伝いする墨霊です ✨\n\nプロット作成、キャラクター設計、世界観構築、章の執筆、文章の推敲まで、創作の各工程をまとめてお手伝いできます。\n\nたとえば、次のように話しかけてください：\n• 「ファンタジー物語のアイデアを考えて」\n• 「魅力的な敵役を設計して」\n• 「第3章を書いて」\n• 「この文章のAIらしさを確認して」\n\n左側のツールパネルでは、使用するツールを必要に応じて切り替えられます。',
         agentType: 'universal',
         timestamp: Date.now(),
       });
@@ -403,7 +404,7 @@ export function CreationChat({ projectId }: { projectId: string }) {
         addAgentMessage(projectId, {
           id: assistantId,
           role: 'assistant',
-          content: '⚠️ 请求失败，请重试。可能是网络问题或API服务暂时不可用。',
+          content: '⚠️ リクエストに失敗しました。通信状態またはAPIサービスを確認して、もう一度お試しください。',
           agentType: 'universal',
           timestamp: Date.now(),
           isStreaming: false,
@@ -429,7 +430,7 @@ export function CreationChat({ projectId }: { projectId: string }) {
   // Execute a parsed tool call by making the appropriate API request
   const handleExecuteTool = async (tc: ParsedToolCall) => {
     const key = `${tc.toolId}-${Date.now()}`;
-    setToolResults(prev => ({ ...prev, [key]: '⏳ 执行中...' }));
+    setToolResults(prev => ({ ...prev, [key]: '⏳ 実行中...' }));
 
     try {
       let result = '';
@@ -441,7 +442,7 @@ export function CreationChat({ projectId }: { projectId: string }) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ projectId, content: tc.input.content || JSON.stringify(tc.input) }),
           });
-          result = res.ok ? '✅ 大纲已创建/更新' : '❌ 创建大纲失败';
+          result = res.ok ? '✅ プロットを作成／更新しました' : '❌ プロットの作成に失敗しました';
           break;
         }
         case 'create_character': {
@@ -450,7 +451,7 @@ export function CreationChat({ projectId }: { projectId: string }) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ projectId, ...tc.input }),
           });
-          result = res.ok ? '✅ 角色已创建' : '❌ 创建角色失败';
+          result = res.ok ? '✅ キャラクターを作成しました' : '❌ キャラクターの作成に失敗しました';
           break;
         }
         case 'create_world_entry': {
@@ -459,16 +460,16 @@ export function CreationChat({ projectId }: { projectId: string }) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ projectId, ...tc.input }),
           });
-          result = res.ok ? '✅ 世界设定已创建' : '❌ 创建世界设定失败';
+          result = res.ok ? '✅ 世界設定を作成しました' : '❌ 世界設定の作成に失敗しました';
           break;
         }
         case 'read_outline': {
           const res = await fetch(`/api/outlines?projectId=${projectId}`);
           if (res.ok) {
             const data = await res.json();
-            result = data.length > 0 ? `📋 当前大纲 (v${data[0].version}):\n${data[0].content.slice(0, 500)}...` : '📋 暂无大纲';
+            result = data.length > 0 ? `📋 現在のプロット (v${data[0].version}):\n${data[0].content.slice(0, 500)}...` : '📋 プロットはまだありません';
           } else {
-            result = '❌ 读取大纲失败';
+            result = '❌ プロットの読み込みに失敗しました';
           }
           break;
         }
@@ -482,23 +483,23 @@ export function CreationChat({ projectId }: { projectId: string }) {
           if (charRes.ok) {
             const chars = await charRes.json();
             const match = chars.find((c: { name: string }) => c.name.includes(query));
-            if (match) found += `👤 角色: ${match.name} - ${match.personality || ''}\n`;
+            if (match) found += `👤 キャラクター: ${match.name} - ${match.personality || ''}\n`;
           }
           if (worldRes.ok) {
             const worlds = await worldRes.json();
             const match = worlds.find((w: { title: string }) => w.title.includes(query));
-            if (match) found += `🌍 世界设定: ${match.title}\n`;
+            if (match) found += `🌍 世界設定: ${match.title}\n`;
           }
-          result = found || `🔍 未找到与"${query}"相关的资产`;
+          result = found || `🔍 「${query}」に関連するアセットが見つかりません`;
           break;
         }
         default:
-          result = `🔧 工具 ${tc.toolId} 已记录（API对接中）`;
+          result = `🔧 ツール ${tc.toolId} を受け付けました（API連携準備中）`;
       }
 
       setToolResults(prev => ({ ...prev, [key]: result }));
     } catch {
-      setToolResults(prev => ({ ...prev, [key]: '❌ 执行出错' }));
+      setToolResults(prev => ({ ...prev, [key]: '❌ 実行中にエラーが発生しました' }));
     }
   };
 
@@ -518,11 +519,11 @@ export function CreationChat({ projectId }: { projectId: string }) {
             <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center">
               <Sparkles size={12} className="text-primary" />
             </div>
-            <span className="text-sm font-medium text-foreground">墨灵</span>
+            <span className="text-sm font-medium text-foreground">墨霊</span>
             <Badge variant="outline" className="text-[9px]">Universal Agent</Badge>
             {isStreaming && (
               <Badge className="text-[9px] bg-emerald-400/10 text-emerald-400 border-emerald-400/30">
-                <Loader2 size={8} className="mr-0.5 animate-spin" /> 思考中
+                <Loader2 size={8} className="mr-0.5 animate-spin" /> 考えています
               </Badge>
             )}
           </div>
@@ -533,27 +534,27 @@ export function CreationChat({ projectId }: { projectId: string }) {
               size="sm"
               onClick={() => setSidePanel(sidePanel === 'preview' ? 'none' : 'preview')}
               className={`h-7 px-2 text-xs ${sidePanel === 'preview' ? 'text-cyan-400 bg-cyan-400/10' : 'text-muted-foreground'}`}
-              title="实时预览"
+              title="リアルタイムプレビュー"
             >
-              <Eye size={12} className="mr-1" />预览
+              <Eye size={12} className="mr-1" />プレビュー
             </Button>
             <Button
               variant="ghost"
               size="sm"
               onClick={() => setSidePanel(sidePanel === 'antiAi' ? 'none' : 'antiAi')}
               className={`h-7 px-2 text-xs ${sidePanel === 'antiAi' ? 'text-rose-400 bg-rose-400/10' : 'text-muted-foreground'}`}
-              title="去AI味分析"
+              title="AIらしさ分析"
             >
-              <Shield size={12} className="mr-1" />去AI味
+              <Shield size={12} className="mr-1" />AIらしさ
             </Button>
             <Button
               variant="ghost"
               size="sm"
               onClick={() => setSidePanel(sidePanel === 'adversarial' ? 'none' : 'adversarial')}
               className={`h-7 px-2 text-xs ${sidePanel === 'adversarial' ? 'text-purple-400 bg-purple-400/10' : 'text-muted-foreground'}`}
-              title="对抗评审"
+              title="多角的レビュー"
             >
-              <Swords size={12} className="mr-1" />评审
+              <Swords size={12} className="mr-1" />レビュー
             </Button>
             <div className="w-px h-4 bg-border mx-1" />
             <Button
@@ -561,7 +562,7 @@ export function CreationChat({ projectId }: { projectId: string }) {
               size="sm"
               onClick={handleClear}
               className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground"
-              title="清空对话"
+              title="会話を消去"
             >
               <Trash2 size={12} />
             </Button>
@@ -584,10 +585,10 @@ export function CreationChat({ projectId }: { projectId: string }) {
             {messages.length <= 1 && (
               <div className="mt-8 grid grid-cols-2 gap-3">
                 {[
-                  { emoji: '🎯', text: '帮我构思一个修仙故事的大纲', label: '规划大纲' },
-                  { emoji: '👤', text: '设计一个复杂的反派角色', label: '创建角色' },
-                  { emoji: '🌍', text: '构建一个蒸汽朋克世界观', label: '世界设定' },
-                  { emoji: '✍️', text: '根据大纲写出第一章', label: '撰写章节' },
+                  { emoji: '🎯', text: '帮我构思一个修仙故事的大纲', displayText: '修仙物語のプロットを考える', label: 'プロット作成' },
+                  { emoji: '👤', text: '设计一个复杂的反派角色', displayText: '複雑な敵役を設計する', label: 'キャラクター作成' },
+                  { emoji: '🌍', text: '构建一个蒸汽朋克世界观', displayText: 'スチームパンクの世界観を構築する', label: '世界設定' },
+                  { emoji: '✍️', text: '根据大纲写出第一章', displayText: 'プロットをもとに第1章を書く', label: '章の執筆' },
                 ].map(item => (
                   <button
                     key={item.label}
@@ -597,7 +598,7 @@ export function CreationChat({ projectId }: { projectId: string }) {
                     <span className="text-lg">{item.emoji}</span>
                     <div>
                       <span className="text-xs font-medium text-foreground group-hover:text-primary transition-colors">{item.label}</span>
-                      <p className="text-[10px] text-muted-foreground mt-0.5">{item.text}</p>
+                      <p className="text-[10px] text-muted-foreground mt-0.5">{item.displayText}</p>
                     </div>
                   </button>
                 ))}
@@ -620,7 +621,7 @@ export function CreationChat({ projectId }: { projectId: string }) {
                       handleSend();
                     }
                   }}
-                  placeholder="和墨灵聊聊你的创作想法... (Enter发送, Shift+Enter换行)"
+                  placeholder="墨霊に創作アイデアを相談...（Enterで送信、Shift+Enterで改行）"
                   rows={2}
                   className="text-sm resize-none min-h-[52px] max-h-[120px] pr-10 bg-secondary/30 border-border/50 focus:border-primary/30"
                   disabled={isStreaming}
@@ -648,14 +649,14 @@ export function CreationChat({ projectId }: { projectId: string }) {
                     className="h-[52px] px-4 bg-primary hover:bg-primary/90 text-primary-foreground"
                   >
                     <Send size={16} className="mr-1" />
-                    发送
+                    送信
                   </Button>
                 )}
               </div>
             </div>
             <div className="flex items-center gap-2 mt-2">
               <span className="text-[9px] text-muted-foreground/50">
-                模型驱动 · 工具热插拔 · 情感优先
+                モデル駆動 · ツール切り替え · 感情表現を重視
               </span>
             </div>
           </div>

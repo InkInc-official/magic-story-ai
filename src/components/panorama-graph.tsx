@@ -192,7 +192,7 @@ export function PanoramaGraph({ projectId }: PanoramaGraphProps) {
       }
     } catch (error) {
       console.error('Failed to fetch graph data:', error);
-      toast.error('加载图谱数据失败');
+      toast.error('ストーリーグラフの読み込みに失敗しました');
     } finally {
       setIsLoading(false);
     }
@@ -260,11 +260,11 @@ export function PanoramaGraph({ projectId }: PanoramaGraphProps) {
           const newEdge = await res.json();
           const flowEdge = dbEdgeToFlowEdge(newEdge);
           setAllEdges((prev) => [...prev, flowEdge]);
-          toast.success('连线创建成功');
+          toast.success('接続を作成しました');
         }
       } catch (error) {
         console.error('Failed to create edge:', error);
-        toast.error('创建连线失败');
+        toast.error('接続の作成に失敗しました');
       }
     },
     [projectId, setAllEdges]
@@ -317,7 +317,7 @@ export function PanoramaGraph({ projectId }: PanoramaGraphProps) {
         // silent fail for batch updates
       }
     });
-    toast.success('自动布局完成');
+    toast.success('自動配置が完了しました');
   }, [allNodes, allEdges, setAllNodes]);
 
   // Add node
@@ -330,7 +330,7 @@ export function PanoramaGraph({ projectId }: PanoramaGraphProps) {
 
   const submitAddNode = useCallback(async () => {
     if (!formTitle.trim()) {
-      toast.error('请输入节点标题');
+      toast.error('ノードのタイトルを入力してください');
       return;
     }
 
@@ -357,11 +357,11 @@ export function PanoramaGraph({ projectId }: PanoramaGraphProps) {
         const newNode = await res.json();
         setAllNodes((prev) => [...prev, dbNodeToFlowNode(newNode)]);
         setShowAddDialog(false);
-        toast.success('节点创建成功');
+        toast.success('ノードを作成しました');
       }
     } catch (error) {
       console.error('Failed to add node:', error);
-      toast.error('创建节点失败');
+      toast.error('ノードの作成に失敗しました');
     }
   }, [projectId, formTitle, formDescription, formNodeType, setAllNodes]);
 
@@ -402,11 +402,11 @@ export function PanoramaGraph({ projectId }: PanoramaGraphProps) {
         );
         setShowEditDialog(false);
         setEditingNodeId(null);
-        toast.success('节点更新成功');
+        toast.success('ノードを更新しました');
       }
     } catch (error) {
       console.error('Failed to update node:', error);
-      toast.error('更新节点失败');
+      toast.error('ノードの更新に失敗しました');
     }
   }, [editingNodeId, formTitle, formDescription, formNodeType, setAllNodes]);
 
@@ -420,11 +420,11 @@ export function PanoramaGraph({ projectId }: PanoramaGraphProps) {
           setAllEdges((prev) => prev.filter((e) => e.source !== nodeId && e.target !== nodeId));
           setSelectedNodeId(null);
           setSidePanel('none');
-          toast.success('节点已删除');
+          toast.success('ノードを削除しました');
         }
       } catch (error) {
         console.error('Failed to delete node:', error);
-        toast.error('删除节点失败');
+        toast.error('ノードの削除に失敗しました');
       }
     },
     [setAllNodes, setAllEdges, setSelectedNodeId, setSidePanel]
@@ -497,7 +497,7 @@ export function PanoramaGraph({ projectId }: PanoramaGraphProps) {
           console.error('Failed to delete edge:', error);
         }
       }
-      toast.success('连线已删除');
+      toast.success('接続を削除しました');
     },
     [setAllEdges]
   );
@@ -521,7 +521,7 @@ export function PanoramaGraph({ projectId }: PanoramaGraphProps) {
       <div className="flex items-center justify-center h-full min-h-[400px]">
         <div className="flex flex-col items-center gap-3">
           <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-          <span className="text-sm text-muted-foreground">加载图谱数据...</span>
+          <span className="text-sm text-muted-foreground">ストーリーグラフを読み込み中...</span>
         </div>
       </div>
     );
@@ -588,9 +588,9 @@ export function PanoramaGraph({ projectId }: PanoramaGraphProps) {
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
             <div className="text-center">
               <Network size={48} className="mx-auto mb-3 text-muted-foreground/30" />
-              <h3 className="text-lg font-medium text-muted-foreground/50 mb-1">全景图谱</h3>
+              <h3 className="text-lg font-medium text-muted-foreground/50 mb-1">ストーリーグラフ</h3>
               <p className="text-sm text-muted-foreground/30 mb-4">
-                可视化你的故事叙事结构
+                物語の構造を視覚化します
               </p>
               <Button
                 variant="outline"
@@ -598,7 +598,7 @@ export function PanoramaGraph({ projectId }: PanoramaGraphProps) {
                 className="pointer-events-auto"
                 onClick={handleAddNode}
               >
-                创建第一个节点
+                最初のノードを作成
               </Button>
             </div>
           </div>
@@ -626,20 +626,20 @@ export function PanoramaGraph({ projectId }: PanoramaGraphProps) {
       <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>添加故事节点</DialogTitle>
+            <DialogTitle>ストーリーノードを追加</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div>
-              <label className="text-sm text-muted-foreground mb-1 block">节点标题</label>
+              <label className="text-sm text-muted-foreground mb-1 block">ノードタイトル</label>
               <Input
                 value={formTitle}
                 onChange={(e) => setFormTitle(e.target.value)}
-                placeholder="输入节点标题..."
+                placeholder="ノードタイトルを入力..."
                 autoFocus
               />
             </div>
             <div>
-              <label className="text-sm text-muted-foreground mb-1 block">节点类型</label>
+              <label className="text-sm text-muted-foreground mb-1 block">ノード種別</label>
               <Select value={formNodeType} onValueChange={(v) => setFormNodeType(v as StoryNodeType)}>
                 <SelectTrigger>
                   <SelectValue />
@@ -663,11 +663,11 @@ export function PanoramaGraph({ projectId }: PanoramaGraphProps) {
               </Select>
             </div>
             <div>
-              <label className="text-sm text-muted-foreground mb-1 block">描述</label>
+              <label className="text-sm text-muted-foreground mb-1 block">説明</label>
               <textarea
                 value={formDescription}
                 onChange={(e) => setFormDescription(e.target.value)}
-                placeholder="描述这个节点..."
+                placeholder="このノードの説明..."
                 rows={3}
                 className="w-full px-3 py-2 bg-secondary border border-border rounded-lg text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 resize-none"
               />
@@ -675,10 +675,10 @@ export function PanoramaGraph({ projectId }: PanoramaGraphProps) {
           </div>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setShowAddDialog(false)}>
-              取消
+              キャンセル
             </Button>
             <Button onClick={submitAddNode} disabled={!formTitle.trim()}>
-              创建节点
+              ノードを作成
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -688,20 +688,20 @@ export function PanoramaGraph({ projectId }: PanoramaGraphProps) {
       <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>编辑故事节点</DialogTitle>
+            <DialogTitle>ストーリーノードを編集</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div>
-              <label className="text-sm text-muted-foreground mb-1 block">节点标题</label>
+              <label className="text-sm text-muted-foreground mb-1 block">ノードタイトル</label>
               <Input
                 value={formTitle}
                 onChange={(e) => setFormTitle(e.target.value)}
-                placeholder="输入节点标题..."
+                placeholder="ノードタイトルを入力..."
                 autoFocus
               />
             </div>
             <div>
-              <label className="text-sm text-muted-foreground mb-1 block">节点类型</label>
+              <label className="text-sm text-muted-foreground mb-1 block">ノード種別</label>
               <Select value={formNodeType} onValueChange={(v) => setFormNodeType(v as StoryNodeType)}>
                 <SelectTrigger>
                   <SelectValue />
@@ -725,11 +725,11 @@ export function PanoramaGraph({ projectId }: PanoramaGraphProps) {
               </Select>
             </div>
             <div>
-              <label className="text-sm text-muted-foreground mb-1 block">描述</label>
+              <label className="text-sm text-muted-foreground mb-1 block">説明</label>
               <textarea
                 value={formDescription}
                 onChange={(e) => setFormDescription(e.target.value)}
-                placeholder="描述这个节点..."
+                placeholder="このノードの説明..."
                 rows={3}
                 className="w-full px-3 py-2 bg-secondary border border-border rounded-lg text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 resize-none"
               />
@@ -737,10 +737,10 @@ export function PanoramaGraph({ projectId }: PanoramaGraphProps) {
           </div>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setShowEditDialog(false)}>
-              取消
+              キャンセル
             </Button>
             <Button onClick={submitEditNode} disabled={!formTitle.trim()}>
-              保存更改
+              変更を保存
             </Button>
           </DialogFooter>
         </DialogContent>

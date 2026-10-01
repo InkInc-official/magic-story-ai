@@ -7,6 +7,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { Eye, Type, AlignLeft, Minus, Plus, BookOpen, MousePointerClick } from 'lucide-react';
 import { useState } from 'react';
+import { displayLabel, EMOTION_ARC_LABELS, EMOTION_LABELS } from '@/lib/i18n';
 
 interface ChapterPreviewProps {
   title: string;
@@ -92,36 +93,36 @@ export function ChapterPreview({
         <div className="flex items-center justify-between px-3 py-2 border-b border-border/50 bg-card/30 shrink-0">
           <div className="flex items-center gap-2">
             <Eye size={14} className="text-cyan-400" />
-            <span className="text-xs font-medium text-foreground">实时预览</span>
+            <span className="text-xs font-medium text-foreground">リアルタイムプレビュー</span>
           </div>
         </div>
         <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground px-6">
           <div className="w-16 h-16 rounded-2xl bg-cyan-400/10 flex items-center justify-center mb-4">
             <MousePointerClick size={28} className="text-cyan-400/60" />
           </div>
-          <p className="text-sm font-medium text-foreground/70 mb-1">选择章节开始预览</p>
+          <p className="text-sm font-medium text-foreground/70 mb-1">章を選択してプレビュー</p>
           <p className="text-xs text-muted-foreground/60 text-center leading-relaxed">
-            在左侧章节列表中点击一个章节，<br />
-            即可在此处实时预览排版效果
+            左側の章一覧から章を選ぶと、<br />
+            ここでレイアウトを確認できます
           </p>
           <div className="mt-6 space-y-2 w-full max-w-[200px]">
             <div className="flex items-center gap-2 text-xs text-muted-foreground/50">
               <div className="w-5 h-5 rounded bg-cyan-400/10 flex items-center justify-center shrink-0">
                 <span className="text-[10px] text-cyan-400">1</span>
               </div>
-              <span>点击左侧章节列表</span>
+              <span>左側の章一覧を選択</span>
             </div>
             <div className="flex items-center gap-2 text-xs text-muted-foreground/50">
               <div className="w-5 h-5 rounded bg-cyan-400/10 flex items-center justify-center shrink-0">
                 <span className="text-[10px] text-cyan-400">2</span>
               </div>
-              <span>在中间编辑区写作</span>
+              <span>中央の編集欄で執筆</span>
             </div>
             <div className="flex items-center gap-2 text-xs text-muted-foreground/50">
               <div className="w-5 h-5 rounded bg-cyan-400/10 flex items-center justify-center shrink-0">
                 <span className="text-[10px] text-cyan-400">3</span>
               </div>
-              <span>右侧实时查看排版效果</span>
+              <span>右側でレイアウトを確認</span>
             </div>
           </div>
         </div>
@@ -135,7 +136,7 @@ export function ChapterPreview({
       <div className="flex items-center justify-between px-3 py-2 border-b border-border/50 bg-card/30 shrink-0">
         <div className="flex items-center gap-2">
           <Eye size={14} className="text-cyan-400" />
-          <span className="text-xs font-medium text-foreground">实时预览</span>
+          <span className="text-xs font-medium text-foreground">リアルタイムプレビュー</span>
         </div>
         <div className="flex items-center gap-1">
           <Button
@@ -144,7 +145,7 @@ export function ChapterPreview({
             onClick={() => setFontLevel(Math.max(0, fontLevel - 1))}
             disabled={fontLevel === 0}
             className="h-6 w-6 p-0"
-            title="缩小字号"
+            title="文字を小さくする"
           >
             <Minus size={12} />
           </Button>
@@ -155,7 +156,7 @@ export function ChapterPreview({
             onClick={() => setFontLevel(Math.min(2, fontLevel + 1))}
             disabled={fontLevel === 2}
             className="h-6 w-6 p-0"
-            title="放大字号"
+            title="文字を大きくする"
           >
             <Plus size={12} />
           </Button>
@@ -165,10 +166,10 @@ export function ChapterPreview({
             size="sm"
             onClick={() => setShowMeta(!showMeta)}
             className={`h-6 px-2 text-[10px] ${showMeta ? 'text-cyan-400' : 'text-muted-foreground'}`}
-            title="显示/隐藏元信息"
+            title="メタ情報を表示／非表示"
           >
             <Type size={10} className="mr-1" />
-            元信息
+            メタ情報
           </Button>
         </div>
       </div>
@@ -178,7 +179,7 @@ export function ChapterPreview({
         <div className="px-6 py-5 max-w-none">
           {/* Chapter Title */}
           <h1 className="text-xl font-bold text-foreground mb-4 pb-3 border-b border-border/30">
-            {title || '未命名章节'}
+            {title || '無題の章'}
           </h1>
 
           {/* Meta Info */}
@@ -190,12 +191,12 @@ export function ChapterPreview({
               </Badge>
               {emotionTarget && (
                 <Badge variant="outline" className={`text-[10px] ${emotionStyle}`}>
-                  {emotionTarget}
+                  {displayLabel(EMOTION_LABELS, emotionTarget)}
                 </Badge>
               )}
               {emotionArc && (
                 <Badge variant="outline" className="text-[10px] text-muted-foreground">
-                  {emotionArc}
+                  {displayLabel(EMOTION_ARC_LABELS, emotionArc)}
                 </Badge>
               )}
             </div>
@@ -204,7 +205,7 @@ export function ChapterPreview({
           {/* Summary (if exists) */}
           {summary && showMeta && (
             <div className="mb-5 p-3 bg-amber-400/5 border border-amber-400/15 rounded-lg">
-              <div className="text-[10px] text-amber-400/80 font-medium mb-1">章节摘要</div>
+              <div className="text-[10px] text-amber-400/80 font-medium mb-1">章の概要</div>
               <p className="text-xs text-foreground/70 leading-relaxed">{summary}</p>
             </div>
           )}
@@ -220,20 +221,20 @@ export function ChapterPreview({
               <div className="w-12 h-12 rounded-xl bg-emerald-400/10 flex items-center justify-center mb-3">
                 <AlignLeft size={22} className="text-emerald-400/50" />
               </div>
-              <p className="text-sm font-medium text-foreground/60 mb-1">开始写作吧</p>
+              <p className="text-sm font-medium text-foreground/60 mb-1">執筆を始めましょう</p>
               <p className="text-xs text-muted-foreground/50 text-center leading-relaxed">
-                在左侧编辑区输入内容，<br />
-                此处将实时预览排版效果
+                左側の編集欄に本文を入力すると、<br />
+                ここにレイアウトが表示されます
               </p>
               <div className="mt-4 flex flex-wrap gap-2">
                 <Badge variant="outline" className="text-[10px] text-cyan-400/60 border-cyan-400/20">
-                  对话高亮
+                  会話文を強調
                 </Badge>
                 <Badge variant="outline" className="text-[10px] text-amber-400/60 border-amber-400/20">
-                  段落缩进
+                  段落の字下げ
                 </Badge>
                 <Badge variant="outline" className="text-[10px] text-purple-400/60 border-purple-400/20">
-                  心理描写
+                  心情描写
                 </Badge>
               </div>
             </div>
@@ -244,8 +245,8 @@ export function ChapterPreview({
       {/* Bottom Bar */}
       <div className="px-3 py-1.5 border-t border-border/50 bg-card/30 shrink-0">
         <div className="flex items-center justify-between text-[10px] text-muted-foreground">
-          <span>{content.length} 字符</span>
-          <span>段落: {content.split(/\n+/).filter(p => p.trim()).length}</span>
+          <span>{content.length} 文字</span>
+          <span>段落：{content.split(/\n+/).filter(p => p.trim()).length}</span>
         </div>
       </div>
     </div>

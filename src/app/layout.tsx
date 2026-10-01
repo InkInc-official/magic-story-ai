@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
+import { APP_LOCALE, ja } from "@/lib/i18n";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -14,8 +15,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "小说创作Agent平台 - AI驱动的多Agent协作写作",
-  description: "多Agent协作的智能小说创作平台，包含策划、写手、编辑、评审、角色、世界观六大Agent协同创作",
+  title: ja.app.title,
+  description: ja.app.description,
   icons: {
     icon: "/logo.svg",
   },
@@ -27,7 +28,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="zh-CN" className="dark" suppressHydrationWarning>
+    <html lang={APP_LOCALE} className="dark" suppressHydrationWarning>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground`}
       >

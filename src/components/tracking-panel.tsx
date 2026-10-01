@@ -40,17 +40,17 @@ interface TrackingPanelProps {
 }
 
 const STATE_TYPES = [
-  { value: 'character_state', label: '角色状态', emoji: '👤' },
-  { value: 'relationship_delta', label: '关系变化', emoji: '🔗' },
-  { value: 'foreshadowing', label: '伏笔', emoji: '🧵' },
-  { value: 'timeline', label: '时间线', emoji: '⏱️' },
+  { value: 'character_state', label: 'キャラクター状態', emoji: '👤' },
+  { value: 'relationship_delta', label: '関係の変化', emoji: '🔗' },
+  { value: 'foreshadowing', label: '伏線', emoji: '🧵' },
+  { value: 'timeline', label: 'タイムライン', emoji: '⏱️' },
 ];
 
 const FORESHADOW_STATUSES = [
-  { value: 'planted', label: '已埋下', color: 'text-amber-400', bg: 'bg-amber-400/10' },
-  { value: 'advanced', label: '推进中', color: 'text-blue-400', bg: 'bg-blue-400/10' },
-  { value: 'resolved', label: '已收束', color: 'text-emerald-400', bg: 'bg-emerald-400/10' },
-  { value: 'abandoned', label: '已放弃', color: 'text-muted-foreground', bg: 'bg-secondary' },
+  { value: 'planted', label: '設置済み', color: 'text-amber-400', bg: 'bg-amber-400/10' },
+  { value: 'advanced', label: '進行中', color: 'text-blue-400', bg: 'bg-blue-400/10' },
+  { value: 'resolved', label: '回収済み', color: 'text-emerald-400', bg: 'bg-emerald-400/10' },
+  { value: 'abandoned', label: '保留', color: 'text-muted-foreground', bg: 'bg-secondary' },
 ];
 
 const IMPORTANCE_LEVELS = [
@@ -177,7 +177,7 @@ export function TrackingPanel({ projectId }: TrackingPanelProps) {
   const getStatusInfo = (status: string) => FORESHADOW_STATUSES.find(s => s.value === status) || FORESHADOW_STATUSES[0];
   const getImportanceInfo = (importance: string) => IMPORTANCE_LEVELS.find(i => i.value === importance) || IMPORTANCE_LEVELS[1];
   const getTypeInfo = (type: string) => STATE_TYPES.find(t => t.value === type) || STATE_TYPES[0];
-  const getChapterTitle = (chapterId: string) => chapters.find(c => c.id === chapterId)?.title || '未知章节';
+  const getChapterTitle = (chapterId: string) => chapters.find(c => c.id === chapterId)?.title || '不明な章';
 
   // Filter states by active tab
   const filteredStates = storyStates.filter(s => s.type === activeTab);
@@ -195,21 +195,21 @@ export function TrackingPanel({ projectId }: TrackingPanelProps) {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Route size={20} className="text-amber-400" />
-          <h2 className="text-lg font-bold text-foreground">故事追踪</h2>
-          <Badge variant="secondary" className="text-xs">{storyStates.length} 条记录</Badge>
-          <Badge variant="outline" className="text-xs">{foreshadowings.length} 条伏笔</Badge>
+          <h2 className="text-lg font-bold text-foreground">ストーリー追跡</h2>
+          <Badge variant="secondary" className="text-xs">{storyStates.length} 件</Badge>
+          <Badge variant="outline" className="text-xs">伏線 {foreshadowings.length} 件</Badge>
         </div>
         <div className="flex items-center gap-2">
           {activeTab !== 'foreshadowing' && (
             <Button size="sm" onClick={() => setIsCreatingState(true)}>
               <Plus size={14} className="mr-1" />
-              添加状态
+              状態を追加
             </Button>
           )}
           {activeTab === 'foreshadowing' && (
             <Button size="sm" onClick={() => setIsCreatingForeshadow(true)}>
               <Plus size={14} className="mr-1" />
-              添加伏笔
+              伏線を追加
             </Button>
           )}
         </div>
@@ -221,11 +221,11 @@ export function TrackingPanel({ projectId }: TrackingPanelProps) {
           <CardContent className="p-3">
             <div className="flex items-center gap-2 mb-2">
               <AlertTriangle size={14} className="text-amber-400" />
-              <span className="text-xs font-medium text-amber-400">伏笔逾期警告</span>
+              <span className="text-xs font-medium text-amber-400">未回収の伏線があります</span>
             </div>
             {overdueForeshadowings.map(f => (
               <div key={f.id} className="text-xs text-foreground/80 mb-1">
-                🧵 &quot;{f.content.slice(0, 30)}...&quot; 已超过10章未推进
+                🧵 &quot;{f.content.slice(0, 30)}...&quot; は10章以上進展がありません
               </div>
             ))}
           </CardContent>
@@ -234,10 +234,10 @@ export function TrackingPanel({ projectId }: TrackingPanelProps) {
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="bg-secondary/50">
-          <TabsTrigger value="character_state" className="text-xs">👤 角色状态</TabsTrigger>
-          <TabsTrigger value="foreshadowing" className="text-xs">🧵 伏笔追踪</TabsTrigger>
-          <TabsTrigger value="timeline" className="text-xs">⏱️ 时间线</TabsTrigger>
-          <TabsTrigger value="relationship_delta" className="text-xs">🔗 关系变化</TabsTrigger>
+          <TabsTrigger value="character_state" className="text-xs">👤 キャラクター状態</TabsTrigger>
+          <TabsTrigger value="foreshadowing" className="text-xs">🧵 伏線</TabsTrigger>
+          <TabsTrigger value="timeline" className="text-xs">⏱️ タイムライン</TabsTrigger>
+          <TabsTrigger value="relationship_delta" className="text-xs">🔗 関係の変化</TabsTrigger>
         </TabsList>
 
         {/* Tab: Character State */}
@@ -246,26 +246,26 @@ export function TrackingPanel({ projectId }: TrackingPanelProps) {
             <Card className="bg-card/50 border-primary/30 mb-3">
               <CardContent className="p-4 space-y-3">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-medium text-foreground">添加角色状态</h3>
+                  <h3 className="text-sm font-medium text-foreground">キャラクター状態を追加</h3>
                   <Button variant="ghost" size="sm" onClick={() => setIsCreatingState(false)}><X size={14} /></Button>
                 </div>
                 <div>
-                  <label className="block text-xs text-muted-foreground mb-1">所属章节</label>
+                  <label className="block text-xs text-muted-foreground mb-1">対象の章</label>
                   <select
                     value={stateForm.chapterId}
                     onChange={e => setStateForm(p => ({ ...p, chapterId: e.target.value }))}
                     className="w-full h-9 px-3 bg-secondary border border-input rounded-md text-sm text-foreground focus:outline-none"
                   >
-                    <option value="">选择章节</option>
-                    {chapters.map(c => <option key={c.id} value={c.id}>第{c.order + 1}章: {c.title || '无标题'}</option>)}
+                    <option value="">章を選択</option>
+                    {chapters.map(c => <option key={c.id} value={c.id}>第{c.order + 1}章: {c.title || '無題'}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs text-muted-foreground mb-1">状态数据 (JSON)</label>
+                  <label className="block text-xs text-muted-foreground mb-1">状態データ（JSON）</label>
                   <Textarea
                     value={stateForm.data}
                     onChange={e => setStateForm(p => ({ ...p, data: e.target.value }))}
-                    placeholder='{"character":"主角名","location":"某地","mentalState":"焦虑","arcStage":"转折点","powerLevel":"练气三层"}'
+                    placeholder='{"character":"主人公名","location":"場所","mentalState":"不安","arcStage":"転換点","powerLevel":"レベル3"}'
                     rows={5}
                     className="text-sm font-mono resize-none"
                   />
@@ -281,8 +281,8 @@ export function TrackingPanel({ projectId }: TrackingPanelProps) {
             {filteredStates.length === 0 ? (
               <div className="text-center py-12 text-muted-foreground">
                 <Route size={32} className="mx-auto mb-2 opacity-30" />
-                <p className="text-sm">暂无角色状态记录</p>
-                <p className="text-xs mt-1">AI生成章节时会自动追踪角色状态变化</p>
+                <p className="text-sm">キャラクター状態の記録はありません</p>
+                <p className="text-xs mt-1">AIで章を生成すると、状態の変化が自動的に記録されます</p>
               </div>
             ) : (
               <ScrollArea className="max-h-[60vh]">
@@ -300,7 +300,7 @@ export function TrackingPanel({ projectId }: TrackingPanelProps) {
                               第{chapter ? chapter.order + 1 : '?'}章
                             </Badge>
                             <span className="text-xs text-muted-foreground">
-                              {chapter?.title || '未知'}
+                              {chapter?.title || '不明'}
                             </span>
                           </div>
                           <Button variant="ghost" size="sm" onClick={() => handleDeleteState(state.id)} className="text-muted-foreground hover:text-destructive h-6 w-6 p-0">
@@ -330,19 +330,19 @@ export function TrackingPanel({ projectId }: TrackingPanelProps) {
             <Card className="bg-card/50 border-primary/30 mb-3">
               <CardContent className="p-4 space-y-3">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-medium text-foreground">添加伏笔</h3>
+                  <h3 className="text-sm font-medium text-foreground">伏線を追加</h3>
                   <Button variant="ghost" size="sm" onClick={() => setIsCreatingForeshadow(false)}><X size={14} /></Button>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs text-muted-foreground mb-1">埋设章节</label>
+                    <label className="block text-xs text-muted-foreground mb-1">設置する章</label>
                     <select
                       value={foreshadowForm.chapterId}
                       onChange={e => setForeshadowForm(p => ({ ...p, chapterId: e.target.value }))}
                       className="w-full h-9 px-3 bg-secondary border border-input rounded-md text-sm text-foreground focus:outline-none"
                     >
-                      <option value="">选择章节</option>
-                      {chapters.map(c => <option key={c.id} value={c.id}>第{c.order + 1}章: {c.title || '无标题'}</option>)}
+                      <option value="">章を選択</option>
+                      {chapters.map(c => <option key={c.id} value={c.id}>第{c.order + 1}章: {c.title || '無題'}</option>)}
                     </select>
                   </div>
                   <div>
@@ -357,17 +357,17 @@ export function TrackingPanel({ projectId }: TrackingPanelProps) {
                   </div>
                 </div>
                 <div>
-                  <label className="block text-xs text-muted-foreground mb-1">伏笔内容</label>
+                  <label className="block text-xs text-muted-foreground mb-1">伏線の内容</label>
                   <Textarea
                     value={foreshadowForm.content}
                     onChange={e => setForeshadowForm(p => ({ ...p, content: e.target.value }))}
-                    placeholder="描述伏笔内容..."
+                    placeholder="伏線の内容を入力..."
                     rows={3}
                     className="text-sm resize-none"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs text-muted-foreground mb-1">预计收束章节号</label>
+                  <label className="block text-xs text-muted-foreground mb-1">回収予定の章番号</label>
                   <Input
                     type="number"
                     value={foreshadowForm.expectedResolveChapter}
@@ -377,7 +377,7 @@ export function TrackingPanel({ projectId }: TrackingPanelProps) {
                   />
                 </div>
                 <Button size="sm" onClick={handleCreateForeshadow} disabled={!foreshadowForm.chapterId || !foreshadowForm.content.trim()}>
-                  <Save size={14} className="mr-1" />保存伏笔
+                  <Save size={14} className="mr-1" />伏線を保存
                 </Button>
               </CardContent>
             </Card>
@@ -386,8 +386,8 @@ export function TrackingPanel({ projectId }: TrackingPanelProps) {
           {foreshadowings.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
               <Route size={32} className="mx-auto mb-2 opacity-30" />
-              <p className="text-sm">暂无伏笔记录</p>
-              <p className="text-xs mt-1">添加伏笔追踪故事的悬念与照应</p>
+              <p className="text-sm">伏線の記録はありません</p>
+              <p className="text-xs mt-1">伏線を追加して、物語内の仕掛けと回収を管理できます</p>
             </div>
           ) : (
             <div className="space-y-2">
@@ -415,7 +415,7 @@ export function TrackingPanel({ projectId }: TrackingPanelProps) {
                           />
                           <div className="grid grid-cols-3 gap-2">
                             <div>
-                              <label className="block text-xs text-muted-foreground mb-1">状态</label>
+                              <label className="block text-xs text-muted-foreground mb-1">状態</label>
                               <select
                                 value={editForeshadowForm.status}
                                 onChange={e => setEditForeshadowForm(p => ({ ...p, status: e.target.value }))}
@@ -435,7 +435,7 @@ export function TrackingPanel({ projectId }: TrackingPanelProps) {
                               </select>
                             </div>
                             <div>
-                              <label className="block text-xs text-muted-foreground mb-1">预计收束</label>
+                              <label className="block text-xs text-muted-foreground mb-1">回収予定</label>
                               <Input
                                 type="number"
                                 value={editForeshadowForm.expectedResolveChapter}
@@ -449,7 +449,7 @@ export function TrackingPanel({ projectId }: TrackingPanelProps) {
                             <Button size="sm" onClick={() => handleUpdateForeshadow(f.id)}>
                               <Save size={14} className="mr-1" />保存
                             </Button>
-                            <Button size="sm" variant="ghost" onClick={() => setEditingForeshadowId(null)}>取消</Button>
+                            <Button size="sm" variant="ghost" onClick={() => setEditingForeshadowId(null)}>キャンセル</Button>
                           </div>
                         </div>
                       ) : (
@@ -460,7 +460,7 @@ export function TrackingPanel({ projectId }: TrackingPanelProps) {
                               <Badge variant="outline" className="text-xs">第{chapter ? chapter.order + 1 : '?'}章</Badge>
                               <Badge className={`text-xs ${statusInfo.bg} ${statusInfo.color}`}>{statusInfo.label}</Badge>
                               <Badge variant="outline" className={`text-xs ${importanceInfo.color}`}>
-                                {importanceInfo.label}优先
+                                重要度: {importanceInfo.label}
                               </Badge>
                             </div>
                             <div className="flex items-center gap-1">
@@ -477,8 +477,8 @@ export function TrackingPanel({ projectId }: TrackingPanelProps) {
                           </div>
                           <p className="text-sm text-foreground/90 whitespace-pre-wrap">{f.content}</p>
                           <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
-                            <span>埋设: 第{chapter ? chapter.order + 1 : '?'}章</span>
-                            <span>预计收束: 第{f.expectedResolveChapter}章</span>
+                            <span>設置: 第{chapter ? chapter.order + 1 : '?'}章</span>
+                            <span>回収予定: 第{f.expectedResolveChapter}章</span>
                           </div>
                         </div>
                       )}
@@ -496,26 +496,26 @@ export function TrackingPanel({ projectId }: TrackingPanelProps) {
             <Card className="bg-card/50 border-primary/30 mb-3">
               <CardContent className="p-4 space-y-3">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-medium text-foreground">添加时间线事件</h3>
+                  <h3 className="text-sm font-medium text-foreground">タイムラインイベントを追加</h3>
                   <Button variant="ghost" size="sm" onClick={() => setIsCreatingState(false)}><X size={14} /></Button>
                 </div>
                 <div>
-                  <label className="block text-xs text-muted-foreground mb-1">所属章节</label>
+                  <label className="block text-xs text-muted-foreground mb-1">対象の章</label>
                   <select
                     value={stateForm.chapterId}
                     onChange={e => setStateForm(p => ({ ...p, chapterId: e.target.value }))}
                     className="w-full h-9 px-3 bg-secondary border border-input rounded-md text-sm text-foreground focus:outline-none"
                   >
-                    <option value="">选择章节</option>
-                    {chapters.map(c => <option key={c.id} value={c.id}>第{c.order + 1}章: {c.title || '无标题'}</option>)}
+                    <option value="">章を選択</option>
+                    {chapters.map(c => <option key={c.id} value={c.id}>第{c.order + 1}章: {c.title || '無題'}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs text-muted-foreground mb-1">事件描述</label>
+                  <label className="block text-xs text-muted-foreground mb-1">イベントの説明</label>
                   <Textarea
                     value={stateForm.data}
                     onChange={e => setStateForm(p => ({ ...p, data: e.target.value }))}
-                    placeholder="描述时间线事件..."
+                    placeholder="タイムラインイベントを入力..."
                     rows={3}
                     className="text-sm resize-none"
                   />
@@ -530,8 +530,8 @@ export function TrackingPanel({ projectId }: TrackingPanelProps) {
           {filteredStates.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
               <Route size={32} className="mx-auto mb-2 opacity-30" />
-              <p className="text-sm">暂无时间线事件</p>
-              <p className="text-xs mt-1">添加时间线事件追踪故事的发展脉络</p>
+              <p className="text-sm">タイムラインイベントはありません</p>
+              <p className="text-xs mt-1">イベントを追加して物語の流れを管理できます</p>
             </div>
           ) : (
             <div className="relative">
@@ -571,26 +571,26 @@ export function TrackingPanel({ projectId }: TrackingPanelProps) {
             <Card className="bg-card/50 border-primary/30 mb-3">
               <CardContent className="p-4 space-y-3">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-medium text-foreground">添加关系变化</h3>
+                  <h3 className="text-sm font-medium text-foreground">関係の変化を追加</h3>
                   <Button variant="ghost" size="sm" onClick={() => setIsCreatingState(false)}><X size={14} /></Button>
                 </div>
                 <div>
-                  <label className="block text-xs text-muted-foreground mb-1">所属章节</label>
+                  <label className="block text-xs text-muted-foreground mb-1">対象の章</label>
                   <select
                     value={stateForm.chapterId}
                     onChange={e => setStateForm(p => ({ ...p, chapterId: e.target.value }))}
                     className="w-full h-9 px-3 bg-secondary border border-input rounded-md text-sm text-foreground focus:outline-none"
                   >
-                    <option value="">选择章节</option>
-                    {chapters.map(c => <option key={c.id} value={c.id}>第{c.order + 1}章: {c.title || '无标题'}</option>)}
+                    <option value="">章を選択</option>
+                    {chapters.map(c => <option key={c.id} value={c.id}>第{c.order + 1}章: {c.title || '無題'}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs text-muted-foreground mb-1">关系变化描述</label>
+                  <label className="block text-xs text-muted-foreground mb-1">関係変化の説明</label>
                   <Textarea
                     value={stateForm.data}
                     onChange={e => setStateForm(p => ({ ...p, data: e.target.value }))}
-                    placeholder='{"from":"角色A","to":"角色B","oldStatus":"盟友","newStatus":"对手","reason":"背叛事件"}'
+                    placeholder='{"from":"人物A","to":"人物B","oldStatus":"仲間","newStatus":"ライバル","reason":"裏切り"}'
                     rows={4}
                     className="text-sm font-mono resize-none"
                   />
@@ -605,8 +605,8 @@ export function TrackingPanel({ projectId }: TrackingPanelProps) {
           {filteredStates.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
               <Route size={32} className="mx-auto mb-2 opacity-30" />
-              <p className="text-sm">暂无关系变化记录</p>
-              <p className="text-xs mt-1">追踪角色之间关系的发展与转变</p>
+              <p className="text-sm">関係変化の記録はありません</p>
+              <p className="text-xs mt-1">キャラクター間の関係の推移を記録できます</p>
             </div>
           ) : (
             <ScrollArea className="max-h-[60vh]">
@@ -641,7 +641,7 @@ export function TrackingPanel({ projectId }: TrackingPanelProps) {
                             </div>
                           )}
                           {parsedData.reason && (
-                            <p className="text-xs text-muted-foreground">原因: {parsedData.reason}</p>
+                            <p className="text-xs text-muted-foreground">理由: {parsedData.reason}</p>
                           )}
                           {parsedData.raw && (
                             <p className="text-sm text-foreground/90">{parsedData.raw}</p>

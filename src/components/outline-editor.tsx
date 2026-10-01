@@ -8,6 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { useAppStore } from '@/lib/store';
 import { ListTree, Sparkles, Save, RotateCcw, History, ChevronRight, ChevronDown, Heart } from 'lucide-react';
+import { EMOTION_LABELS } from '@/lib/i18n';
 
 interface Outline {
   id: string;
@@ -20,17 +21,8 @@ interface OutlineEditorProps {
 }
 
 const EMOTION_TARGETS = [
-  { value: '', label: '未设定' },
-  { value: '爽快', label: '🔥 爽快' },
-  { value: '感动', label: '💧 感动' },
-  { value: '紧张', label: '😰 紧张' },
-  { value: '期待', label: '✨ 期待' },
-  { value: '愤怒', label: '😡 愤怒' },
-  { value: '悲伤', label: '😢 悲伤' },
-  { value: '惊喜', label: '😮 惊喜' },
-  { value: '恐惧', label: '👻 恐惧' },
-  { value: '温暖', label: '☀️ 温暖' },
-  { value: '震撼', label: '💥 震撼' },
+  { value: '', label: '未設定' },
+  ...Object.entries(EMOTION_LABELS).map(([value, label]) => ({ value, label })),
 ];
 
 export function OutlineEditor({ projectId }: OutlineEditorProps) {
@@ -122,7 +114,7 @@ export function OutlineEditor({ projectId }: OutlineEditorProps) {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <ListTree size={20} className="text-amber-400" />
-          <h2 className="text-lg font-bold text-foreground">大纲规划</h2>
+          <h2 className="text-lg font-bold text-foreground">プロット設計</h2>
           {currentOutline && (
             <Badge variant="secondary" className="text-xs">v{currentOutline.version}</Badge>
           )}
@@ -136,15 +128,15 @@ export function OutlineEditor({ projectId }: OutlineEditorProps) {
             className="text-amber-400 border-amber-400/30 hover:bg-amber-400/10"
           >
             <Sparkles size={14} className="mr-1" />
-            AI规划
+            AIで設計
           </Button>
           <Button variant="outline" size="sm" onClick={() => setShowHistory(!showHistory)}>
             <History size={14} className="mr-1" />
-            版本历史
+            バージョン履歴
           </Button>
           <Button variant="outline" size="sm" onClick={handleNewVersion}>
             <RotateCcw size={14} className="mr-1" />
-            新版本
+            新しいバージョン
           </Button>
           <Button size="sm" onClick={handleSave} disabled={isSaving}>
             <Save size={14} className="mr-1" />
@@ -168,7 +160,7 @@ export function OutlineEditor({ projectId }: OutlineEditorProps) {
                       : 'hover:bg-secondary text-foreground/70'
                   }`}
                 >
-                  <span>版本 v{o.version}</span>
+                  <span>バージョン v{o.version}</span>
                   <span className="text-xs text-muted-foreground">{o.content.length} 字</span>
                 </button>
               ))}
@@ -185,17 +177,17 @@ export function OutlineEditor({ projectId }: OutlineEditorProps) {
         >
           {showEmotionGuide ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
           <Heart size={16} className="text-rose-400" />
-          情感规划指南
+          感情設計ガイド
         </button>
         {showEmotionGuide && (
           <Card className="bg-card/50 border-border/50">
             <CardContent className="p-4 space-y-3">
               <p className="text-xs text-muted-foreground">
-                在大纲中规划每章的情感目标，AI生成时会参考这些情感设定。建议在大纲中为每章标注：
+                各章の感情目標をプロットに記載すると、AI生成時に参照されます。各章に次の情報を付けることをおすすめします：
               </p>
               <div className="space-y-2">
                 <div className="flex items-start gap-2">
-                  <span className="text-xs font-medium text-foreground shrink-0">情感目标:</span>
+                  <span className="text-xs font-medium text-foreground shrink-0">感情目標：</span>
                   <div className="flex flex-wrap gap-1">
                     {EMOTION_TARGETS.filter(e => e.value).map(e => (
                       <Badge key={e.value} variant="outline" className="text-[10px]">{e.label}</Badge>
@@ -203,31 +195,31 @@ export function OutlineEditor({ projectId }: OutlineEditorProps) {
                   </div>
                 </div>
                 <div className="flex items-start gap-2">
-                  <span className="text-xs font-medium text-foreground shrink-0">情感弧线:</span>
+                  <span className="text-xs font-medium text-foreground shrink-0">感情曲線：</span>
                   <div className="flex flex-wrap gap-1">
-                    <Badge variant="outline" className="text-[10px]">📉 V型</Badge>
-                    <Badge variant="outline" className="text-[10px]">📈 倒V型</Badge>
-                    <Badge variant="outline" className="text-[10px]">📊 W型</Badge>
-                    <Badge variant="outline" className="text-[10px]">📈 递进</Badge>
-                    <Badge variant="outline" className="text-[10px]">⏳ 延迟满足</Badge>
-                    <Badge variant="outline" className="text-[10px]">⚡ 突变</Badge>
+                    <Badge variant="outline" className="text-[10px]">📉 V字型</Badge>
+                    <Badge variant="outline" className="text-[10px]">📈 逆V字型</Badge>
+                    <Badge variant="outline" className="text-[10px]">📊 W字型</Badge>
+                    <Badge variant="outline" className="text-[10px]">📈 段階的上昇</Badge>
+                    <Badge variant="outline" className="text-[10px]">⏳ 遅延満足</Badge>
+                    <Badge variant="outline" className="text-[10px]">⚡ 急変</Badge>
                   </div>
                 </div>
                 <div className="flex items-start gap-2">
-                  <span className="text-xs font-medium text-foreground shrink-0">章节钩子:</span>
+                  <span className="text-xs font-medium text-foreground shrink-0">章のフック：</span>
                   <div className="flex flex-wrap gap-1">
-                    <Badge variant="outline" className="text-[10px]">❓ 悬念</Badge>
-                    <Badge variant="outline" className="text-[10px]">🔄 反转</Badge>
-                    <Badge variant="outline" className="text-[10px]">⚔️ 冲突</Badge>
-                    <Badge variant="outline" className="text-[10px]">💡 揭秘</Badge>
-                    <Badge variant="outline" className="text-[10px]">🚨 危机</Badge>
-                    <Badge variant="outline" className="text-[10px]">🤝 承诺</Badge>
+                    <Badge variant="outline" className="text-[10px]">❓ 謎・引き</Badge>
+                    <Badge variant="outline" className="text-[10px]">🔄 どんでん返し</Badge>
+                    <Badge variant="outline" className="text-[10px]">⚔️ 対立</Badge>
+                    <Badge variant="outline" className="text-[10px]">💡 真相開示</Badge>
+                    <Badge variant="outline" className="text-[10px]">🚨 危機</Badge>
+                    <Badge variant="outline" className="text-[10px]">🤝 約束</Badge>
                   </div>
                 </div>
               </div>
               <div className="p-2 bg-secondary/30 rounded-lg">
                 <p className="text-[10px] text-muted-foreground font-mono">
-                  建议格式示例：<br/>
+                  推奨形式の例：<br/>
                   第一章 [爽快|V型|悬念→危机]<br/>
                   第二章 [紧张|W型|冲突→反转]<br/>
                   第三章 [感动|倒V型|承诺→揭秘]
@@ -255,7 +247,7 @@ export function OutlineEditor({ projectId }: OutlineEditorProps) {
       <Card className="bg-secondary/30 border-border/30">
         <CardContent className="p-3">
           <p className="text-xs text-muted-foreground">
-            💡 提示：让策划Agent帮你生成大纲草稿，然后在此编辑完善。大纲内容会作为变量 ${'{outline}'} 传递给写手Agent。
+            💡 ヒント：企画Agentにプロットの下書きを作ってもらい、ここで編集できます。内容は変数 ${'{outline}'} として執筆Agentへ渡されます。
           </p>
         </CardContent>
       </Card>

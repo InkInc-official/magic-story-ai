@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useAppStore } from '@/lib/store';
 import { Users, Plus, Trash2, Edit3, Save, X, Sparkles, Link2 } from 'lucide-react';
+import { CHARACTER_ROLE_LABELS, displayLabel, RELATIONSHIP_LABELS } from '@/lib/i18n';
 
 interface Character {
   id: string;
@@ -38,12 +39,12 @@ interface CharacterManagerProps {
 }
 
 const ROLE_OPTIONS = [
-  { value: '主角', label: '主角', color: 'text-amber-400' },
-  { value: '女主', label: '女主', color: 'text-rose-400' },
-  { value: '反派', label: '反派', color: 'text-red-400' },
-  { value: '配角', label: '配角', color: 'text-blue-400' },
-  { value: '导师', label: '导师', color: 'text-teal-400' },
-  { value: '路人', label: '路人', color: 'text-muted-foreground' },
+  { value: '主角', label: displayLabel(CHARACTER_ROLE_LABELS, '主角'), color: 'text-amber-400' },
+  { value: '女主', label: displayLabel(CHARACTER_ROLE_LABELS, '女主'), color: 'text-rose-400' },
+  { value: '反派', label: displayLabel(CHARACTER_ROLE_LABELS, '反派'), color: 'text-red-400' },
+  { value: '配角', label: displayLabel(CHARACTER_ROLE_LABELS, '配角'), color: 'text-blue-400' },
+  { value: '导师', label: displayLabel(CHARACTER_ROLE_LABELS, '导师'), color: 'text-teal-400' },
+  { value: '路人', label: displayLabel(CHARACTER_ROLE_LABELS, '路人'), color: 'text-muted-foreground' },
 ];
 
 const RELATION_TYPES = ['盟友', '恋人', '师徒', '父子', '母女', '兄弟', '姐妹', '仇敌', '对手', '暗恋', '上下级', '同门', '契约'];
@@ -166,8 +167,8 @@ export function CharacterManager({ projectId }: CharacterManagerProps) {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Users size={20} className="text-rose-400" />
-          <h2 className="text-lg font-bold text-foreground">角色管理</h2>
-          <Badge variant="secondary" className="text-xs">{characters.length} 个角色</Badge>
+          <h2 className="text-lg font-bold text-foreground">キャラクター管理</h2>
+          <Badge variant="secondary" className="text-xs">{characters.length}人</Badge>
         </div>
         <div className="flex items-center gap-2">
           <Button
@@ -177,15 +178,15 @@ export function CharacterManager({ projectId }: CharacterManagerProps) {
             className="text-rose-400 border-rose-400/30 hover:bg-rose-400/10"
           >
             <Sparkles size={14} className="mr-1" />
-            AI设计
+            AIで設計
           </Button>
           <Button size="sm" onClick={() => setShowRelForm(true)} variant="outline">
             <Link2 size={14} className="mr-1" />
-            添加关系
+            関係を追加
           </Button>
           <Button size="sm" onClick={() => setIsCreating(true)}>
             <Plus size={14} className="mr-1" />
-            添加角色
+            キャラクターを追加
           </Button>
         </div>
       </div>
@@ -195,25 +196,25 @@ export function CharacterManager({ projectId }: CharacterManagerProps) {
         <Card className="bg-card/50 border-primary/30">
           <CardContent className="p-4 space-y-3">
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-medium text-foreground">添加角色关系</h3>
+              <h3 className="text-sm font-medium text-foreground">人物関係を追加</h3>
               <Button variant="ghost" size="sm" onClick={() => setShowRelForm(false)}><X size={14} /></Button>
             </div>
             <div className="grid grid-cols-3 gap-3">
               <select value={relForm.fromId} onChange={e => setRelForm(prev => ({ ...prev, fromId: e.target.value }))} className="h-9 px-3 bg-secondary border border-input rounded-md text-sm text-foreground focus:outline-none">
-                <option value="">选择角色A</option>
+                <option value="">キャラクターAを選択</option>
                 {characters.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
               <select value={relForm.type} onChange={e => setRelForm(prev => ({ ...prev, type: e.target.value }))} className="h-9 px-3 bg-secondary border border-input rounded-md text-sm text-foreground focus:outline-none">
-                {RELATION_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                {RELATION_TYPES.map(t => <option key={t} value={t}>{displayLabel(RELATIONSHIP_LABELS, t)}</option>)}
               </select>
               <select value={relForm.toId} onChange={e => setRelForm(prev => ({ ...prev, toId: e.target.value }))} className="h-9 px-3 bg-secondary border border-input rounded-md text-sm text-foreground focus:outline-none">
-                <option value="">选择角色B</option>
+                <option value="">キャラクターBを選択</option>
                 {characters.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
             </div>
-            <Input value={relForm.description} onChange={e => setRelForm(prev => ({ ...prev, description: e.target.value }))} placeholder="关系描述..." className="text-sm" />
+            <Input value={relForm.description} onChange={e => setRelForm(prev => ({ ...prev, description: e.target.value }))} placeholder="関係の説明..." className="text-sm" />
             <Button size="sm" onClick={handleCreateRel} disabled={!relForm.fromId || !relForm.toId}>
-              <Save size={14} className="mr-1" />保存关系
+              <Save size={14} className="mr-1" />関係を保存
             </Button>
           </CardContent>
         </Card>
@@ -224,43 +225,43 @@ export function CharacterManager({ projectId }: CharacterManagerProps) {
         <Card className="bg-card/50 border-primary/30 glow-amber">
           <CardContent className="p-4 space-y-3">
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-medium text-foreground">新建角色</h3>
+              <h3 className="text-sm font-medium text-foreground">キャラクターを作成</h3>
               <Button variant="ghost" size="sm" onClick={() => setIsCreating(false)}><X size={14} /></Button>
             </div>
             <div className="grid grid-cols-3 gap-3">
               <div>
-                <label className="block text-xs text-muted-foreground mb-1">姓名</label>
-                <Input value={createForm.name} onChange={e => setCreateForm(prev => ({ ...prev, name: e.target.value }))} placeholder="角色名" className="text-sm" />
+                <label className="block text-xs text-muted-foreground mb-1">名前</label>
+                <Input value={createForm.name} onChange={e => setCreateForm(prev => ({ ...prev, name: e.target.value }))} placeholder="キャラクター名" className="text-sm" />
               </div>
               <div>
-                <label className="block text-xs text-muted-foreground mb-1">年龄</label>
-                <Input value={createForm.age} onChange={e => setCreateForm(prev => ({ ...prev, age: e.target.value }))} placeholder="年龄" className="text-sm" />
+                <label className="block text-xs text-muted-foreground mb-1">年齢</label>
+                <Input value={createForm.age} onChange={e => setCreateForm(prev => ({ ...prev, age: e.target.value }))} placeholder="年齢" className="text-sm" />
               </div>
               <div>
-                <label className="block text-xs text-muted-foreground mb-1">角色定位</label>
+                <label className="block text-xs text-muted-foreground mb-1">役割</label>
                 <select value={createForm.role} onChange={e => setCreateForm(prev => ({ ...prev, role: e.target.value }))} className="w-full h-9 px-3 bg-secondary border border-input rounded-md text-sm text-foreground focus:outline-none">
                   {ROLE_OPTIONS.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
                 </select>
               </div>
             </div>
             <div>
-              <label className="block text-xs text-muted-foreground mb-1">性格特征</label>
-              <Input value={createForm.personality} onChange={e => setCreateForm(prev => ({ ...prev, personality: e.target.value }))} placeholder="性格描述..." className="text-sm" />
+              <label className="block text-xs text-muted-foreground mb-1">性格</label>
+              <Input value={createForm.personality} onChange={e => setCreateForm(prev => ({ ...prev, personality: e.target.value }))} placeholder="性格を説明..." className="text-sm" />
             </div>
             <div>
-              <label className="block text-xs text-muted-foreground mb-1">外貌描写</label>
-              <Input value={createForm.appearance} onChange={e => setCreateForm(prev => ({ ...prev, appearance: e.target.value }))} placeholder="外貌描述..." className="text-sm" />
+              <label className="block text-xs text-muted-foreground mb-1">外見</label>
+              <Input value={createForm.appearance} onChange={e => setCreateForm(prev => ({ ...prev, appearance: e.target.value }))} placeholder="外見を説明..." className="text-sm" />
             </div>
             <div>
-              <label className="block text-xs text-muted-foreground mb-1">背景故事</label>
-              <Textarea value={createForm.background} onChange={e => setCreateForm(prev => ({ ...prev, background: e.target.value }))} placeholder="角色背景..." rows={2} className="text-sm resize-none" />
+              <label className="block text-xs text-muted-foreground mb-1">背景</label>
+              <Textarea value={createForm.background} onChange={e => setCreateForm(prev => ({ ...prev, background: e.target.value }))} placeholder="キャラクターの背景..." rows={2} className="text-sm resize-none" />
             </div>
             <div>
-              <label className="block text-xs text-muted-foreground mb-1">成长弧线</label>
-              <Textarea value={createForm.arc} onChange={e => setCreateForm(prev => ({ ...prev, arc: e.target.value }))} placeholder="角色成长轨迹..." rows={2} className="text-sm resize-none" />
+              <label className="block text-xs text-muted-foreground mb-1">成長曲線</label>
+              <Textarea value={createForm.arc} onChange={e => setCreateForm(prev => ({ ...prev, arc: e.target.value }))} placeholder="キャラクターの成長過程..." rows={2} className="text-sm resize-none" />
             </div>
             <Button size="sm" onClick={handleCreate} disabled={!createForm.name.trim()}>
-              <Save size={14} className="mr-1" />创建角色
+              <Save size={14} className="mr-1" />キャラクターを作成
             </Button>
           </CardContent>
         </Card>
@@ -283,7 +284,7 @@ export function CharacterManager({ projectId }: CharacterManagerProps) {
                 >
                   <div className="flex items-center justify-between">
                     <span className="font-medium text-foreground text-sm">{char.name}</span>
-                    <Badge variant="outline" className={`text-[10px] ${roleInfo.color}`}>{char.role}</Badge>
+                    <Badge variant="outline" className={`text-[10px] ${roleInfo.color}`}>{roleInfo.label}</Badge>
                   </div>
                   {char.personality && (
                     <p className="text-xs text-muted-foreground mt-1 truncate">{char.personality}</p>
@@ -294,7 +295,7 @@ export function CharacterManager({ projectId }: CharacterManagerProps) {
             {characters.length === 0 && (
               <div className="text-center py-8 text-muted-foreground">
                 <Users size={32} className="mx-auto mb-2 opacity-30" />
-                <p className="text-xs">暂无角色</p>
+                <p className="text-xs">キャラクターがまだありません</p>
               </div>
             )}
           </ScrollArea>
@@ -309,10 +310,10 @@ export function CharacterManager({ projectId }: CharacterManagerProps) {
                   <div className="flex items-center gap-2">
                     <CardTitle className="text-base">{editingId === selectedCharacter.id ? editForm.name : selectedCharacter.name}</CardTitle>
                     <Badge variant="outline" className={`text-xs ${getRoleInfo(selectedCharacter.role).color}`}>
-                      {selectedCharacter.role}
+                      {getRoleInfo(selectedCharacter.role).label}
                     </Badge>
                     {selectedCharacter.age && (
-                      <span className="text-xs text-muted-foreground">{selectedCharacter.age}岁</span>
+                      <span className="text-xs text-muted-foreground">{selectedCharacter.age}歳</span>
                     )}
                   </div>
                   <div className="flex gap-1">
@@ -321,7 +322,7 @@ export function CharacterManager({ projectId }: CharacterManagerProps) {
                         <Button size="sm" onClick={() => handleUpdate(selectedCharacter.id)}>
                           <Save size={14} className="mr-1" />保存
                         </Button>
-                        <Button size="sm" variant="ghost" onClick={() => setEditingId(null)}>取消</Button>
+                        <Button size="sm" variant="ghost" onClick={() => setEditingId(null)}>キャンセル</Button>
                       </>
                     ) : (
                       <>
@@ -340,13 +341,13 @@ export function CharacterManager({ projectId }: CharacterManagerProps) {
                 {editingId === selectedCharacter.id ? (
                   <div className="space-y-3">
                     <div className="grid grid-cols-2 gap-3">
-                      <div><label className="block text-xs text-muted-foreground mb-1">姓名</label><Input value={editForm.name} onChange={e => setEditForm(p => ({ ...p, name: e.target.value }))} className="text-sm" /></div>
-                      <div><label className="block text-xs text-muted-foreground mb-1">年龄</label><Input value={editForm.age} onChange={e => setEditForm(p => ({ ...p, age: e.target.value }))} className="text-sm" /></div>
+                      <div><label className="block text-xs text-muted-foreground mb-1">名前</label><Input value={editForm.name} onChange={e => setEditForm(p => ({ ...p, name: e.target.value }))} className="text-sm" /></div>
+                      <div><label className="block text-xs text-muted-foreground mb-1">年齢</label><Input value={editForm.age} onChange={e => setEditForm(p => ({ ...p, age: e.target.value }))} className="text-sm" /></div>
                     </div>
                     <div><label className="block text-xs text-muted-foreground mb-1">性格</label><Input value={editForm.personality} onChange={e => setEditForm(p => ({ ...p, personality: e.target.value }))} className="text-sm" /></div>
-                    <div><label className="block text-xs text-muted-foreground mb-1">外貌</label><Input value={editForm.appearance} onChange={e => setEditForm(p => ({ ...p, appearance: e.target.value }))} className="text-sm" /></div>
+                    <div><label className="block text-xs text-muted-foreground mb-1">外見</label><Input value={editForm.appearance} onChange={e => setEditForm(p => ({ ...p, appearance: e.target.value }))} className="text-sm" /></div>
                     <div><label className="block text-xs text-muted-foreground mb-1">背景</label><Textarea value={editForm.background} onChange={e => setEditForm(p => ({ ...p, background: e.target.value }))} rows={3} className="text-sm resize-none" /></div>
-                    <div><label className="block text-xs text-muted-foreground mb-1">成长弧线</label><Textarea value={editForm.arc} onChange={e => setEditForm(p => ({ ...p, arc: e.target.value }))} rows={2} className="text-sm resize-none" /></div>
+                    <div><label className="block text-xs text-muted-foreground mb-1">成長曲線</label><Textarea value={editForm.arc} onChange={e => setEditForm(p => ({ ...p, arc: e.target.value }))} rows={2} className="text-sm resize-none" /></div>
                   </div>
                 ) : (
                   <div className="space-y-3">
@@ -354,24 +355,24 @@ export function CharacterManager({ projectId }: CharacterManagerProps) {
                       <div><p className="text-xs text-muted-foreground font-medium mb-1">🧠 性格</p><p className="text-sm text-foreground/80 whitespace-pre-wrap">{selectedCharacter.personality}</p></div>
                     )}
                     {selectedCharacter.appearance && (
-                      <div><p className="text-xs text-muted-foreground font-medium mb-1">👤 外貌</p><p className="text-sm text-foreground/80 whitespace-pre-wrap">{selectedCharacter.appearance}</p></div>
+                      <div><p className="text-xs text-muted-foreground font-medium mb-1">👤 外見</p><p className="text-sm text-foreground/80 whitespace-pre-wrap">{selectedCharacter.appearance}</p></div>
                     )}
                     {selectedCharacter.background && (
                       <div><p className="text-xs text-muted-foreground font-medium mb-1">📖 背景</p><p className="text-sm text-foreground/80 whitespace-pre-wrap">{selectedCharacter.background}</p></div>
                     )}
                     {selectedCharacter.arc && (
-                      <div><p className="text-xs text-muted-foreground font-medium mb-1">📈 成长弧线</p><p className="text-sm text-foreground/80 whitespace-pre-wrap">{selectedCharacter.arc}</p></div>
+                      <div><p className="text-xs text-muted-foreground font-medium mb-1">📈 成長曲線</p><p className="text-sm text-foreground/80 whitespace-pre-wrap">{selectedCharacter.arc}</p></div>
                     )}
                     {/* Relationships */}
                     {relationships.filter(r => r.fromCharacterId === selectedCharacter.id || r.toCharacterId === selectedCharacter.id).length > 0 && (
                       <div>
-                        <p className="text-xs text-muted-foreground font-medium mb-2">🔗 人物关系</p>
+                        <p className="text-xs text-muted-foreground font-medium mb-2">🔗 人物関係</p>
                         <div className="space-y-1">
                           {relationships.filter(r => r.fromCharacterId === selectedCharacter.id || r.toCharacterId === selectedCharacter.id).map(rel => (
                             <div key={rel.id} className="flex items-center gap-2 text-xs bg-secondary/50 px-2 py-1.5 rounded">
                               <span className="text-foreground">{rel.fromCharacter.name}</span>
                               <span className="text-muted-foreground">→</span>
-                              <Badge variant="outline" className="text-[10px]">{rel.type}</Badge>
+                              <Badge variant="outline" className="text-[10px]">{displayLabel(RELATIONSHIP_LABELS, rel.type)}</Badge>
                               <span className="text-muted-foreground">→</span>
                               <span className="text-foreground">{rel.toCharacter.name}</span>
                               {rel.description && <span className="text-muted-foreground ml-1">({rel.description})</span>}
@@ -387,7 +388,7 @@ export function CharacterManager({ projectId }: CharacterManagerProps) {
             </Card>
           ) : (
             <div className="flex items-center justify-center h-48 text-muted-foreground text-sm">
-              选择左侧角色查看详情
+              左側からキャラクターを選択してください
             </div>
           )}
         </div>

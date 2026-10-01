@@ -8,6 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, CheckCircle2, XCircle, ArrowRight, ArrowLeft, Sparkles, Sprout, Expand, Shield } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { CHARACTER_ROLE_LABELS, displayLabel, GENRE_LABELS } from '@/lib/i18n';
 
 interface ProjectWizardProps {
   onComplete: (project: { id: string; title: string; genre: string; description: string }) => void;
@@ -30,9 +31,9 @@ const GENRES = [
 ];
 
 const STEPS = [
-  { id: 'seed', label: '种子', icon: Sprout, description: '输入核心设定' },
-  { id: 'expand', label: '扩展', icon: Expand, description: 'AI生成内容' },
-  { id: 'validate', label: '验证', icon: Shield, description: 'AI检查一致性' },
+  { id: 'seed', label: 'アイデア', icon: Sprout, description: '核となる設定を入力' },
+  { id: 'expand', label: '展開', icon: Expand, description: 'AIで内容を生成' },
+  { id: 'validate', label: '検証', icon: Shield, description: 'AIで整合性を確認' },
 ];
 
 interface ExpandResult {
@@ -168,7 +169,7 @@ export function ProjectWizard({ onComplete, onCancel }: ProjectWizardProps) {
       }
     } catch (e) {
       if (e instanceof Error && e.name !== 'AbortError') {
-        setExpandStream('⚠️ 生成失败，请重试');
+        setExpandStream('⚠️ 生成に失敗しました。もう一度お試しください');
       }
     } finally {
       setIsExpanding(false);
@@ -263,7 +264,7 @@ export function ProjectWizard({ onComplete, onCancel }: ProjectWizardProps) {
       }
     } catch (e) {
       if (e instanceof Error && e.name !== 'AbortError') {
-        setValidateStream('⚠️ 验证失败，请重试');
+        setValidateStream('⚠️ 検証に失敗しました。もう一度お試しください');
       }
     } finally {
       setIsValidating(false);
@@ -373,7 +374,7 @@ export function ProjectWizard({ onComplete, onCancel }: ProjectWizardProps) {
         {/* Header */}
         <div className="p-6 border-b border-border shrink-0">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-bold text-foreground">创建新项目</h3>
+            <h3 className="text-lg font-bold text-foreground">新しいプロジェクトを作成</h3>
             <Button variant="ghost" size="sm" onClick={onCancel}>
               ✕
             </Button>
@@ -413,17 +414,17 @@ export function ProjectWizard({ onComplete, onCancel }: ProjectWizardProps) {
             <div className="space-y-4">
               <div className="text-center mb-4">
                 <Sprout size={32} className="mx-auto text-amber-400 mb-2" />
-                <h4 className="font-medium text-foreground">种子设定</h4>
-                <p className="text-xs text-muted-foreground">输入你的故事核心，AI将据此扩展</p>
+                <h4 className="font-medium text-foreground">物語の基本設定</h4>
+                <p className="text-xs text-muted-foreground">物語の核を入力すると、AIが内容を展開します</p>
               </div>
 
               <div>
-                <label className="block text-sm text-muted-foreground mb-1">小说标题 *</label>
-                <Input value={seed.title} onChange={e => setSeed(p => ({ ...p, title: e.target.value }))} placeholder="你的小说标题..." className="text-sm" autoFocus />
+                <label className="block text-sm text-muted-foreground mb-1">タイトル *</label>
+                <Input value={seed.title} onChange={e => setSeed(p => ({ ...p, title: e.target.value }))} placeholder="小説のタイトル..." className="text-sm" autoFocus />
               </div>
 
               <div>
-                <label className="block text-sm text-muted-foreground mb-1">类型</label>
+                <label className="block text-sm text-muted-foreground mb-1">ジャンル</label>
                 <div className="grid grid-cols-4 gap-2">
                   {GENRES.map(g => (
                     <button
@@ -433,36 +434,36 @@ export function ProjectWizard({ onComplete, onCancel }: ProjectWizardProps) {
                         seed.genre === g.value ? 'bg-primary/15 text-primary border border-primary/30' : 'bg-secondary text-muted-foreground border border-transparent hover:border-border'
                       }`}
                     >
-                      {g.emoji} {g.value}
+                      {g.emoji} {displayLabel(GENRE_LABELS, g.value)}
                     </button>
                   ))}
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm text-muted-foreground mb-1">核心设定 *</label>
-                <Textarea value={seed.premise} onChange={e => setSeed(p => ({ ...p, premise: e.target.value }))} placeholder="一句话概括你的故事核心..." rows={2} className="text-sm resize-none" />
+                <label className="block text-sm text-muted-foreground mb-1">核となる設定 *</label>
+                <Textarea value={seed.premise} onChange={e => setSeed(p => ({ ...p, premise: e.target.value }))} placeholder="物語の核を一文で説明してください..." rows={2} className="text-sm resize-none" />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-sm text-muted-foreground mb-1">主角名 *</label>
-                  <Input value={seed.protagonistName} onChange={e => setSeed(p => ({ ...p, protagonistName: e.target.value }))} placeholder="主角姓名..." className="text-sm" />
+                  <label className="block text-sm text-muted-foreground mb-1">主人公名 *</label>
+                  <Input value={seed.protagonistName} onChange={e => setSeed(p => ({ ...p, protagonistName: e.target.value }))} placeholder="主人公の名前..." className="text-sm" />
                 </div>
                 <div>
-                  <label className="block text-sm text-muted-foreground mb-1">核心渴望</label>
-                  <Input value={seed.coreDesire} onChange={e => setSeed(p => ({ ...p, coreDesire: e.target.value }))} placeholder="主角最渴望什么..." className="text-sm" />
+                  <label className="block text-sm text-muted-foreground mb-1">強い願い</label>
+                  <Input value={seed.coreDesire} onChange={e => setSeed(p => ({ ...p, coreDesire: e.target.value }))} placeholder="主人公が最も望むもの..." className="text-sm" />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-sm text-muted-foreground mb-1">核心缺陷</label>
-                  <Input value={seed.coreFlaw} onChange={e => setSeed(p => ({ ...p, coreFlaw: e.target.value }))} placeholder="主角的性格缺陷..." className="text-sm" />
+                  <label className="block text-sm text-muted-foreground mb-1">弱点</label>
+                  <Input value={seed.coreFlaw} onChange={e => setSeed(p => ({ ...p, coreFlaw: e.target.value }))} placeholder="主人公の性格上の弱点..." className="text-sm" />
                 </div>
                 <div>
-                  <label className="block text-sm text-muted-foreground mb-1">内心冲突</label>
-                  <Input value={seed.innerConflict} onChange={e => setSeed(p => ({ ...p, innerConflict: e.target.value }))} placeholder="渴望与缺陷的矛盾..." className="text-sm" />
+                  <label className="block text-sm text-muted-foreground mb-1">内面的な葛藤</label>
+                  <Input value={seed.innerConflict} onChange={e => setSeed(p => ({ ...p, innerConflict: e.target.value }))} placeholder="願いと弱点の間にある葛藤..." className="text-sm" />
                 </div>
               </div>
             </div>
@@ -473,17 +474,17 @@ export function ProjectWizard({ onComplete, onCancel }: ProjectWizardProps) {
             <div className="space-y-4">
               <div className="text-center mb-4">
                 <Expand size={32} className="mx-auto text-blue-400 mb-2" />
-                <h4 className="font-medium text-foreground">AI扩展</h4>
-                <p className="text-xs text-muted-foreground">基于种子设定生成角色、大纲和世界观</p>
+                <h4 className="font-medium text-foreground">AIによる展開</h4>
+                <p className="text-xs text-muted-foreground">基本設定から人物、プロット、世界観を生成します</p>
               </div>
 
               {!expandResult && !isExpanding && (
                 <Card className="bg-secondary/30 border-border/30">
                   <CardContent className="p-6 text-center">
-                    <p className="text-sm text-muted-foreground mb-4">点击下方按钮让AI根据种子设定生成扩展内容</p>
+                    <p className="text-sm text-muted-foreground mb-4">AIに基本設定から内容を展開させます</p>
                     <Button onClick={handleExpand}>
                       <Sparkles size={14} className="mr-1" />
-                      开始扩展
+                      展開を開始
                     </Button>
                   </CardContent>
                 </Card>
@@ -494,7 +495,7 @@ export function ProjectWizard({ onComplete, onCancel }: ProjectWizardProps) {
                   <CardContent className="p-4">
                     <div className="flex items-center gap-2 mb-2">
                       <Loader2 size={14} className="animate-spin text-primary" />
-                      <span className="text-sm text-foreground">AI正在扩展...</span>
+                      <span className="text-sm text-foreground">AIが内容を展開しています...</span>
                     </div>
                     <pre className="text-xs text-muted-foreground whitespace-pre-wrap max-h-40 overflow-y-auto custom-scrollbar font-mono">
                       {expandStream}
@@ -510,14 +511,14 @@ export function ProjectWizard({ onComplete, onCancel }: ProjectWizardProps) {
                     <Card className="bg-card/50 border-border/50">
                       <CardHeader className="pb-2">
                         <CardTitle className="text-sm font-medium flex items-center gap-2">
-                          👤 角色设定
+                          👤 キャラクター設定
                           <Badge variant="secondary" className="text-xs">{expandResult.characters.length}人</Badge>
                         </CardTitle>
                       </CardHeader>
                       <CardContent className="space-y-2">
                         {expandResult.characters.map((char, i) => (
                           <div key={i} className="flex items-start gap-2 p-2 bg-secondary/30 rounded-lg">
-                            <Badge variant="outline" className="text-xs shrink-0">{char.role}</Badge>
+                            <Badge variant="outline" className="text-xs shrink-0">{displayLabel(CHARACTER_ROLE_LABELS, char.role)}</Badge>
                             <div>
                               <span className="text-sm font-medium text-foreground">{char.name}</span>
                               {char.relation && <span className="text-xs text-muted-foreground ml-2">{char.relation}</span>}
@@ -534,8 +535,8 @@ export function ProjectWizard({ onComplete, onCancel }: ProjectWizardProps) {
                     <Card className="bg-card/50 border-border/50">
                       <CardHeader className="pb-2">
                         <CardTitle className="text-sm font-medium flex items-center gap-2">
-                          🎯 故事节拍
-                          <Badge variant="secondary" className="text-xs">{expandResult.outlineBeats.length}个</Badge>
+                          🎯 ストーリービート
+                          <Badge variant="secondary" className="text-xs">{expandResult.outlineBeats.length}件</Badge>
                         </CardTitle>
                       </CardHeader>
                       <CardContent className="space-y-2 max-h-48 overflow-y-auto custom-scrollbar">
@@ -546,7 +547,7 @@ export function ProjectWizard({ onComplete, onCancel }: ProjectWizardProps) {
                               <span className="text-sm font-medium text-foreground">{beat.title}</span>
                               <Badge variant="outline" className="text-xs ml-auto">{beat.wordTarget}字</Badge>
                             </div>
-                            <p className="text-xs text-muted-foreground">冲突: {beat.conflict}</p>
+                            <p className="text-xs text-muted-foreground">対立：{beat.conflict}</p>
                             <p className="text-xs text-foreground/80 mt-0.5">{beat.summary}</p>
                           </div>
                         ))}
@@ -559,8 +560,8 @@ export function ProjectWizard({ onComplete, onCancel }: ProjectWizardProps) {
                     <Card className="bg-card/50 border-border/50">
                       <CardHeader className="pb-2">
                         <CardTitle className="text-sm font-medium flex items-center gap-2">
-                          🌍 世界观设定
-                          <Badge variant="secondary" className="text-xs">{expandResult.worldviewEntries.length}项</Badge>
+                          🌍 世界観設定
+                          <Badge variant="secondary" className="text-xs">{expandResult.worldviewEntries.length}件</Badge>
                         </CardTitle>
                       </CardHeader>
                       <CardContent className="space-y-2">
@@ -576,7 +577,7 @@ export function ProjectWizard({ onComplete, onCancel }: ProjectWizardProps) {
 
                   <Button variant="outline" size="sm" onClick={handleExpand} disabled={isExpanding}>
                     <Sparkles size={14} className="mr-1" />
-                    重新生成
+                    再生成
                   </Button>
                 </div>
               )}
@@ -588,17 +589,17 @@ export function ProjectWizard({ onComplete, onCancel }: ProjectWizardProps) {
             <div className="space-y-4">
               <div className="text-center mb-4">
                 <Shield size={32} className="mx-auto text-emerald-400 mb-2" />
-                <h4 className="font-medium text-foreground">一致性验证</h4>
-                <p className="text-xs text-muted-foreground">让AI检查设定的完整性和一致性</p>
+                <h4 className="font-medium text-foreground">整合性チェック</h4>
+                <p className="text-xs text-muted-foreground">AIが設定の完全性と整合性を確認します</p>
               </div>
 
               {!validateResult && !isValidating && (
                 <Card className="bg-secondary/30 border-border/30">
                   <CardContent className="p-6 text-center">
-                    <p className="text-sm text-muted-foreground mb-4">点击下方按钮让AI验证你的设定</p>
+                    <p className="text-sm text-muted-foreground mb-4">下のボタンを押すとAIが設定を検証します</p>
                     <Button onClick={handleValidate}>
                       <Shield size={14} className="mr-1" />
-                      开始验证
+                      検証を開始
                     </Button>
                   </CardContent>
                 </Card>
@@ -609,7 +610,7 @@ export function ProjectWizard({ onComplete, onCancel }: ProjectWizardProps) {
                   <CardContent className="p-4">
                     <div className="flex items-center gap-2 mb-2">
                       <Loader2 size={14} className="animate-spin text-primary" />
-                      <span className="text-sm text-foreground">AI正在验证...</span>
+                      <span className="text-sm text-foreground">AIが検証しています...</span>
                     </div>
                     <pre className="text-xs text-muted-foreground whitespace-pre-wrap max-h-40 overflow-y-auto custom-scrollbar font-mono">
                       {validateStream}
@@ -624,7 +625,7 @@ export function ProjectWizard({ onComplete, onCancel }: ProjectWizardProps) {
                   <Card className="bg-card/50 border-border/50">
                     <CardContent className="p-4 text-center">
                       <div className="text-4xl font-bold text-foreground mb-1">{validateResult.overallScore}</div>
-                      <p className="text-xs text-muted-foreground">整体评分</p>
+                      <p className="text-xs text-muted-foreground">総合スコア</p>
                     </CardContent>
                   </Card>
 
@@ -637,8 +638,8 @@ export function ProjectWizard({ onComplete, onCancel }: ProjectWizardProps) {
                         ) : (
                           <XCircle size={24} className="mx-auto text-red-400 mb-1" />
                         )}
-                        <p className="text-xs font-medium text-foreground">角色弧线</p>
-                        <p className="text-xs text-muted-foreground">{validateResult.arcComplete ? '完整' : '不完整'}</p>
+                        <p className="text-xs font-medium text-foreground">キャラクターアーク</p>
+                        <p className="text-xs text-muted-foreground">{validateResult.arcComplete ? '完全' : '不完全'}</p>
                       </CardContent>
                     </Card>
                     <Card className="bg-card/50 border-border/50">
@@ -648,8 +649,8 @@ export function ProjectWizard({ onComplete, onCancel }: ProjectWizardProps) {
                         ) : (
                           <XCircle size={24} className="mx-auto text-red-400 mb-1" />
                         )}
-                        <p className="text-xs font-medium text-foreground">因果链</p>
-                        <p className="text-xs text-muted-foreground">{validateResult.causalChain ? '合理' : '有缺陷'}</p>
+                        <p className="text-xs font-medium text-foreground">因果関係</p>
+                        <p className="text-xs text-muted-foreground">{validateResult.causalChain ? '妥当' : '要改善'}</p>
                       </CardContent>
                     </Card>
                     <Card className="bg-card/50 border-border/50">
@@ -659,8 +660,8 @@ export function ProjectWizard({ onComplete, onCancel }: ProjectWizardProps) {
                         ) : (
                           <XCircle size={24} className="mx-auto text-red-400 mb-1" />
                         )}
-                        <p className="text-xs font-medium text-foreground">设定一致性</p>
-                        <p className="text-xs text-muted-foreground">{validateResult.settingConsistent ? '自洽' : '有矛盾'}</p>
+                        <p className="text-xs font-medium text-foreground">設定の整合性</p>
+                        <p className="text-xs text-muted-foreground">{validateResult.settingConsistent ? '整合' : '矛盾あり'}</p>
                       </CardContent>
                     </Card>
                   </div>
@@ -669,7 +670,7 @@ export function ProjectWizard({ onComplete, onCancel }: ProjectWizardProps) {
                   {validateResult.patches.length > 0 && (
                     <Card className="bg-amber-400/5 border-amber-400/30">
                       <CardHeader className="pb-2">
-                        <CardTitle className="text-sm font-medium text-amber-400">建议修补</CardTitle>
+                        <CardTitle className="text-sm font-medium text-amber-400">修正案</CardTitle>
                       </CardHeader>
                       <CardContent>
                         <ul className="space-y-1">
@@ -686,7 +687,7 @@ export function ProjectWizard({ onComplete, onCancel }: ProjectWizardProps) {
 
                   <Button variant="outline" size="sm" onClick={handleValidate} disabled={isValidating}>
                     <Shield size={14} className="mr-1" />
-                    重新验证
+                    再検証
                   </Button>
                 </div>
               )}
@@ -697,25 +698,25 @@ export function ProjectWizard({ onComplete, onCancel }: ProjectWizardProps) {
         {/* Footer */}
         <div className="p-4 border-t border-border flex items-center justify-between shrink-0">
           <div className="flex gap-2">
-            <Button variant="ghost" onClick={onCancel}>取消</Button>
+            <Button variant="ghost" onClick={onCancel}>キャンセル</Button>
             {step > 0 && (
               <Button variant="outline" onClick={() => setStep(step - 1)}>
-                <ArrowLeft size={14} className="mr-1" />上一步
+                <ArrowLeft size={14} className="mr-1" />前へ
               </Button>
             )}
           </div>
           <div className="flex gap-2">
             {step < 2 && (
               <Button onClick={() => setStep(step + 1)} disabled={!canGoNext()}>
-                下一步 <ArrowRight size={14} className="ml-1" />
+                次へ <ArrowRight size={14} className="ml-1" />
               </Button>
             )}
             {step === 2 && (
               <Button onClick={handleFinish} disabled={!!createdProjectId}>
                 {createdProjectId ? (
-                  <><CheckCircle2 size={14} className="mr-1" />已创建</>
+                  <><CheckCircle2 size={14} className="mr-1" />作成済み</>
                 ) : (
-                  '完成创建'
+                  '作成を完了'
                 )}
               </Button>
             )}

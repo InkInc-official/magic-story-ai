@@ -12,6 +12,7 @@ import {
   Film, Plus, Trash2, Edit3, Save, X, Search, Tag,
   MapPin, CloudSun, Clock,
 } from 'lucide-react';
+import { ATMOSPHERE_LABELS, displayLabel, TIME_OF_DAY_LABELS } from '@/lib/i18n';
 
 interface Scene {
   id: string;
@@ -33,14 +34,14 @@ interface SceneAssetsProps {
 }
 
 const TIME_OF_DAY_OPTIONS = [
-  { value: '清晨', label: '清晨', color: 'text-sky-300', bg: 'bg-sky-500/10' },
-  { value: '上午', label: '上午', color: 'text-amber-300', bg: 'bg-amber-500/10' },
+  { value: '清晨', label: displayLabel(TIME_OF_DAY_LABELS, '清晨'), color: 'text-sky-300', bg: 'bg-sky-500/10' },
+  { value: '上午', label: displayLabel(TIME_OF_DAY_LABELS, '上午'), color: 'text-amber-300', bg: 'bg-amber-500/10' },
   { value: '正午', label: '正午', color: 'text-yellow-400', bg: 'bg-yellow-500/10' },
-  { value: '下午', label: '下午', color: 'text-orange-300', bg: 'bg-orange-500/10' },
-  { value: '傍晚', label: '傍晚', color: 'text-rose-400', bg: 'bg-rose-500/10' },
-  { value: '夜晚', label: '夜晚', color: 'text-indigo-300', bg: 'bg-indigo-500/10' },
+  { value: '下午', label: displayLabel(TIME_OF_DAY_LABELS, '下午'), color: 'text-orange-300', bg: 'bg-orange-500/10' },
+  { value: '傍晚', label: displayLabel(TIME_OF_DAY_LABELS, '傍晚'), color: 'text-rose-400', bg: 'bg-rose-500/10' },
+  { value: '夜晚', label: displayLabel(TIME_OF_DAY_LABELS, '夜晚'), color: 'text-indigo-300', bg: 'bg-indigo-500/10' },
   { value: '深夜', label: '深夜', color: 'text-purple-400', bg: 'bg-purple-500/10' },
-  { value: '黎明', label: '黎明', color: 'text-pink-300', bg: 'bg-pink-500/10' },
+  { value: '黎明', label: displayLabel(TIME_OF_DAY_LABELS, '黎明'), color: 'text-pink-300', bg: 'bg-pink-500/10' },
 ];
 
 const ATMOSPHERE_OPTIONS = ['紧张', '温馨', '恐怖', '浪漫', '庄严', '悲凉', '欢快', '神秘', '宁静', '激烈'];
@@ -165,11 +166,11 @@ export function SceneAssets({ projectId }: SceneAssetsProps) {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Film size={20} className="text-orange-400" />
-          <h2 className="text-lg font-bold text-foreground">场景资产</h2>
-          <Badge variant="secondary" className="text-xs">{scenes.length} 个场景</Badge>
+          <h2 className="text-lg font-bold text-foreground">シーン素材</h2>
+          <Badge variant="secondary" className="text-xs">{scenes.length} シーン</Badge>
         </div>
         <Button size="sm" onClick={() => setIsCreating(true)}>
-          <Plus size={14} className="mr-1" />添加场景
+          <Plus size={14} className="mr-1" />シーンを追加
         </Button>
       </div>
 
@@ -177,7 +178,7 @@ export function SceneAssets({ projectId }: SceneAssetsProps) {
       <div className="flex gap-2 items-center">
         <div className="relative flex-1 max-w-xs">
           <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
-          <Input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="搜索场景..." className="pl-8 text-sm h-8" />
+          <Input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="シーンを検索..." className="pl-8 text-sm h-8" />
         </div>
       </div>
 
@@ -188,22 +189,22 @@ export function SceneAssets({ projectId }: SceneAssetsProps) {
             <Card className="bg-card/50 border-orange-500/20">
               <CardContent className="p-4 space-y-3">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-medium text-foreground">新建场景</h3>
+                  <h3 className="text-sm font-medium text-foreground">シーンを作成</h3>
                   <Button variant="ghost" size="sm" onClick={() => { setIsCreating(false); setCreateForm(EMPTY_FORM); }}><X size={14} /></Button>
                 </div>
-                <div><label className="block text-xs text-muted-foreground mb-1">名称</label><Input value={createForm.name} onChange={e => setCreateForm(prev => ({ ...prev, name: e.target.value }))} placeholder="场景名称..." className="text-sm" /></div>
+                <div><label className="block text-xs text-muted-foreground mb-1">名前</label><Input value={createForm.name} onChange={e => setCreateForm(prev => ({ ...prev, name: e.target.value }))} placeholder="シーン名..." className="text-sm" /></div>
                 <div className="grid grid-cols-2 gap-3">
-                  <div><label className="block text-xs text-muted-foreground mb-1">地点</label><Input value={createForm.location} onChange={e => setCreateForm(prev => ({ ...prev, location: e.target.value }))} placeholder="场景地点..." className="text-sm" /></div>
+                  <div><label className="block text-xs text-muted-foreground mb-1">場所</label><Input value={createForm.location} onChange={e => setCreateForm(prev => ({ ...prev, location: e.target.value }))} placeholder="シーンの場所..." className="text-sm" /></div>
                   <div>
-                    <label className="block text-xs text-muted-foreground mb-1">时间段</label>
+                    <label className="block text-xs text-muted-foreground mb-1">時間帯</label>
                     <select value={createForm.timeOfDay} onChange={e => setCreateForm(prev => ({ ...prev, timeOfDay: e.target.value }))} className="w-full h-9 px-3 bg-secondary border border-input rounded-md text-sm text-foreground focus:outline-none">
-                      <option value="">选择时间段</option>
+                      <option value="">時間帯を選択</option>
                       {TIME_OF_DAY_OPTIONS.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
                     </select>
                   </div>
                 </div>
                 <div>
-                  <label className="block text-xs text-muted-foreground mb-1">氛围</label>
+                  <label className="block text-xs text-muted-foreground mb-1">雰囲気</label>
                   <div className="flex flex-wrap gap-1.5 mb-1.5">
                     {ATMOSPHERE_OPTIONS.map(a => (
                       <button
@@ -213,27 +214,27 @@ export function SceneAssets({ projectId }: SceneAssetsProps) {
                           createForm.atmosphere === a ? 'bg-orange-500/15 border-orange-500/30 text-orange-400' : 'border-border/50 text-muted-foreground hover:border-border'
                         }`}
                       >
-                        {a}
+                        {displayLabel(ATMOSPHERE_LABELS, a)}
                       </button>
                     ))}
                   </div>
-                  <Input value={createForm.atmosphere} onChange={e => setCreateForm(prev => ({ ...prev, atmosphere: e.target.value }))} placeholder="自定义氛围..." className="text-xs h-7" />
+                  <Input value={createForm.atmosphere} onChange={e => setCreateForm(prev => ({ ...prev, atmosphere: e.target.value }))} placeholder="その他の雰囲気..." className="text-xs h-7" />
                 </div>
-                <div><label className="block text-xs text-muted-foreground mb-1">描述</label><Textarea value={createForm.description} onChange={e => setCreateForm(prev => ({ ...prev, description: e.target.value }))} placeholder="场景描述..." rows={3} className="text-sm resize-none" /></div>
+                <div><label className="block text-xs text-muted-foreground mb-1">説明</label><Textarea value={createForm.description} onChange={e => setCreateForm(prev => ({ ...prev, description: e.target.value }))} placeholder="シーンの説明..." rows={3} className="text-sm resize-none" /></div>
                 {/* Tags */}
                 <div>
-                  <label className="block text-xs text-muted-foreground mb-1">标签</label>
+                  <label className="block text-xs text-muted-foreground mb-1">タグ</label>
                   <div className="flex flex-wrap gap-1 mb-1.5">
                     {createForm.tags.map(tag => (
                       <Badge key={tag} variant="outline" className="text-[10px] gap-1 pr-1">{tag}<button onClick={() => removeTag(tag, false)} className="hover:text-destructive"><X size={10} /></button></Badge>
                     ))}
                   </div>
                   <div className="flex gap-1">
-                    <Input value={tagInput} onChange={e => setTagInput(e.target.value)} placeholder="添加标签..." className="text-xs h-7" onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addTag(tagInput, false))} />
+                    <Input value={tagInput} onChange={e => setTagInput(e.target.value)} placeholder="タグを追加..." className="text-xs h-7" onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addTag(tagInput, false))} />
                     <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => addTag(tagInput, false)}><Tag size={12} /></Button>
                   </div>
                 </div>
-                <Button size="sm" onClick={handleCreate} disabled={!createForm.name.trim()}><Save size={14} className="mr-1" />创建场景</Button>
+                <Button size="sm" onClick={handleCreate} disabled={!createForm.name.trim()}><Save size={14} className="mr-1" />シーンを作成</Button>
               </CardContent>
             </Card>
           </motion.div>
@@ -266,7 +267,7 @@ export function SceneAssets({ projectId }: SceneAssetsProps) {
                     )}
                     {scene.atmosphere && (
                       <Badge className="text-[9px] py-0 bg-orange-500/10 text-orange-400 border-0">
-                        <CloudSun size={8} className="mr-0.5" />{scene.atmosphere}
+                        <CloudSun size={8} className="mr-0.5" />{displayLabel(ATMOSPHERE_LABELS, scene.atmosphere)}
                       </Badge>
                     )}
                     {timeInfo && (
@@ -281,7 +282,7 @@ export function SceneAssets({ projectId }: SceneAssetsProps) {
             {filteredScenes.length === 0 && (
               <div className="text-center py-8 text-muted-foreground">
                 <Film size={32} className="mx-auto mb-2 opacity-30" />
-                <p className="text-xs">暂无场景</p>
+                <p className="text-xs">シーンがまだありません</p>
               </div>
             )}
           </ScrollArea>
@@ -295,43 +296,43 @@ export function SceneAssets({ projectId }: SceneAssetsProps) {
                 {editingId === selectedSceneData.id ? (
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
-                      <h3 className="text-sm font-medium text-foreground">编辑场景</h3>
+                      <h3 className="text-sm font-medium text-foreground">シーンを編集</h3>
                       <Button variant="ghost" size="sm" onClick={() => setEditingId(null)}><X size={14} /></Button>
                     </div>
-                    <div><label className="block text-xs text-muted-foreground mb-1">名称</label><Input value={editForm.name} onChange={e => setEditForm(p => ({ ...p, name: e.target.value }))} className="text-sm" /></div>
+                    <div><label className="block text-xs text-muted-foreground mb-1">名前</label><Input value={editForm.name} onChange={e => setEditForm(p => ({ ...p, name: e.target.value }))} className="text-sm" /></div>
                     <div className="grid grid-cols-2 gap-3">
-                      <div><label className="block text-xs text-muted-foreground mb-1">地点</label><Input value={editForm.location} onChange={e => setEditForm(p => ({ ...p, location: e.target.value }))} className="text-sm" /></div>
+                      <div><label className="block text-xs text-muted-foreground mb-1">場所</label><Input value={editForm.location} onChange={e => setEditForm(p => ({ ...p, location: e.target.value }))} className="text-sm" /></div>
                       <div>
-                        <label className="block text-xs text-muted-foreground mb-1">时间段</label>
+                        <label className="block text-xs text-muted-foreground mb-1">時間帯</label>
                         <select value={editForm.timeOfDay} onChange={e => setEditForm(p => ({ ...p, timeOfDay: e.target.value }))} className="w-full h-9 px-3 bg-secondary border border-input rounded-md text-sm text-foreground focus:outline-none">
-                          <option value="">选择时间段</option>
+                        <option value="">時間帯を選択</option>
                           {TIME_OF_DAY_OPTIONS.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
                         </select>
                       </div>
                     </div>
                     <div>
-                      <label className="block text-xs text-muted-foreground mb-1">氛围</label>
+                      <label className="block text-xs text-muted-foreground mb-1">雰囲気</label>
                       <div className="flex flex-wrap gap-1.5 mb-1.5">
                         {ATMOSPHERE_OPTIONS.map(a => (
                           <button key={a} onClick={() => setEditForm(prev => ({ ...prev, atmosphere: prev.atmosphere === a ? '' : a }))}
                             className={`px-2 py-0.5 text-[11px] rounded-full border transition-colors ${
                               editForm.atmosphere === a ? 'bg-orange-500/15 border-orange-500/30 text-orange-400' : 'border-border/50 text-muted-foreground hover:border-border'
                             }`}
-                          >{a}</button>
+                          >{displayLabel(ATMOSPHERE_LABELS, a)}</button>
                         ))}
                       </div>
-                      <Input value={editForm.atmosphere} onChange={e => setEditForm(p => ({ ...p, atmosphere: e.target.value }))} placeholder="自定义氛围..." className="text-xs h-7" />
+                      <Input value={editForm.atmosphere} onChange={e => setEditForm(p => ({ ...p, atmosphere: e.target.value }))} placeholder="その他の雰囲気..." className="text-xs h-7" />
                     </div>
-                    <div><label className="block text-xs text-muted-foreground mb-1">描述</label><Textarea value={editForm.description} onChange={e => setEditForm(p => ({ ...p, description: e.target.value }))} rows={3} className="text-sm resize-none" /></div>
+                    <div><label className="block text-xs text-muted-foreground mb-1">説明</label><Textarea value={editForm.description} onChange={e => setEditForm(p => ({ ...p, description: e.target.value }))} rows={3} className="text-sm resize-none" /></div>
                     <div>
-                      <label className="block text-xs text-muted-foreground mb-1">标签</label>
+                      <label className="block text-xs text-muted-foreground mb-1">タグ</label>
                       <div className="flex flex-wrap gap-1 mb-1.5">
                         {editForm.tags.map(tag => (
                           <Badge key={tag} variant="outline" className="text-[10px] gap-1 pr-1">{tag}<button onClick={() => removeTag(tag, true)} className="hover:text-destructive"><X size={10} /></button></Badge>
                         ))}
                       </div>
                       <div className="flex gap-1">
-                        <Input value={editTagInput} onChange={e => setEditTagInput(e.target.value)} placeholder="添加标签..." className="text-xs h-7" onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addTag(editTagInput, true))} />
+                        <Input value={editTagInput} onChange={e => setEditTagInput(e.target.value)} placeholder="タグを追加..." className="text-xs h-7" onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addTag(editTagInput, true))} />
                         <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => addTag(editTagInput, true)}><Tag size={12} /></Button>
                       </div>
                     </div>
@@ -355,7 +356,7 @@ export function SceneAssets({ projectId }: SceneAssetsProps) {
                         <Badge variant="outline" className="text-xs gap-1"><MapPin size={12} />{selectedSceneData.location}</Badge>
                       )}
                       {selectedSceneData.atmosphere && (
-                        <Badge className="text-xs bg-orange-500/10 text-orange-400 border-0 gap-1"><CloudSun size={12} />{selectedSceneData.atmosphere}</Badge>
+                        <Badge className="text-xs bg-orange-500/10 text-orange-400 border-0 gap-1"><CloudSun size={12} />{displayLabel(ATMOSPHERE_LABELS, selectedSceneData.atmosphere)}</Badge>
                       )}
                       {selectedSceneData.timeOfDay && (() => {
                         const ti = getTimeInfo(selectedSceneData.timeOfDay);
@@ -365,7 +366,7 @@ export function SceneAssets({ projectId }: SceneAssetsProps) {
                       })()}
                     </div>
                     {selectedSceneData.description && (
-                      <div><p className="text-xs text-muted-foreground font-medium mb-1">📝 描述</p><p className="text-sm text-foreground/80 whitespace-pre-wrap">{selectedSceneData.description}</p></div>
+                      <div><p className="text-xs text-muted-foreground font-medium mb-1">📝 説明</p><p className="text-sm text-foreground/80 whitespace-pre-wrap">{selectedSceneData.description}</p></div>
                     )}
                     {/* Tags */}
                     {parsedTags(selectedSceneData.tags).length > 0 && (
@@ -381,7 +382,7 @@ export function SceneAssets({ projectId }: SceneAssetsProps) {
             </Card>
           ) : (
             <div className="flex items-center justify-center h-48 text-muted-foreground text-sm">
-              选择左侧场景查看详情
+              左側からシーンを選択してください
             </div>
           )}
         </div>

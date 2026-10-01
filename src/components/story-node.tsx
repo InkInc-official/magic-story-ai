@@ -60,7 +60,7 @@ function StoryNodeComponent({ data, selected }: NodeProps) {
       <div className="p-3 pt-2.5">
         {/* Title */}
         <h3 className={`text-sm font-semibold ${config.color} truncate mb-1`}>
-          {nodeData.title || '未命名节点'}
+          {nodeData.title || '無題のノード'}
         </h3>
 
         {/* Description (2 lines max) */}
@@ -74,7 +74,7 @@ function StoryNodeComponent({ data, selected }: NodeProps) {
         {(hasCharacters || hasScenes || hasForeshadowing) && (
           <div className="flex items-center gap-2 mt-2 pt-1.5 border-t border-white/5">
             {hasCharacters && (
-              <div className="flex items-center gap-0.5 text-muted-foreground" title="关联角色">
+              <div className="flex items-center gap-0.5 text-muted-foreground" title="関連キャラクター">
                 <Users size={10} />
                 <span className="text-[9px]">
                   {(metadataObj.characters as unknown[]).length}
@@ -82,7 +82,7 @@ function StoryNodeComponent({ data, selected }: NodeProps) {
               </div>
             )}
             {hasScenes && (
-              <div className="flex items-center gap-0.5 text-muted-foreground" title="关联场景">
+              <div className="flex items-center gap-0.5 text-muted-foreground" title="関連シーン">
                 <MapPin size={10} />
                 <span className="text-[9px]">
                   {(metadataObj.scenes as unknown[]).length}
@@ -90,7 +90,7 @@ function StoryNodeComponent({ data, selected }: NodeProps) {
               </div>
             )}
             {hasForeshadowing && (
-              <div className="flex items-center gap-0.5 text-amber-400/70" title="伏笔">
+              <div className="flex items-center gap-0.5 text-amber-400/70" title="伏線">
                 <Sparkles size={10} />
                 <span className="text-[9px]">
                   {(metadataObj.foreshadowing as unknown[]).length}

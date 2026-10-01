@@ -81,7 +81,7 @@ export function GraphToolbar({
           size="icon"
           className="h-7 w-7"
           onClick={onZoomIn}
-          title="放大"
+          title="拡大"
         >
           <ZoomIn size={14} />
         </Button>
@@ -90,7 +90,7 @@ export function GraphToolbar({
           size="icon"
           className="h-7 w-7"
           onClick={onZoomOut}
-          title="缩小"
+          title="縮小"
         >
           <ZoomOut size={14} />
         </Button>
@@ -99,7 +99,7 @@ export function GraphToolbar({
           size="icon"
           className="h-7 w-7"
           onClick={onFitView}
-          title="适应视图"
+          title="全体を表示"
         >
           <Maximize size={14} />
         </Button>
@@ -114,10 +114,10 @@ export function GraphToolbar({
         size="sm"
         className="h-7 text-xs gap-1"
         onClick={onAutoLayout}
-        title="自动布局"
+        title="自動配置"
       >
         <LayoutGrid size={13} />
-        <span className="hidden sm:inline">自动布局</span>
+        <span className="hidden sm:inline">自動配置</span>
       </Button>
 
       <Button
@@ -125,10 +125,10 @@ export function GraphToolbar({
         size="sm"
         className="h-7 text-xs gap-1 text-primary"
         onClick={onAddNode}
-        title="添加节点"
+        title="ノードを追加"
       >
         <Plus size={13} />
-        <span className="hidden sm:inline">添加节点</span>
+        <span className="hidden sm:inline">ノードを追加</span>
       </Button>
 
       {/* Spacer */}
@@ -141,7 +141,7 @@ export function GraphToolbar({
             <Input
               value={searchQuery}
               onChange={(e) => handleSearch(e.target.value)}
-              placeholder="搜索节点..."
+              placeholder="ノードを検索..."
               className="h-7 w-40 text-xs bg-secondary border-border"
               autoFocus
               onKeyDown={(e) => {
@@ -169,7 +169,7 @@ export function GraphToolbar({
             size="icon"
             className="h-7 w-7"
             onClick={() => setShowSearch(true)}
-            title="搜索节点"
+            title="ノードを検索"
           >
             <Search size={14} />
           </Button>

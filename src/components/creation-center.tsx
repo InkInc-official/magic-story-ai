@@ -10,10 +10,10 @@ import { Badge } from '@/components/ui/badge';
 import { Sparkles, BookOpen, ListTree, Route } from 'lucide-react';
 
 const SUB_VIEWS: { id: CreationSubView; label: string; icon: typeof Sparkles; color: string }[] = [
-  { id: 'chat', label: '对话', icon: Sparkles, color: 'text-primary' },
-  { id: 'chapters', label: '章节', icon: BookOpen, color: 'text-emerald-400' },
-  { id: 'outline', label: '大纲', icon: ListTree, color: 'text-amber-400' },
-  { id: 'tracking', label: '追踪', icon: Route, color: 'text-cyan-400' },
+  { id: 'chat', label: '対話', icon: Sparkles, color: 'text-primary' },
+  { id: 'chapters', label: '章', icon: BookOpen, color: 'text-emerald-400' },
+  { id: 'outline', label: 'プロット', icon: ListTree, color: 'text-amber-400' },
+  { id: 'tracking', label: '追跡', icon: Route, color: 'text-cyan-400' },
 ];
 
 export function CreationCenter({ projectId }: { projectId: string }) {
@@ -53,11 +53,11 @@ export function CreationCenter({ projectId }: { projectId: string }) {
         {/* Context indicator */}
         <div className="flex items-center gap-2">
           <Badge variant="outline" className="text-[9px]">
-            创作中心
+            創作センター
           </Badge>
           <div className="flex items-center gap-1">
             <currentView.icon size={12} className={currentView.color} />
-            <span className="text-[10px] text-muted-foreground">{currentView.label}模式</span>
+            <span className="text-[10px] text-muted-foreground">{currentView.label}モード</span>
           </div>
         </div>
       </div>

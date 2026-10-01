@@ -12,9 +12,9 @@ type EdgeType = 'causal' | 'temporal' | 'character' | 'foreshadow';
 
 const EDGE_TYPE_CONFIG: Record<EdgeType, { color: string; label: string }> = {
   causal: { color: '#3b82f6', label: '因果' },
-  temporal: { color: '#10b981', label: '时间' },
-  character: { color: '#f43f5e', label: '角色' },
-  foreshadow: { color: '#f59e0b', label: '伏笔' },
+  temporal: { color: '#10b981', label: '時間' },
+  character: { color: '#f43f5e', label: '人物' },
+  foreshadow: { color: '#f59e0b', label: '伏線' },
 };
 
 function StoryEdgeComponent({

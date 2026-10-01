@@ -31,13 +31,13 @@ interface WorldAssetsProps {
 }
 
 const SETTING_TYPES = [
-  { value: 'background', label: '背景设定', emoji: '🗺️', color: 'text-teal-400', bg: 'bg-teal-500/10' },
-  { value: 'power', label: '力量体系', emoji: '⚡', color: 'text-yellow-400', bg: 'bg-yellow-500/10' },
-  { value: 'location', label: '地理环境', emoji: '🏔️', color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
-  { value: 'society', label: '社会结构', emoji: '🏛️', color: 'text-blue-400', bg: 'bg-blue-500/10' },
-  { value: 'history', label: '历史文化', emoji: '📜', color: 'text-amber-400', bg: 'bg-amber-500/10' },
-  { value: 'rules', label: '世界规则', emoji: '📋', color: 'text-rose-400', bg: 'bg-rose-500/10' },
-  { value: 'other', label: '其他', emoji: '✨', color: 'text-purple-400', bg: 'bg-purple-500/10' },
+  { value: 'background', label: '背景設定', emoji: '🗺️', color: 'text-teal-400', bg: 'bg-teal-500/10' },
+  { value: 'power', label: '能力体系', emoji: '⚡', color: 'text-yellow-400', bg: 'bg-yellow-500/10' },
+  { value: 'location', label: '地理・環境', emoji: '🏔️', color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
+  { value: 'society', label: '社会構造', emoji: '🏛️', color: 'text-blue-400', bg: 'bg-blue-500/10' },
+  { value: 'history', label: '歴史・文化', emoji: '📜', color: 'text-amber-400', bg: 'bg-amber-500/10' },
+  { value: 'rules', label: '世界のルール', emoji: '📋', color: 'text-rose-400', bg: 'bg-rose-500/10' },
+  { value: 'other', label: 'その他', emoji: '✨', color: 'text-purple-400', bg: 'bg-purple-500/10' },
 ];
 
 const EMPTY_FORM = {
@@ -151,11 +151,11 @@ export function WorldAssets({ projectId }: WorldAssetsProps) {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Globe size={20} className="text-teal-400" />
-          <h2 className="text-lg font-bold text-foreground">世界观资产</h2>
-          <Badge variant="secondary" className="text-xs">{settings.length} 项设定</Badge>
+          <h2 className="text-lg font-bold text-foreground">世界観素材</h2>
+          <Badge variant="secondary" className="text-xs">{settings.length} 件</Badge>
         </div>
         <Button size="sm" onClick={() => setIsCreating(true)}>
-          <Plus size={14} className="mr-1" />添加设定
+          <Plus size={14} className="mr-1" />設定を追加
         </Button>
       </div>
 
@@ -166,34 +166,34 @@ export function WorldAssets({ projectId }: WorldAssetsProps) {
             <Card className="bg-card/50 border-teal-500/20">
               <CardContent className="p-4 space-y-3">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-medium text-foreground">新建世界设定</h3>
+                  <h3 className="text-sm font-medium text-foreground">世界設定を作成</h3>
                   <Button variant="ghost" size="sm" onClick={() => { setIsCreating(false); setCreateForm(EMPTY_FORM); }}><X size={14} /></Button>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
-                  <div><label className="block text-xs text-muted-foreground mb-1">名称</label><Input value={createForm.name} onChange={e => setCreateForm(prev => ({ ...prev, name: e.target.value }))} placeholder="设定名称..." className="text-sm" /></div>
+                  <div><label className="block text-xs text-muted-foreground mb-1">名前</label><Input value={createForm.name} onChange={e => setCreateForm(prev => ({ ...prev, name: e.target.value }))} placeholder="設定名..." className="text-sm" /></div>
                   <div>
-                    <label className="block text-xs text-muted-foreground mb-1">类型</label>
+                    <label className="block text-xs text-muted-foreground mb-1">種類</label>
                     <select value={createForm.type} onChange={e => setCreateForm(prev => ({ ...prev, type: e.target.value }))} className="w-full h-9 px-3 bg-secondary border border-input rounded-md text-sm text-foreground focus:outline-none">
                       {SETTING_TYPES.map(t => <option key={t.value} value={t.value}>{t.emoji} {t.label}</option>)}
                     </select>
                   </div>
                 </div>
-                <div><label className="block text-xs text-muted-foreground mb-1">描述</label><Textarea value={createForm.description} onChange={e => setCreateForm(prev => ({ ...prev, description: e.target.value }))} placeholder="详细描述..." rows={3} className="text-sm resize-none" /></div>
-                <div><label className="block text-xs text-muted-foreground mb-1">规则与限制</label><Textarea value={createForm.rules} onChange={e => setCreateForm(prev => ({ ...prev, rules: e.target.value }))} placeholder="规则、限制和运作机制..." rows={2} className="text-sm resize-none" /></div>
+                <div><label className="block text-xs text-muted-foreground mb-1">説明</label><Textarea value={createForm.description} onChange={e => setCreateForm(prev => ({ ...prev, description: e.target.value }))} placeholder="詳しい説明..." rows={3} className="text-sm resize-none" /></div>
+                <div><label className="block text-xs text-muted-foreground mb-1">ルールと制約</label><Textarea value={createForm.rules} onChange={e => setCreateForm(prev => ({ ...prev, rules: e.target.value }))} placeholder="ルール、制約、仕組み..." rows={2} className="text-sm resize-none" /></div>
                 {/* Tags */}
                 <div>
-                  <label className="block text-xs text-muted-foreground mb-1">标签</label>
+                  <label className="block text-xs text-muted-foreground mb-1">タグ</label>
                   <div className="flex flex-wrap gap-1 mb-1.5">
                     {createForm.tags.map(tag => (
                       <Badge key={tag} variant="outline" className="text-[10px] gap-1 pr-1">{tag}<button onClick={() => removeTag(tag, false)} className="hover:text-destructive"><X size={10} /></button></Badge>
                     ))}
                   </div>
                   <div className="flex gap-1">
-                    <Input value={tagInput} onChange={e => setTagInput(e.target.value)} placeholder="添加标签..." className="text-xs h-7" onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addTag(tagInput, false))} />
+                    <Input value={tagInput} onChange={e => setTagInput(e.target.value)} placeholder="タグを追加..." className="text-xs h-7" onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addTag(tagInput, false))} />
                     <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => addTag(tagInput, false)}><Tag size={12} /></Button>
                   </div>
                 </div>
-                <Button size="sm" onClick={handleCreate} disabled={!createForm.name.trim()}><Save size={14} className="mr-1" />保存设定</Button>
+                <Button size="sm" onClick={handleCreate} disabled={!createForm.name.trim()}><Save size={14} className="mr-1" />設定を保存</Button>
               </CardContent>
             </Card>
           </motion.div>
@@ -219,23 +219,23 @@ export function WorldAssets({ projectId }: WorldAssetsProps) {
                         </select>
                       </div>
                       <Textarea value={editForm.description} onChange={e => setEditForm(prev => ({ ...prev, description: e.target.value }))} rows={3} className="text-sm resize-none" />
-                      <Textarea value={editForm.rules} onChange={e => setEditForm(prev => ({ ...prev, rules: e.target.value }))} rows={2} className="text-sm resize-none" placeholder="规则与限制" />
+                      <Textarea value={editForm.rules} onChange={e => setEditForm(prev => ({ ...prev, rules: e.target.value }))} rows={2} className="text-sm resize-none" placeholder="ルールと制約" />
                       {/* Tags */}
                       <div>
-                        <label className="block text-xs text-muted-foreground mb-1">标签</label>
+                        <label className="block text-xs text-muted-foreground mb-1">タグ</label>
                         <div className="flex flex-wrap gap-1 mb-1.5">
                           {editForm.tags.map(tag => (
                             <Badge key={tag} variant="outline" className="text-[10px] gap-1 pr-1">{tag}<button onClick={() => removeTag(tag, true)} className="hover:text-destructive"><X size={10} /></button></Badge>
                           ))}
                         </div>
                         <div className="flex gap-1">
-                          <Input value={editTagInput} onChange={e => setEditTagInput(e.target.value)} placeholder="添加标签..." className="text-xs h-7" onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addTag(editTagInput, true))} />
+                          <Input value={editTagInput} onChange={e => setEditTagInput(e.target.value)} placeholder="タグを追加..." className="text-xs h-7" onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addTag(editTagInput, true))} />
                           <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => addTag(editTagInput, true)}><Tag size={12} /></Button>
                         </div>
                       </div>
                       <div className="flex gap-2">
                         <Button size="sm" onClick={() => handleUpdate(setting.id)}><Save size={14} className="mr-1" />保存</Button>
-                        <Button size="sm" variant="ghost" onClick={() => setEditingId(null)}>取消</Button>
+                        <Button size="sm" variant="ghost" onClick={() => setEditingId(null)}>キャンセル</Button>
                       </div>
                     </div>
                   ) : (
@@ -257,7 +257,7 @@ export function WorldAssets({ projectId }: WorldAssetsProps) {
                       )}
                       {setting.rules && (
                         <div className="mt-2 p-2 bg-secondary/50 rounded-md">
-                          <p className="text-xs text-muted-foreground font-medium mb-1">📋 规则</p>
+                          <p className="text-xs text-muted-foreground font-medium mb-1">📋 ルール</p>
                           <p className="text-sm text-foreground/80 whitespace-pre-wrap">{setting.rules}</p>
                         </div>
                       )}
@@ -278,8 +278,8 @@ export function WorldAssets({ projectId }: WorldAssetsProps) {
           {settings.length === 0 && !isCreating && (
             <div className="text-center py-12 text-muted-foreground">
               <Globe size={40} className="mx-auto mb-3 opacity-30" />
-              <p className="text-sm">还没有世界设定</p>
-              <p className="text-xs mt-1">点击"添加设定"开始构建世界观</p>
+              <p className="text-sm">世界設定がまだありません</p>
+              <p className="text-xs mt-1">「設定を追加」から世界観を作り始めましょう</p>
             </div>
           )}
         </div>

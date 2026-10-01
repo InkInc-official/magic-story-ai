@@ -18,6 +18,7 @@ import {
   Plus,
   Bot,
 } from 'lucide-react';
+import { AGENT_LABELS, displayLabel, ja } from '@/lib/i18n';
 
 interface SidebarProps {
   projects: { id: string; title: string; genre: string }[];
@@ -29,17 +30,17 @@ interface SidebarProps {
 
 // 3 core modules
 const MODULE_ITEMS: { id: CoreModule; label: string; icon: React.ReactNode; color: string }[] = [
-  { id: 'creation', label: '创作中心', icon: <PenTool size={18} />, color: 'text-amber-400' },
-  { id: 'assets', label: '项目管理', icon: <Archive size={18} />, color: 'text-rose-400' },
-  { id: 'graph', label: '全景图谱', icon: <Network size={18} />, color: 'text-teal-400' },
+  { id: 'creation', label: ja.nav.creation, icon: <PenTool size={18} />, color: 'text-amber-400' },
+  { id: 'assets', label: ja.nav.assets, icon: <Archive size={18} />, color: 'text-rose-400' },
+  { id: 'graph', label: ja.nav.graph, icon: <Network size={18} />, color: 'text-teal-400' },
 ];
 
 // Creation center sub-views
 const CREATION_ITEMS: { id: CreationSubView; label: string; icon: React.ReactNode }[] = [
-  { id: 'chat', label: '工作台', icon: <LayoutDashboard size={16} /> },
-  { id: 'outline', label: '大纲规划', icon: <ListTree size={16} /> },
-  { id: 'chapters', label: '章节创作', icon: <BookOpen size={16} /> },
-  { id: 'tracking', label: '追踪', icon: <Route size={16} /> },
+  { id: 'chat', label: ja.nav.dashboard, icon: <LayoutDashboard size={16} /> },
+  { id: 'outline', label: ja.nav.outline, icon: <ListTree size={16} /> },
+  { id: 'chapters', label: ja.nav.chapters, icon: <BookOpen size={16} /> },
+  { id: 'tracking', label: ja.nav.tracking, icon: <Route size={16} /> },
 ];
 
 export function Sidebar({
@@ -76,7 +77,7 @@ export function Sidebar({
           </div>
           {!sidebarCollapsed && (
             <span className="text-sm font-bold text-sidebar-foreground whitespace-nowrap">
-              小说创作Agent
+              {ja.app.name}
             </span>
           )}
         </div>
@@ -86,7 +87,7 @@ export function Sidebar({
       {!sidebarCollapsed && (
         <div className="px-3 py-2 border-b border-sidebar-border">
           <div className="flex items-center justify-between mb-1">
-            <span className="text-xs text-sidebar-foreground/50 font-medium">当前项目</span>
+            <span className="text-xs text-sidebar-foreground/50 font-medium">現在のプロジェクト</span>
             <button
               onClick={onCreateProject}
               className="text-sidebar-foreground/50 hover:text-primary transition-colors"
@@ -166,10 +167,10 @@ export function Sidebar({
             <button
               onClick={() => { /* Settings as creation sub-view for now */ }}
               className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground transition-all duration-150"
-              title={sidebarCollapsed ? '设置' : undefined}
+              title={sidebarCollapsed ? ja.nav.settings : undefined}
             >
               <Settings size={18} className="shrink-0" />
-              {!sidebarCollapsed && <span className="whitespace-nowrap truncate">设置</span>}
+              {!sidebarCollapsed && <span className="whitespace-nowrap truncate">{ja.nav.settings}</span>}
             </button>
           </div>
         </div>
@@ -194,7 +195,7 @@ export function Sidebar({
                     }`}
                   >
                     <span className="text-base shrink-0">{agent.emoji}</span>
-                    <span className="whitespace-nowrap truncate">{agent.name}</span>
+                    <span className="whitespace-nowrap truncate">{displayLabel(AGENT_LABELS, agent.id)}</span>
                   </button>
                 );
               })}
@@ -219,7 +220,7 @@ export function Sidebar({
                       ? `${agent.bgColor} ${agent.borderColor} border`
                       : 'text-sidebar-foreground/60 hover:bg-sidebar-accent'
                   }`}
-                  title={agent.name}
+                  title={displayLabel(AGENT_LABELS, agent.id)}
                 >
                   {agent.emoji}
                 </button>

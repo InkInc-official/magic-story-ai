@@ -33,19 +33,19 @@ interface PlotAssetsProps {
 }
 
 const PLOT_TYPES = [
-  { value: 'main', label: '主线', color: 'text-blue-400', bg: 'bg-blue-500/10', border: 'border-blue-500/20' },
-  { value: 'sub', label: '支线', color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20' },
-  { value: 'task', label: '任务线', color: 'text-amber-400', bg: 'bg-amber-500/10', border: 'border-amber-500/20' },
-  { value: 'dungeon', label: '副本线', color: 'text-purple-400', bg: 'bg-purple-500/10', border: 'border-purple-500/20' },
-  { value: 'scene', label: '场景剧情', color: 'text-orange-400', bg: 'bg-orange-500/10', border: 'border-orange-500/20' },
-  { value: 'event', label: '事件线', color: 'text-red-400', bg: 'bg-red-500/10', border: 'border-red-500/20' },
+  { value: 'main', label: 'メイン', color: 'text-blue-400', bg: 'bg-blue-500/10', border: 'border-blue-500/20' },
+  { value: 'sub', label: 'サブ', color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20' },
+  { value: 'task', label: 'クエスト', color: 'text-amber-400', bg: 'bg-amber-500/10', border: 'border-amber-500/20' },
+  { value: 'dungeon', label: 'エピソード', color: 'text-purple-400', bg: 'bg-purple-500/10', border: 'border-purple-500/20' },
+  { value: 'scene', label: 'シーン', color: 'text-orange-400', bg: 'bg-orange-500/10', border: 'border-orange-500/20' },
+  { value: 'event', label: 'イベント', color: 'text-red-400', bg: 'bg-red-500/10', border: 'border-red-500/20' },
 ];
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
-  planned: { label: '计划中', color: 'text-muted-foreground', bg: 'bg-secondary' },
-  active: { label: '进行中', color: 'text-amber-400', bg: 'bg-amber-500/10' },
-  completed: { label: '已完成', color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
-  abandoned: { label: '已废弃', color: 'text-red-400', bg: 'bg-red-500/10' },
+  planned: { label: '計画中', color: 'text-muted-foreground', bg: 'bg-secondary' },
+  active: { label: '進行中', color: 'text-amber-400', bg: 'bg-amber-500/10' },
+  completed: { label: '完了', color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
+  abandoned: { label: '保留', color: 'text-red-400', bg: 'bg-red-500/10' },
 };
 
 const EMPTY_FORM = {
@@ -213,11 +213,11 @@ export function PlotAssets({ projectId }: PlotAssetsProps) {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <GitBranch size={20} className="text-amber-400" />
-          <h2 className="text-lg font-bold text-foreground">剧情资产</h2>
-          <Badge variant="secondary" className="text-xs">{plots.length} 条剧情</Badge>
+          <h2 className="text-lg font-bold text-foreground">プロット素材</h2>
+          <Badge variant="secondary" className="text-xs">{plots.length} 件</Badge>
         </div>
         <Button size="sm" onClick={() => setIsCreating(true)}>
-          <Plus size={14} className="mr-1" />添加剧情
+          <Plus size={14} className="mr-1" />プロットを追加
         </Button>
       </div>
 
@@ -225,10 +225,10 @@ export function PlotAssets({ projectId }: PlotAssetsProps) {
       <div className="flex gap-2 items-center">
         <div className="relative flex-1 max-w-xs">
           <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
-          <Input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="搜索剧情..." className="pl-8 text-sm h-8" />
+          <Input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="プロットを検索..." className="pl-8 text-sm h-8" />
         </div>
         <select value={filterType} onChange={e => setFilterType(e.target.value)} className="h-8 px-2 bg-secondary border border-input rounded-md text-xs text-foreground focus:outline-none">
-          <option value="all">全部类型</option>
+          <option value="all">すべての種別</option>
           {PLOT_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
         </select>
       </div>
@@ -240,23 +240,23 @@ export function PlotAssets({ projectId }: PlotAssetsProps) {
             <Card className="bg-card/50 border-amber-500/20">
               <CardContent className="p-4 space-y-3">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-medium text-foreground">新建剧情</h3>
+                  <h3 className="text-sm font-medium text-foreground">プロットを作成</h3>
                   <Button variant="ghost" size="sm" onClick={() => { setIsCreating(false); setCreateForm(EMPTY_FORM); }}><X size={14} /></Button>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
-                  <div><label className="block text-xs text-muted-foreground mb-1">名称</label><Input value={createForm.name} onChange={e => setCreateForm(prev => ({ ...prev, name: e.target.value }))} placeholder="剧情名称..." className="text-sm" /></div>
+                  <div><label className="block text-xs text-muted-foreground mb-1">名前</label><Input value={createForm.name} onChange={e => setCreateForm(prev => ({ ...prev, name: e.target.value }))} placeholder="プロット名..." className="text-sm" /></div>
                   <div>
-                    <label className="block text-xs text-muted-foreground mb-1">类型</label>
+                    <label className="block text-xs text-muted-foreground mb-1">種類</label>
                     <select value={createForm.plotType} onChange={e => setCreateForm(prev => ({ ...prev, plotType: e.target.value }))} className="w-full h-9 px-3 bg-secondary border border-input rounded-md text-sm text-foreground focus:outline-none">
                       {PLOT_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
                     </select>
                   </div>
                 </div>
-                <div><label className="block text-xs text-muted-foreground mb-1">描述</label><Textarea value={createForm.description} onChange={e => setCreateForm(prev => ({ ...prev, description: e.target.value }))} placeholder="剧情描述..." rows={3} className="text-sm resize-none" /></div>
+                <div><label className="block text-xs text-muted-foreground mb-1">説明</label><Textarea value={createForm.description} onChange={e => setCreateForm(prev => ({ ...prev, description: e.target.value }))} placeholder="プロットの説明..." rows={3} className="text-sm resize-none" /></div>
                 <div className="grid grid-cols-2 gap-3">
-                  <div><label className="block text-xs text-muted-foreground mb-1">优先级</label><Input type="number" value={createForm.priority} onChange={e => setCreateForm(prev => ({ ...prev, priority: parseInt(e.target.value) || 0 }))} className="text-sm" /></div>
+                  <div><label className="block text-xs text-muted-foreground mb-1">優先度</label><Input type="number" value={createForm.priority} onChange={e => setCreateForm(prev => ({ ...prev, priority: parseInt(e.target.value) || 0 }))} className="text-sm" /></div>
                   <div>
-                    <label className="block text-xs text-muted-foreground mb-1">状态</label>
+                    <label className="block text-xs text-muted-foreground mb-1">状態</label>
                     <select value={createForm.status} onChange={e => setCreateForm(prev => ({ ...prev, status: e.target.value }))} className="w-full h-9 px-3 bg-secondary border border-input rounded-md text-sm text-foreground focus:outline-none">
                       {Object.entries(STATUS_CONFIG).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
                     </select>
@@ -264,18 +264,18 @@ export function PlotAssets({ projectId }: PlotAssetsProps) {
                 </div>
                 {/* Tags */}
                 <div>
-                  <label className="block text-xs text-muted-foreground mb-1">标签</label>
+                  <label className="block text-xs text-muted-foreground mb-1">タグ</label>
                   <div className="flex flex-wrap gap-1 mb-1.5">
                     {createForm.tags.map(tag => (
                       <Badge key={tag} variant="outline" className="text-[10px] gap-1 pr-1">{tag}<button onClick={() => removeTag(tag, false)} className="hover:text-destructive"><X size={10} /></button></Badge>
                     ))}
                   </div>
                   <div className="flex gap-1">
-                    <Input value={tagInput} onChange={e => setTagInput(e.target.value)} placeholder="添加标签..." className="text-xs h-7" onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addTag(tagInput, false))} />
+                    <Input value={tagInput} onChange={e => setTagInput(e.target.value)} placeholder="タグを追加..." className="text-xs h-7" onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addTag(tagInput, false))} />
                     <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => addTag(tagInput, false)}><Tag size={12} /></Button>
                   </div>
                 </div>
-                <Button size="sm" onClick={handleCreate} disabled={!createForm.name.trim()}><Save size={14} className="mr-1" />创建剧情</Button>
+                <Button size="sm" onClick={handleCreate} disabled={!createForm.name.trim()}><Save size={14} className="mr-1" />プロットを作成</Button>
               </CardContent>
             </Card>
           </motion.div>
@@ -323,7 +323,7 @@ export function PlotAssets({ projectId }: PlotAssetsProps) {
             {filteredPlots.length === 0 && (
               <div className="text-center py-8 text-muted-foreground">
                 <GitBranch size={32} className="mx-auto mb-2 opacity-30" />
-                <p className="text-xs">暂无剧情</p>
+                <p className="text-xs">プロットがまだありません</p>
               </div>
             )}
           </ScrollArea>
@@ -337,37 +337,37 @@ export function PlotAssets({ projectId }: PlotAssetsProps) {
                 {editingId === selectedPlotData.id ? (
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
-                      <h3 className="text-sm font-medium text-foreground">编辑剧情</h3>
+                      <h3 className="text-sm font-medium text-foreground">プロットを編集</h3>
                       <Button variant="ghost" size="sm" onClick={() => setEditingId(null)}><X size={14} /></Button>
                     </div>
                     <div className="grid grid-cols-2 gap-3">
-                      <div><label className="block text-xs text-muted-foreground mb-1">名称</label><Input value={editForm.name} onChange={e => setEditForm(p => ({ ...p, name: e.target.value }))} className="text-sm" /></div>
+                      <div><label className="block text-xs text-muted-foreground mb-1">名前</label><Input value={editForm.name} onChange={e => setEditForm(p => ({ ...p, name: e.target.value }))} className="text-sm" /></div>
                       <div>
-                        <label className="block text-xs text-muted-foreground mb-1">类型</label>
+                        <label className="block text-xs text-muted-foreground mb-1">種類</label>
                         <select value={editForm.plotType} onChange={e => setEditForm(p => ({ ...p, plotType: e.target.value }))} className="w-full h-9 px-3 bg-secondary border border-input rounded-md text-sm text-foreground focus:outline-none">
                           {PLOT_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
                         </select>
                       </div>
                     </div>
-                    <div><label className="block text-xs text-muted-foreground mb-1">描述</label><Textarea value={editForm.description} onChange={e => setEditForm(p => ({ ...p, description: e.target.value }))} rows={3} className="text-sm resize-none" /></div>
+                    <div><label className="block text-xs text-muted-foreground mb-1">説明</label><Textarea value={editForm.description} onChange={e => setEditForm(p => ({ ...p, description: e.target.value }))} rows={3} className="text-sm resize-none" /></div>
                     <div className="grid grid-cols-2 gap-3">
-                      <div><label className="block text-xs text-muted-foreground mb-1">优先级</label><Input type="number" value={editForm.priority} onChange={e => setEditForm(p => ({ ...p, priority: parseInt(e.target.value) || 0 }))} className="text-sm" /></div>
+                      <div><label className="block text-xs text-muted-foreground mb-1">優先度</label><Input type="number" value={editForm.priority} onChange={e => setEditForm(p => ({ ...p, priority: parseInt(e.target.value) || 0 }))} className="text-sm" /></div>
                       <div>
-                        <label className="block text-xs text-muted-foreground mb-1">状态</label>
+                        <label className="block text-xs text-muted-foreground mb-1">状態</label>
                         <select value={editForm.status} onChange={e => setEditForm(p => ({ ...p, status: e.target.value }))} className="w-full h-9 px-3 bg-secondary border border-input rounded-md text-sm text-foreground focus:outline-none">
                           {Object.entries(STATUS_CONFIG).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
                         </select>
                       </div>
                     </div>
                     <div>
-                      <label className="block text-xs text-muted-foreground mb-1">标签</label>
+                      <label className="block text-xs text-muted-foreground mb-1">タグ</label>
                       <div className="flex flex-wrap gap-1 mb-1.5">
                         {editForm.tags.map(tag => (
                           <Badge key={tag} variant="outline" className="text-[10px] gap-1 pr-1">{tag}<button onClick={() => removeTag(tag, true)} className="hover:text-destructive"><X size={10} /></button></Badge>
                         ))}
                       </div>
                       <div className="flex gap-1">
-                        <Input value={editTagInput} onChange={e => setEditTagInput(e.target.value)} placeholder="添加标签..." className="text-xs h-7" onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addTag(editTagInput, true))} />
+                        <Input value={editTagInput} onChange={e => setEditTagInput(e.target.value)} placeholder="タグを追加..." className="text-xs h-7" onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addTag(editTagInput, true))} />
                         <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => addTag(editTagInput, true)}><Tag size={12} /></Button>
                       </div>
                     </div>
@@ -391,15 +391,15 @@ export function PlotAssets({ projectId }: PlotAssetsProps) {
                       </div>
                     </div>
                     {selectedPlotData.description && (
-                      <div><p className="text-xs text-muted-foreground font-medium mb-1">📝 描述</p><p className="text-sm text-foreground/80 whitespace-pre-wrap">{selectedPlotData.description}</p></div>
+                      <div><p className="text-xs text-muted-foreground font-medium mb-1">📝 説明</p><p className="text-sm text-foreground/80 whitespace-pre-wrap">{selectedPlotData.description}</p></div>
                     )}
                     <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                      <span>优先级: {selectedPlotData.priority}</span>
+                      <span>優先度：{selectedPlotData.priority}</span>
                       <span>v{selectedPlotData.version}</span>
                     </div>
                     {/* Status workflow */}
                     <div className="p-3 bg-amber-500/5 border border-amber-500/15 rounded-lg">
-                      <p className="text-xs font-medium text-amber-400 mb-2">状态流转</p>
+                      <p className="text-xs font-medium text-amber-400 mb-2">状態の変更</p>
                       <div className="flex gap-2">
                         {Object.entries(STATUS_CONFIG).map(([key, cfg]) => (
                           <Button
@@ -428,7 +428,7 @@ export function PlotAssets({ projectId }: PlotAssetsProps) {
             </Card>
           ) : (
             <div className="flex items-center justify-center h-48 text-muted-foreground text-sm">
-              选择左侧剧情查看详情
+              左側からプロットを選択してください
             </div>
           )}
         </div>
