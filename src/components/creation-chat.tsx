@@ -163,12 +163,12 @@ function SidePanel({ type, onClose, projectId }: {
   projectId: string;
 }) {
   const { activeChapterId } = useAppStore();
-  const [chapter, setChapter] = useState<{ id: string; title: string; outlineContent: string; content: string; summary: string; emotionTarget: string; emotionArc: string } | null>(null);
+  const [chapter, setChapter] = useState<{ id: string; title: string; outlineContent: string; content: string; summary: string; emotionTarget: string; emotionArc: string; purpose?: string; povCharacterId?: string | null; endingNotes?: string } | null>(null);
 
   useEffect(() => {
     if (activeChapterId && type !== 'none') {
       fetch(`/api/chapters?projectId=${projectId}`)
-        .then(r => r.ok ? r.json() as Promise<Array<{ id: string; title: string; outlineContent: string; content: string; summary: string; emotionTarget: string; emotionArc: string }>> : [])
+        .then(r => r.ok ? r.json() as Promise<Array<{ id: string; title: string; outlineContent: string; content: string; summary: string; emotionTarget: string; emotionArc: string; purpose?: string; povCharacterId?: string | null; endingNotes?: string }>> : [])
         .then(chapters => setChapter(chapters.find(item => item.id === activeChapterId) || null))
         .catch(() => {});
     }
@@ -232,7 +232,9 @@ function SidePanel({ type, onClose, projectId }: {
               content={chapter.content}
               chapterTitle={chapter.title}
               projectId={projectId}
-              chapterPurpose={chapter.outlineContent}
+              chapterPurpose={chapter.purpose || chapter.outlineContent}
+              povCharacterId={chapter.povCharacterId || ''}
+              endingNotes={chapter.endingNotes || ''}
             />
           </div>
         )}

@@ -62,6 +62,19 @@ export const GENRE_LABELS: LabelMap = {
   '策略经营': '戦略・領地経営',
 };
 
+export const NARRATIVE_PERSPECTIVE_LABELS: LabelMap = {
+  first_person: '一人称',
+  third_person_limited: '三人称一元',
+  third_person_multiple: '三人称多元',
+  third_person_objective: '三人称客観',
+  custom: 'その他・自由指定',
+};
+
+export const CHAPTER_LENGTH_POLICY_LABELS: LabelMap = {
+  guide: '目安（自然な終了を優先）',
+  strict: 'できるだけ厳密',
+};
+
 export const CHARACTER_ROLE_LABELS: LabelMap = {
   '主角': '主人公',
   '女主': 'ヒロイン',

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { optionalPositiveInteger } from '@/lib/writing-settings';
 
 export async function GET(request: NextRequest) {
   try {
@@ -31,6 +32,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'projectId is required' }, { status: 400 });
     }
 
+    const targetWordCount = optionalPositiveInteger(body.targetWordCount);
+    if (body.targetWordCount !== undefined && targetWordCount === undefined) {
+      return NextResponse.json({ error: '目標文字数は正の整数で指定してください' }, { status: 400 });
+    }
+    const povCharacterId = body.povCharacterId === '' ? null : body.povCharacterId;
+    if (povCharacterId) {
+      const character = await db.character.findFirst({ where: { id: povCharacterId, projectId }, select: { id: true } });
+      if (!character) return NextResponse.json({ error: '視点人物は同じプロジェクトの人物を指定してください' }, { status: 400 });
+    }
+
     const wordCount = content ? content.length : 0;
 
     const chapter = await db.chapter.create({
@@ -47,6 +58,10 @@ export async function POST(request: NextRequest) {
         emotionArc: body.emotionArc || '',
         hookStart: body.hookStart || '',
         hookEnd: body.hookEnd || '',
+        povCharacterId,
+        purpose: body.purpose || '',
+        targetWordCount: targetWordCount ?? null,
+        endingNotes: body.endingNotes || '',
       },
     });
 
@@ -66,7 +81,17 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'Chapter ID is required' }, { status: 400 });
     }
 
-    const wordCount = content !== undefined ? content.length : undefined;
+    const existing = await db.chapter.findUnique({ where: { id }, select: { projectId: true } });
+    if (!existing) return NextResponse.json({ error: 'Chapter not found' }, { status: 404 });
+    const targetWordCount = optionalPositiveInteger(body.targetWordCount);
+    if (body.targetWordCount !== undefined && targetWordCount === undefined) {
+      return NextResponse.json({ error: '目標文字数は正の整数で指定してください' }, { status: 400 });
+    }
+    const povCharacterId = body.povCharacterId === '' ? null : body.povCharacterId;
+    if (povCharacterId) {
+      const character = await db.character.findFirst({ where: { id: povCharacterId, projectId: existing.projectId }, select: { id: true } });
+      if (!character) return NextResponse.json({ error: '視点人物は同じプロジェクトの人物を指定してください' }, { status: 400 });
+    }
 
     const chapter = await db.chapter.update({
       where: { id },
@@ -81,6 +106,10 @@ export async function PUT(request: NextRequest) {
         ...(emotionArc !== undefined && { emotionArc }),
         ...(hookStart !== undefined && { hookStart }),
         ...(hookEnd !== undefined && { hookEnd }),
+        ...(body.povCharacterId !== undefined && { povCharacterId }),
+        ...(body.purpose !== undefined && { purpose: body.purpose }),
+        ...(body.targetWordCount !== undefined && { targetWordCount }),
+        ...(body.endingNotes !== undefined && { endingNotes: body.endingNotes }),
       },
     });
 

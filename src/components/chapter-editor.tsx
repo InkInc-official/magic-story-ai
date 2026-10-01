@@ -33,6 +33,10 @@ interface Chapter {
   emotionArc: string;
   hookStart: string;
   hookEnd: string;
+  povCharacterId: string | null;
+  purpose: string;
+  targetWordCount: number | null;
+  endingNotes: string;
 }
 
 interface ChapterEditorProps {
@@ -73,6 +77,11 @@ export function ChapterEditor({ projectId }: ChapterEditorProps) {
   const [editEmotionArc, setEditEmotionArc] = useState('');
   const [editHookStart, setEditHookStart] = useState('');
   const [editHookEnd, setEditHookEnd] = useState('');
+  const [editPovCharacterId, setEditPovCharacterId] = useState('');
+  const [editPurpose, setEditPurpose] = useState('');
+  const [editTargetWordCount, setEditTargetWordCount] = useState('');
+  const [editEndingNotes, setEditEndingNotes] = useState('');
+  const [projectCharacters, setProjectCharacters] = useState<ChapterGenerationSource['characters']>([]);
   const [isCreating, setIsCreating] = useState(false);
   const [newTitle, setNewTitle] = useState('');
   const [isSaving, setIsSaving] = useState(false);
@@ -98,7 +107,7 @@ export function ChapterEditor({ projectId }: ChapterEditorProps) {
     };
 
     const [projects, characterData, worldSettings, scenes, foreshadowings, storyStates, outlines, plots, storyNodes, storyEdges] = await Promise.all([
-      safeJson<Array<{ id: string; title: string; genre: string; description: string }>>('/api/projects', []),
+      safeJson<Array<NonNullable<ChapterGenerationSource['project']> & { id: string }>>('/api/projects', []),
       safeJson<{ characters: ChapterGenerationSource['characters']; relationships: ChapterGenerationSource['relationships'] }>(`/api/characters?projectId=${projectId}`, { characters: [], relationships: [] }),
       safeJson<ChapterGenerationSource['worldSettings']>(`/api/world-settings?projectId=${projectId}`, []),
       safeJson<ChapterGenerationSource['scenes']>(`/api/scenes?projectId=${projectId}`, []),
@@ -120,6 +129,10 @@ export function ChapterEditor({ projectId }: ChapterEditorProps) {
       emotionArc: editEmotionArc,
       hookStart: editHookStart,
       hookEnd: editHookEnd,
+      povCharacterId: editPovCharacterId || null,
+      purpose: editPurpose,
+      targetWordCount: editTargetWordCount ? Number(editTargetWordCount) : null,
+      endingNotes: editEndingNotes,
       project: projects.find(project => project.id === projectId),
       previousChapter: previousChapter && {
         id: previousChapter.id,
@@ -142,11 +155,12 @@ export function ChapterEditor({ projectId }: ChapterEditorProps) {
 
   const fetchChapters = useCallback(async () => {
     try {
-      const res = await fetch(`/api/chapters?projectId=${projectId}`);
+      const [res, characterRes] = await Promise.all([fetch(`/api/chapters?projectId=${projectId}`), fetch(`/api/characters?projectId=${projectId}`)]);
       if (res.ok) {
         const data = await res.json();
         setChapters(data);
       }
+      if (characterRes.ok) setProjectCharacters((await characterRes.json()).characters || []);
     } catch (e) {
       console.error('Failed to fetch chapters:', e);
     }
@@ -168,6 +182,10 @@ export function ChapterEditor({ projectId }: ChapterEditorProps) {
     setEditEmotionArc(chapter.emotionArc || '');
     setEditHookStart(chapter.hookStart || '');
     setEditHookEnd(chapter.hookEnd || '');
+    setEditPovCharacterId(chapter.povCharacterId || '');
+    setEditPurpose(chapter.purpose || '');
+    setEditTargetWordCount(chapter.targetWordCount?.toString() || '');
+    setEditEndingNotes(chapter.endingNotes || '');
     // 打开章节时自动显示预览面板
     if (sidePanel === 'none') {
       setSidePanel('preview');
@@ -209,6 +227,10 @@ export function ChapterEditor({ projectId }: ChapterEditorProps) {
           emotionArc: editEmotionArc,
           hookStart: editHookStart,
           hookEnd: editHookEnd,
+          povCharacterId: editPovCharacterId,
+          purpose: editPurpose,
+          targetWordCount: editTargetWordCount,
+          endingNotes: editEndingNotes,
         }),
       });
       if (res.ok) {
@@ -336,7 +358,7 @@ ${semanticContext ? `【感情・章構成の指定】\n${semanticContext}\n\n` 
 - 前章の状態を自然に引き継ぎ、未回収伏線や時系列は本章に関連する場合だけ反映する。
 - 説明、描写、心理、行動、台詞は場面の目的と速度に応じて選ぶ。五感描写や行動による心理表現を機械的に増やさない。
 - 章末は指定があればその意味を踏まえ、指定がなければ引き、余韻、疑問、発見、転換、静かな終了などから章の役割に合う形を選ぶ。
-- 利用可能な個別文字数指定はないため、共通の約3,000字を目標とする。ただし自然な章の終了を文字数合わせより優先する。
+- 上記の目標文字数と文字数方針を適用する。
 
 前置きや解説を付けず、章本文だけを日本語で出力してください。`;
 
@@ -623,6 +645,13 @@ ${semanticContext ? `【感情・章構成の指定】\n${semanticContext}\n\n` 
                   )}
                 </div>
 
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-3 bg-secondary/20 rounded-lg">
+                  <div><label className="block text-[10px] text-muted-foreground mb-1">視点人物</label><select value={editPovCharacterId} onChange={e => setEditPovCharacterId(e.target.value)} className="w-full h-8 px-2 bg-secondary border border-input rounded text-xs"><option value="">プロジェクト設定／文脈を使用</option>{projectCharacters.map(character => <option key={character.id} value={character.id}>{character.name}</option>)}</select></div>
+                  <div><label className="block text-[10px] text-muted-foreground mb-1">目標文字数</label><Input type="number" min={1} value={editTargetWordCount} onChange={e => setEditTargetWordCount(e.target.value)} className="h-8 text-xs" placeholder="プロジェクト設定を使用" /></div>
+                  <div className="md:col-span-2"><label className="block text-[10px] text-muted-foreground mb-1">章の目的</label><Textarea value={editPurpose} onChange={e => setEditPurpose(e.target.value)} rows={2} className="text-xs resize-none" placeholder="この章で達成したいこと、中心となる変化" /></div>
+                  <div className="md:col-span-2"><label className="block text-[10px] text-muted-foreground mb-1">章末メモ</label><Textarea value={editEndingNotes} onChange={e => setEditEndingNotes(e.target.value)} rows={2} className="text-xs resize-none" placeholder="余韻、発見、静かな終了など。未設定時は章末フックまたは内容から判断" /></div>
+                </div>
+
                 {/* Chapter Outline */}
                 <div>
                   <button
@@ -760,7 +789,9 @@ ${semanticContext ? `【感情・章構成の指定】\n${semanticContext}\n\n` 
                   content={editContent}
                   chapterTitle={editTitle}
                   projectId={projectId}
-                  chapterPurpose={editOutline}
+                  chapterPurpose={editPurpose || editOutline}
+                  povCharacterId={editPovCharacterId}
+                  endingNotes={editEndingNotes}
                 />
               )}
               {sidePanel === 'adversarial' && !selectedChapter && (

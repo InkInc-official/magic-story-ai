@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Loader2, Swords, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { formatSemanticLabel } from '@/lib/prompts/ja';
+import { displayLabel, NARRATIVE_PERSPECTIVE_LABELS } from '@/lib/i18n';
 
 interface ReviewResult {
   perspective: string;
@@ -22,6 +23,8 @@ interface AdversarialReviewProps {
   chapterTitle: string;
   projectId?: string;
   chapterPurpose?: string;
+  povCharacterId?: string;
+  endingNotes?: string;
 }
 
 const REVIEW_PERSPECTIVES = [
@@ -39,7 +42,7 @@ const REVIEW_OUTPUT_RULES = `問題には次の重大度を付けてください
 
 各指摘には、可能な限り本文中の根拠、読者または作品への影響、具体的な改善案を付けてください。商業性や完読欲は作品目的に含まれる場合だけ評価してください。長所も根拠とともに示してください。`;
 
-export function AdversarialReviewPanel({ content, chapterTitle, projectId, chapterPurpose }: AdversarialReviewProps) {
+export function AdversarialReviewPanel({ content, chapterTitle, projectId, chapterPurpose, povCharacterId, endingNotes }: AdversarialReviewProps) {
   const [results, setResults] = useState<ReviewResult[]>([]);
   const [isReviewing, setIsReviewing] = useState(false);
   const [activeReview, setActiveReview] = useState('structure');
@@ -54,11 +57,22 @@ export function AdversarialReviewPanel({ content, chapterTitle, projectId, chapt
     let projectContext = '';
     if (projectId) {
       try {
-        const response = await fetch('/api/projects');
+        const [response, characterResponse] = await Promise.all([fetch('/api/projects'), fetch(`/api/characters?projectId=${projectId}`)]);
         if (response.ok) {
-          const projects = await response.json() as Array<{ id: string; title: string; genre: string; description: string }>;
+          const projects = await response.json() as Array<{ id: string; title: string; genre: string; description: string; narrativePerspective?: string | null; defaultPovCharacterId?: string | null; writingStyleNotes?: string }>;
           const project = projects.find(item => item.id === projectId);
-          if (project) projectContext = `作品：${project.title}\nジャンル：${formatSemanticLabel('genre', project.genre)}\n作品概要：${project.description || '未設定'}`;
+          const characterData = characterResponse.ok ? await characterResponse.json() as { characters?: Array<{ id: string; name: string }> } : {};
+          const resolvedPovId = povCharacterId || project?.defaultPovCharacterId;
+          const povName = characterData.characters?.find(character => character.id === resolvedPovId)?.name;
+          if (project) projectContext = [
+            `作品：${project.title}`,
+            `ジャンル：${formatSemanticLabel('genre', project.genre)}`,
+            `作品概要：${project.description || '未設定'}`,
+            project.narrativePerspective && `視点方式：${displayLabel(NARRATIVE_PERSPECTIVE_LABELS, project.narrativePerspective)}`,
+            povName && `視点人物：${povName}`,
+            project.writingStyleNotes && `文体メモ：${project.writingStyleNotes}`,
+            endingNotes && `章末メモ：${endingNotes}`,
+          ].filter(Boolean).join('\n');
         }
       } catch {
         // Project context is optional; review can continue with the chapter alone.

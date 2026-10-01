@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { isChapterLengthPolicy, isNarrativePerspective, optionalPositiveInteger } from '@/lib/writing-settings';
 
 export async function GET() {
   try {
@@ -25,11 +26,28 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Title is required' }, { status: 400 });
     }
 
+    const target = optionalPositiveInteger(body.defaultChapterTarget);
+    if (body.defaultChapterTarget !== undefined && target === undefined) {
+      return NextResponse.json({ error: '標準章目標文字数は正の整数で指定してください' }, { status: 400 });
+    }
+    if (body.narrativePerspective != null && body.narrativePerspective !== '' && !isNarrativePerspective(body.narrativePerspective)) {
+      return NextResponse.json({ error: '基本視点の値が不正です' }, { status: 400 });
+    }
+    if (body.chapterLengthPolicy !== undefined && !isChapterLengthPolicy(body.chapterLengthPolicy)) {
+      return NextResponse.json({ error: '文字数方針の値が不正です' }, { status: 400 });
+    }
+
     const project = await db.project.create({
       data: {
         title,
         genre: genre || '玄幻系统修仙',
         description: description || '',
+        narrativePerspective: body.narrativePerspective || null,
+        povNotes: body.povNotes || '',
+        writingStyleNotes: body.writingStyleNotes || '',
+        defaultChapterTarget: target ?? null,
+        chapterLengthPolicy: body.chapterLengthPolicy || 'guide',
+        formattingNotes: body.formattingNotes || '',
       },
     });
 
@@ -49,12 +67,35 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'Project ID is required' }, { status: 400 });
     }
 
+    const target = optionalPositiveInteger(body.defaultChapterTarget);
+    if (body.defaultChapterTarget !== undefined && target === undefined) {
+      return NextResponse.json({ error: '標準章目標文字数は正の整数で指定してください' }, { status: 400 });
+    }
+    if (body.narrativePerspective !== undefined && body.narrativePerspective !== null && body.narrativePerspective !== '' && !isNarrativePerspective(body.narrativePerspective)) {
+      return NextResponse.json({ error: '基本視点の値が不正です' }, { status: 400 });
+    }
+    if (body.chapterLengthPolicy !== undefined && !isChapterLengthPolicy(body.chapterLengthPolicy)) {
+      return NextResponse.json({ error: '文字数方針の値が不正です' }, { status: 400 });
+    }
+    const defaultPovCharacterId = body.defaultPovCharacterId === '' ? null : body.defaultPovCharacterId;
+    if (defaultPovCharacterId) {
+      const character = await db.character.findFirst({ where: { id: defaultPovCharacterId, projectId: id }, select: { id: true } });
+      if (!character) return NextResponse.json({ error: '基本視点人物は同じプロジェクトの人物を指定してください' }, { status: 400 });
+    }
+
     const project = await db.project.update({
       where: { id },
       data: {
         ...(title !== undefined && { title }),
         ...(genre !== undefined && { genre }),
         ...(description !== undefined && { description }),
+        ...(body.narrativePerspective !== undefined && { narrativePerspective: body.narrativePerspective || null }),
+        ...(body.defaultPovCharacterId !== undefined && { defaultPovCharacterId }),
+        ...(body.povNotes !== undefined && { povNotes: body.povNotes }),
+        ...(body.writingStyleNotes !== undefined && { writingStyleNotes: body.writingStyleNotes }),
+        ...(body.defaultChapterTarget !== undefined && { defaultChapterTarget: target }),
+        ...(body.chapterLengthPolicy !== undefined && { chapterLengthPolicy: body.chapterLengthPolicy }),
+        ...(body.formattingNotes !== undefined && { formattingNotes: body.formattingNotes }),
       },
     });
 

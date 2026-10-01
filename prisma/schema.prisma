@@ -19,6 +19,13 @@ model Project {
   genre       String   @default("玄幻系统修仙")
   description String   @default("")
   coverImage  String   @default("")
+  narrativePerspective String?
+  defaultPovCharacterId String?
+  povNotes String @default("")
+  writingStyleNotes String @default("")
+  defaultChapterTarget Int?
+  chapterLengthPolicy String @default("guide")
+  formattingNotes String @default("")
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -37,7 +44,9 @@ model Project {
   scenes              Scene[]
   plots               Plot[]
   assetLinks          ProjectAssetLink[]
+  defaultPovCharacter Character? @relation("ProjectDefaultPov", fields: [defaultPovCharacterId], references: [id], onDelete: SetNull)
 
+  @@index([defaultPovCharacterId])
   @@schema("magic_story")
 }
 
@@ -83,6 +92,8 @@ model Character {
 
   fromRelations CharacterRelationship[] @relation("FromCharacter")
   toRelations   CharacterRelationship[] @relation("ToCharacter")
+  defaultPovForProjects Project[] @relation("ProjectDefaultPov")
+  povChapters Chapter[] @relation("ChapterPov")
 
   @@schema("magic_story")
 }
@@ -191,11 +202,17 @@ model Chapter {
   emotionArc     String  @default("")
   hookStart      String  @default("")
   hookEnd        String  @default("")
+  povCharacterId String?
+  purpose         String @default("")
+  targetWordCount Int?
+  endingNotes     String @default("")
 
   project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
   storyStates StoryState[]
   foreshadowings Foreshadowing[]
+  povCharacter Character? @relation("ChapterPov", fields: [povCharacterId], references: [id], onDelete: SetNull)
 
+  @@index([povCharacterId])
   @@schema("magic_story")
 }
 

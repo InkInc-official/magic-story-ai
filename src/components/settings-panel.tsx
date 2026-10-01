@@ -1,13 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Settings, Save, Download, Info } from 'lucide-react';
-import { displayLabel, GENRE_LABELS } from '@/lib/i18n';
+import { Settings, Save, Download, Info, ChevronDown, ChevronRight } from 'lucide-react';
+import { CHAPTER_LENGTH_POLICY_LABELS, displayLabel, GENRE_LABELS, NARRATIVE_PERSPECTIVE_LABELS } from '@/lib/i18n';
 
 const GENRE_OPTIONS = [
   ['玄幻系统修仙', '⚔️'], ['都市重生', '🔄'], ['脑洞网文', '💡'],
@@ -21,7 +21,16 @@ interface Project {
   title: string;
   genre: string;
   description: string;
+  narrativePerspective?: string | null;
+  defaultPovCharacterId?: string | null;
+  povNotes?: string;
+  writingStyleNotes?: string;
+  defaultChapterTarget?: number | null;
+  chapterLengthPolicy?: string;
+  formattingNotes?: string;
 }
+
+interface CharacterOption { id: string; name: string }
 
 interface SettingsPanelProps {
   project?: Project;
@@ -32,7 +41,28 @@ export function SettingsPanel({ project, onUpdate }: SettingsPanelProps) {
   const [title, setTitle] = useState(project?.title || '');
   const [genre, setGenre] = useState(project?.genre || '');
   const [description, setDescription] = useState(project?.description || '');
+  const [narrativePerspective, setNarrativePerspective] = useState(project?.narrativePerspective || '');
+  const [defaultPovCharacterId, setDefaultPovCharacterId] = useState(project?.defaultPovCharacterId || '');
+  const [povNotes, setPovNotes] = useState(project?.povNotes || '');
+  const [writingStyleNotes, setWritingStyleNotes] = useState(project?.writingStyleNotes || '');
+  const [defaultChapterTarget, setDefaultChapterTarget] = useState(project?.defaultChapterTarget?.toString() || '');
+  const [chapterLengthPolicy, setChapterLengthPolicy] = useState(project?.chapterLengthPolicy || 'guide');
+  const [formattingNotes, setFormattingNotes] = useState(project?.formattingNotes || '');
+  const [characters, setCharacters] = useState<CharacterOption[]>([]);
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    if (!project) return;
+    setTitle(project.title); setGenre(project.genre); setDescription(project.description);
+    setNarrativePerspective(project.narrativePerspective || '');
+    setDefaultPovCharacterId(project.defaultPovCharacterId || '');
+    setPovNotes(project.povNotes || ''); setWritingStyleNotes(project.writingStyleNotes || '');
+    setDefaultChapterTarget(project.defaultChapterTarget?.toString() || '');
+    setChapterLengthPolicy(project.chapterLengthPolicy || 'guide'); setFormattingNotes(project.formattingNotes || '');
+    fetch(`/api/characters?projectId=${project.id}`).then(response => response.ok ? response.json() : { characters: [] })
+      .then(data => setCharacters(data.characters || [])).catch(() => setCharacters([]));
+  }, [project]);
 
   const handleSave = async () => {
     if (!project?.id) return;
@@ -41,7 +71,7 @@ export function SettingsPanel({ project, onUpdate }: SettingsPanelProps) {
       const res = await fetch('/api/projects', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: project.id, title, genre, description }),
+        body: JSON.stringify({ id: project.id, title, genre, description, narrativePerspective, defaultPovCharacterId, povNotes, writingStyleNotes, defaultChapterTarget, chapterLengthPolicy, formattingNotes }),
       });
       if (res.ok) {
         onUpdate();
@@ -107,6 +137,33 @@ export function SettingsPanel({ project, onUpdate }: SettingsPanelProps) {
             <Save size={14} className="mr-1" />
             {isSaving ? '保存中...' : '設定を保存'}
           </Button>
+        </CardContent>
+      </Card>
+
+      <Card className="bg-card/50 border-border/50">
+        <CardHeader><CardTitle className="text-sm font-medium">小説生成設定</CardTitle></CardHeader>
+        <CardContent className="space-y-4">
+          <div><label className="block text-xs text-muted-foreground mb-1">基本視点</label>
+            <select value={narrativePerspective} onChange={e => setNarrativePerspective(e.target.value)} className="w-full h-9 px-3 bg-secondary border border-input rounded-md text-sm">
+              <option value="">未設定（文脈から判断）</option>
+              {narrativePerspective && !NARRATIVE_PERSPECTIVE_LABELS[narrativePerspective] && <option value={narrativePerspective}>{narrativePerspective}</option>}
+              {Object.entries(NARRATIVE_PERSPECTIVE_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+            </select></div>
+          <div><label className="block text-xs text-muted-foreground mb-1">基本視点人物</label>
+            <select value={defaultPovCharacterId} onChange={e => setDefaultPovCharacterId(e.target.value)} className="w-full h-9 px-3 bg-secondary border border-input rounded-md text-sm">
+              <option value="">未設定</option>{characters.map(character => <option key={character.id} value={character.id}>{character.name}</option>)}
+            </select></div>
+          <div><label className="block text-xs text-muted-foreground mb-1">標準章目標文字数</label><Input type="number" min={1} value={defaultChapterTarget} onChange={e => setDefaultChapterTarget(e.target.value)} placeholder="未設定（共通デフォルトを使用）" /></div>
+          <div><label className="block text-xs text-muted-foreground mb-1">文体メモ</label><Textarea value={writingStyleNotes} onChange={e => setWritingStyleNotes(e.target.value)} rows={3} placeholder="簡潔、会話中心、落ち着いた語り口など" /></div>
+          <button type="button" onClick={() => setShowAdvanced(value => !value)} className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground">
+            {showAdvanced ? <ChevronDown size={14} /> : <ChevronRight size={14} />}詳細設定
+          </button>
+          {showAdvanced && <div className="space-y-4 border-l border-border pl-4">
+            <div><label className="block text-xs text-muted-foreground mb-1">視点運用メモ</label><Textarea value={povNotes} onChange={e => setPovNotes(e.target.value)} rows={3} placeholder="視点変更の単位、視点距離、知識範囲など" /></div>
+            <div><label className="block text-xs text-muted-foreground mb-1">文字数方針</label><select value={chapterLengthPolicy} onChange={e => setChapterLengthPolicy(e.target.value)} className="w-full h-9 px-3 bg-secondary border border-input rounded-md text-sm">{chapterLengthPolicy && !CHAPTER_LENGTH_POLICY_LABELS[chapterLengthPolicy] && <option value={chapterLengthPolicy}>{chapterLengthPolicy}</option>}{Object.entries(CHAPTER_LENGTH_POLICY_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></div>
+            <div><label className="block text-xs text-muted-foreground mb-1">表記・組版メモ</label><Textarea value={formattingNotes} onChange={e => setFormattingNotes(e.target.value)} rows={3} placeholder="会話括弧、字下げ、空行など。未設定時は日本語標準を使用" /></div>
+          </div>}
+          <Button size="sm" onClick={handleSave} disabled={isSaving}><Save size={14} className="mr-1" />{isSaving ? '保存中...' : '小説生成設定を保存'}</Button>
         </CardContent>
       </Card>
 
