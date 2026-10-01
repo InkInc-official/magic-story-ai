@@ -75,6 +75,12 @@ export const CHAPTER_LENGTH_POLICY_LABELS: LabelMap = {
   strict: 'できるだけ厳密',
 };
 
+export const GENRE_GUIDANCE_MODE_LABELS: LabelMap = {
+  off: '使用しない',
+  reference: '参考にする',
+  required: '必須条件として扱う',
+};
+
 export const SPEECH_REGISTER_LABELS: LabelMap = {
   plain: 'くだけた話し方',
   mixed: '相手や場面で変化',

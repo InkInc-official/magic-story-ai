@@ -26,6 +26,9 @@ model Project {
   defaultChapterTarget Int?
   chapterLengthPolicy String @default("guide")
   formattingNotes String @default("")
+  authorIntent String @default("")
+  genreGuidanceMode String @default("reference")
+  genreGuidanceNotes String @default("")
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

@@ -1,23 +1,36 @@
 'use client';
 
+import { useCallback, useEffect, useState } from 'react';
 import { useAppStore, type CreationSubView } from '@/lib/store';
 import { CreationChat } from '@/components/creation-chat';
 import { ChapterEditor } from '@/components/chapter-editor';
 import { OutlineEditor } from '@/components/outline-editor';
 import { TrackingPanel } from '@/components/tracking-panel';
+import { SettingsPanel, type ProjectSettings } from '@/components/settings-panel';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Sparkles, BookOpen, ListTree, Route } from 'lucide-react';
+import { Sparkles, BookOpen, ListTree, Route, Settings } from 'lucide-react';
 
 const SUB_VIEWS: { id: CreationSubView; label: string; icon: typeof Sparkles; color: string }[] = [
   { id: 'chat', label: '対話', icon: Sparkles, color: 'text-primary' },
   { id: 'chapters', label: '章', icon: BookOpen, color: 'text-emerald-400' },
   { id: 'outline', label: 'プロット', icon: ListTree, color: 'text-amber-400' },
   { id: 'tracking', label: '追跡', icon: Route, color: 'text-cyan-400' },
+  { id: 'settings', label: '設定', icon: Settings, color: 'text-slate-400' },
 ];
 
 export function CreationCenter({ projectId }: { projectId: string }) {
   const { creationSubView, setCreationSubView } = useAppStore();
+  const [project, setProject] = useState<ProjectSettings>();
+
+  const loadProject = useCallback(async () => {
+    const response = await fetch('/api/projects');
+    if (!response.ok) return;
+    const projects = await response.json() as ProjectSettings[];
+    setProject(projects.find(item => item.id === projectId));
+  }, [projectId]);
+
+  useEffect(() => { void loadProject(); }, [loadProject]);
 
   const currentView = SUB_VIEWS.find(v => v.id === creationSubView) || SUB_VIEWS[0];
 
@@ -80,6 +93,11 @@ export function CreationCenter({ projectId }: { projectId: string }) {
         {creationSubView === 'tracking' && (
           <div className="h-full overflow-y-auto custom-scrollbar p-4 md:p-6">
             <TrackingPanel projectId={projectId} />
+          </div>
+        )}
+        {creationSubView === 'settings' && (
+          <div className="h-full overflow-y-auto custom-scrollbar p-4 md:p-6">
+            <SettingsPanel project={project} onUpdate={loadProject} />
           </div>
         )}
       </div>

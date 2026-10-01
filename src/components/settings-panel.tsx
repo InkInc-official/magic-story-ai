@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Settings, Save, Download, Info, ChevronDown, ChevronRight } from 'lucide-react';
-import { CHAPTER_LENGTH_POLICY_LABELS, displayLabel, GENRE_LABELS, NARRATIVE_PERSPECTIVE_LABELS } from '@/lib/i18n';
+import { CHAPTER_LENGTH_POLICY_LABELS, displayLabel, GENRE_GUIDANCE_MODE_LABELS, GENRE_LABELS, NARRATIVE_PERSPECTIVE_LABELS } from '@/lib/i18n';
 
 const GENRE_OPTIONS = [
   ['玄幻系统修仙', '⚔️'], ['都市重生', '🔄'], ['脑洞网文', '💡'],
@@ -16,7 +16,7 @@ const GENRE_OPTIONS = [
   ['历史架空', '📜'], ['东方玄幻', '🐉'], ['策略经营', '🏰'],
 ] as const;
 
-interface Project {
+export interface ProjectSettings {
   id: string;
   title: string;
   genre: string;
@@ -28,12 +28,15 @@ interface Project {
   defaultChapterTarget?: number | null;
   chapterLengthPolicy?: string;
   formattingNotes?: string;
+  authorIntent?: string;
+  genreGuidanceMode?: string;
+  genreGuidanceNotes?: string;
 }
 
 interface CharacterOption { id: string; name: string }
 
 interface SettingsPanelProps {
-  project?: Project;
+  project?: ProjectSettings;
   onUpdate: () => void;
 }
 
@@ -48,6 +51,9 @@ export function SettingsPanel({ project, onUpdate }: SettingsPanelProps) {
   const [defaultChapterTarget, setDefaultChapterTarget] = useState(project?.defaultChapterTarget?.toString() || '');
   const [chapterLengthPolicy, setChapterLengthPolicy] = useState(project?.chapterLengthPolicy || 'guide');
   const [formattingNotes, setFormattingNotes] = useState(project?.formattingNotes || '');
+  const [authorIntent, setAuthorIntent] = useState(project?.authorIntent || '');
+  const [genreGuidanceMode, setGenreGuidanceMode] = useState(project?.genreGuidanceMode || 'reference');
+  const [genreGuidanceNotes, setGenreGuidanceNotes] = useState(project?.genreGuidanceNotes || '');
   const [characters, setCharacters] = useState<CharacterOption[]>([]);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -60,6 +66,9 @@ export function SettingsPanel({ project, onUpdate }: SettingsPanelProps) {
     setPovNotes(project.povNotes || ''); setWritingStyleNotes(project.writingStyleNotes || '');
     setDefaultChapterTarget(project.defaultChapterTarget?.toString() || '');
     setChapterLengthPolicy(project.chapterLengthPolicy || 'guide'); setFormattingNotes(project.formattingNotes || '');
+    setAuthorIntent(project.authorIntent || '');
+    setGenreGuidanceMode(project.genreGuidanceMode || 'reference');
+    setGenreGuidanceNotes(project.genreGuidanceNotes || '');
     fetch(`/api/characters?projectId=${project.id}`).then(response => response.ok ? response.json() : { characters: [] })
       .then(data => setCharacters(data.characters || [])).catch(() => setCharacters([]));
   }, [project]);
@@ -71,7 +80,7 @@ export function SettingsPanel({ project, onUpdate }: SettingsPanelProps) {
       const res = await fetch('/api/projects', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: project.id, title, genre, description, narrativePerspective, defaultPovCharacterId, povNotes, writingStyleNotes, defaultChapterTarget, chapterLengthPolicy, formattingNotes }),
+        body: JSON.stringify({ id: project.id, title, genre, description, narrativePerspective, defaultPovCharacterId, povNotes, writingStyleNotes, defaultChapterTarget, chapterLengthPolicy, formattingNotes, authorIntent, genreGuidanceMode, genreGuidanceNotes }),
       });
       if (res.ok) {
         onUpdate();
@@ -137,6 +146,29 @@ export function SettingsPanel({ project, onUpdate }: SettingsPanelProps) {
             <Save size={14} className="mr-1" />
             {isSaving ? '保存中...' : '設定を保存'}
           </Button>
+        </CardContent>
+      </Card>
+
+      <Card className="bg-card/50 border-border/50">
+        <CardHeader><CardTitle className="text-sm font-medium">作者意図・ジャンル指針</CardTitle></CardHeader>
+        <CardContent className="space-y-4">
+          <div>
+            <label className="block text-xs text-muted-foreground mb-1">作者意図</label>
+            <Textarea value={authorIntent} onChange={e => setAuthorIntent(e.target.value)} rows={5} placeholder="描きたいこと、守りたい条件、読者に与えたい体験、最終的な到達点など" />
+            <p className="mt-1 text-[11px] text-muted-foreground">作者意図は、今後のAI提案より優先される作品全体の方針です。</p>
+          </div>
+          <div>
+            <label className="block text-xs text-muted-foreground mb-1">AIにジャンル特性を反映</label>
+            <select value={genreGuidanceMode} onChange={e => setGenreGuidanceMode(e.target.value)} className="w-full h-9 px-3 bg-secondary border border-input rounded-md text-sm">
+              {genreGuidanceMode && !GENRE_GUIDANCE_MODE_LABELS[genreGuidanceMode] && <option value={genreGuidanceMode}>{genreGuidanceMode}</option>}
+              {Object.entries(GENRE_GUIDANCE_MODE_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs text-muted-foreground mb-1">ジャンル指針メモ</label>
+            <Textarea value={genreGuidanceNotes} onChange={e => setGenreGuidanceNotes(e.target.value)} rows={4} placeholder="例：ミステリーとしてフェアプレイは重視するが、各章末に必ず謎を置く必要はない" />
+          </div>
+          <Button size="sm" onClick={handleSave} disabled={isSaving}><Save size={14} className="mr-1" />{isSaving ? '保存中...' : '作者意図・ジャンル指針を保存'}</Button>
         </CardContent>
       </Card>
 

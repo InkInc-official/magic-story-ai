@@ -165,8 +165,12 @@ export function Sidebar({
           {/* Settings */}
           <div className="pt-2 mt-2 border-t border-sidebar-border/30">
             <button
-              onClick={() => { /* Settings as creation sub-view for now */ }}
-              className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground transition-all duration-150"
+              onClick={() => { setCoreModule('creation'); setCreationSubView('settings'); }}
+              className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm transition-all duration-150 ${
+                coreModule === 'creation' && creationSubView === 'settings'
+                  ? 'bg-primary/15 text-primary font-medium'
+                  : 'text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground'
+              }`}
               title={sidebarCollapsed ? ja.nav.settings : undefined}
             >
               <Settings size={18} className="shrink-0" />

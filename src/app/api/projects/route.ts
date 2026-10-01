@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { isChapterLengthPolicy, isNarrativePerspective, optionalPositiveInteger } from '@/lib/writing-settings';
+import { isChapterLengthPolicy, isGenreGuidanceMode, isNarrativePerspective, optionalPositiveInteger } from '@/lib/writing-settings';
 
 export async function GET() {
   try {
@@ -36,6 +36,9 @@ export async function POST(request: NextRequest) {
     if (body.chapterLengthPolicy !== undefined && !isChapterLengthPolicy(body.chapterLengthPolicy)) {
       return NextResponse.json({ error: '文字数方針の値が不正です' }, { status: 400 });
     }
+    if (body.genreGuidanceMode !== undefined && !isGenreGuidanceMode(body.genreGuidanceMode)) {
+      return NextResponse.json({ error: 'ジャンル指針の値が不正です' }, { status: 400 });
+    }
 
     const project = await db.project.create({
       data: {
@@ -48,6 +51,9 @@ export async function POST(request: NextRequest) {
         defaultChapterTarget: target ?? null,
         chapterLengthPolicy: body.chapterLengthPolicy || 'guide',
         formattingNotes: body.formattingNotes || '',
+        authorIntent: body.authorIntent || '',
+        genreGuidanceMode: body.genreGuidanceMode || 'reference',
+        genreGuidanceNotes: body.genreGuidanceNotes || '',
       },
     });
 
@@ -77,6 +83,9 @@ export async function PUT(request: NextRequest) {
     if (body.chapterLengthPolicy !== undefined && !isChapterLengthPolicy(body.chapterLengthPolicy)) {
       return NextResponse.json({ error: '文字数方針の値が不正です' }, { status: 400 });
     }
+    if (body.genreGuidanceMode !== undefined && !isGenreGuidanceMode(body.genreGuidanceMode)) {
+      return NextResponse.json({ error: 'ジャンル指針の値が不正です' }, { status: 400 });
+    }
     const defaultPovCharacterId = body.defaultPovCharacterId === '' ? null : body.defaultPovCharacterId;
     if (defaultPovCharacterId) {
       const character = await db.character.findFirst({ where: { id: defaultPovCharacterId, projectId: id }, select: { id: true } });
@@ -96,6 +105,9 @@ export async function PUT(request: NextRequest) {
         ...(body.defaultChapterTarget !== undefined && { defaultChapterTarget: target }),
         ...(body.chapterLengthPolicy !== undefined && { chapterLengthPolicy: body.chapterLengthPolicy }),
         ...(body.formattingNotes !== undefined && { formattingNotes: body.formattingNotes }),
+        ...(body.authorIntent !== undefined && { authorIntent: body.authorIntent }),
+        ...(body.genreGuidanceMode !== undefined && { genreGuidanceMode: body.genreGuidanceMode }),
+        ...(body.genreGuidanceNotes !== undefined && { genreGuidanceNotes: body.genreGuidanceNotes }),
       },
     });
 
