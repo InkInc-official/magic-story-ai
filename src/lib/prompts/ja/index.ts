@@ -15,3 +15,17 @@ export {
   formatSemanticLabel,
   type SemanticLabelCategory,
 } from './semantic-labels';
+export {
+  buildChapterGenerationContext,
+  buildChapterSemanticContext,
+  type ChapterGenerationSource,
+  type GenerationCharacter,
+  type GenerationForeshadowing,
+  type GenerationPlot,
+  type GenerationRelationship,
+  type GenerationScene,
+  type GenerationStoryEdge,
+  type GenerationStoryNode,
+  type GenerationStoryState,
+  type GenerationWorldSetting,
+} from './generation-context';

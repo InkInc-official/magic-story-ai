@@ -14,6 +14,11 @@ import { AntiAIPanel } from '@/components/anti-ai-panel';
 import { AdversarialReviewPanel } from '@/components/adversarial-review';
 import { ChapterPreview } from '@/components/chapter-preview';
 import { EMOTION_ARC_LABELS, EMOTION_LABELS, HOOK_LABELS } from '@/lib/i18n';
+import {
+  buildChapterGenerationContext,
+  buildChapterSemanticContext,
+  type ChapterGenerationSource,
+} from '@/lib/prompts/ja';
 
 interface Chapter {
   id: string;
@@ -77,6 +82,63 @@ export function ChapterEditor({ projectId }: ChapterEditorProps) {
   const [generatingPhase, setGeneratingPhase] = useState<'none' | 'summary' | 'full'>('none');
   const { setActiveAgent, setActiveChapterId } = useAppStore();
   const abortRef = useRef<AbortController | null>(null);
+
+  const loadGenerationContext = async (): Promise<ChapterGenerationSource> => {
+    const selectedChapter = chapters.find(chapter => chapter.id === selectedId);
+    const previousChapter = selectedChapter
+      ? [...chapters].filter(chapter => chapter.order < selectedChapter.order).sort((a, b) => b.order - a.order)[0]
+      : undefined;
+    const safeJson = async <T,>(url: string, fallback: T): Promise<T> => {
+      try {
+        const response = await fetch(url);
+        return response.ok ? await response.json() as T : fallback;
+      } catch {
+        return fallback;
+      }
+    };
+
+    const [projects, characterData, worldSettings, scenes, foreshadowings, storyStates, outlines, plots, storyNodes, storyEdges] = await Promise.all([
+      safeJson<Array<{ id: string; title: string; genre: string; description: string }>>('/api/projects', []),
+      safeJson<{ characters: ChapterGenerationSource['characters']; relationships: ChapterGenerationSource['relationships'] }>(`/api/characters?projectId=${projectId}`, { characters: [], relationships: [] }),
+      safeJson<ChapterGenerationSource['worldSettings']>(`/api/world-settings?projectId=${projectId}`, []),
+      safeJson<ChapterGenerationSource['scenes']>(`/api/scenes?projectId=${projectId}`, []),
+      safeJson<ChapterGenerationSource['foreshadowings']>(`/api/foreshadowings?projectId=${projectId}`, []),
+      safeJson<ChapterGenerationSource['storyStates']>(`/api/story-states?projectId=${projectId}`, []),
+      safeJson<Array<{ content: string }>>(`/api/outlines?projectId=${projectId}`, []),
+      safeJson<ChapterGenerationSource['plots']>(`/api/plots?projectId=${projectId}`, []),
+      safeJson<ChapterGenerationSource['storyNodes']>(`/api/story-nodes?projectId=${projectId}`, []),
+      safeJson<ChapterGenerationSource['storyEdges']>(`/api/story-edges?projectId=${projectId}`, []),
+    ]);
+
+    return {
+      chapterId: selectedId || '',
+      chapterOrder: selectedChapter?.order ?? 0,
+      title: editTitle,
+      outline: editOutline,
+      summary: editSummary,
+      emotionTarget: editEmotionTarget,
+      emotionArc: editEmotionArc,
+      hookStart: editHookStart,
+      hookEnd: editHookEnd,
+      project: projects.find(project => project.id === projectId),
+      previousChapter: previousChapter && {
+        id: previousChapter.id,
+        title: previousChapter.title,
+        summary: previousChapter.summary,
+        content: previousChapter.content,
+      },
+      latestOutline: outlines[0]?.content,
+      characters: characterData.characters,
+      relationships: characterData.relationships,
+      worldSettings,
+      scenes,
+      foreshadowings,
+      storyStates,
+      plots,
+      storyNodes,
+      storyEdges,
+    };
+  };
 
   const fetchChapters = useCallback(async () => {
     try {
@@ -179,25 +241,27 @@ export function ChapterEditor({ projectId }: ChapterEditorProps) {
     setGeneratingPhase('summary');
     abortRef.current = new AbortController();
 
-    const emotionPrompt = editEmotionTarget ? `\n情感目标：${editEmotionTarget}` : '';
-    const arcPrompt = editEmotionArc ? `\n情感弧线：${editEmotionArc}` : '';
-    const hookStartPrompt = editHookStart ? `\n章节开头钩子类型：${editHookStart}` : '';
-    const hookEndPrompt = editHookEnd ? `\n章节结尾钩子类型：${editHookEnd}` : '';
-
-    const prompt = `请根据以下章节细纲生成章节摘要（200-300字的情节概要）：
-
-章节标题：${editTitle}
-章节细纲：${editOutline}${emotionPrompt}${arcPrompt}${hookStartPrompt}${hookEndPrompt}
-
-要求：
-1. 摘要应包含本章核心事件、角色行动、关键对话要点
-2. 标注情感高潮点
-3. 明确开头和结尾的钩子设计
-4. 200-300字
-
-请直接输出摘要内容。`;
-
     try {
+      const generationSource = await loadGenerationContext();
+      const semanticContext = buildChapterSemanticContext(generationSource);
+      const selectedContext = buildChapterGenerationContext(generationSource);
+      const prompt = `以下の詳細プロットを、本文生成に使える章要約へ整理してください。
+
+【章タイトル】
+${editTitle}
+
+【詳細プロット】
+${editOutline}
+
+${semanticContext ? `【感情・章構成の指定】\n${semanticContext}\n\n` : ''}${selectedContext ? `${selectedContext}\n\n` : ''}【要約の役割】
+- 本章の目的、中心となる出来事、人物の選択と変化、必要な会話要点を整理する。
+- 視点人物が明示または文脈から特定できる場合は、その人物と知識範囲を示す。
+- 前章から持ち越す情報、関連設定、伏線のうち、本章に必要なものだけを含める。
+- 感情や章頭・章末の形式は上記指定の意味を踏まえるが、展開に合わない型を機械的に強制しない。
+- 長さは内容を過不足なく本文化できる分量とし、固定文字数に合わせるための水増しをしない。
+
+要約本文だけを日本語で出力してください。`;
+
       const res = await fetch('/api/ai', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -251,30 +315,31 @@ export function ChapterEditor({ projectId }: ChapterEditorProps) {
     setGeneratingPhase('full');
     abortRef.current = new AbortController();
 
-    const emotionPrompt = editEmotionTarget ? `\n情感目标：${editEmotionTarget}` : '';
-    const arcPrompt = editEmotionArc ? `\n情感弧线：${editEmotionArc}` : '';
-    const hookStartPrompt = editHookStart ? `\n章节开头钩子类型：${editHookStart}` : '';
-    const hookEndPrompt = editHookEnd ? `\n章节结尾钩子类型：${editHookEnd}` : '';
-
-    const prompt = `请根据以下章节摘要扩展为完整的章节正文：
-
-章节标题：${editTitle}
-章节细纲：${editOutline}
-章节摘要：${editSummary}${emotionPrompt}${arcPrompt}${hookStartPrompt}${hookEndPrompt}
-
-要求：
-1. 严格遵循摘要中的情节发展
-2. 场景描写生动，五感交融
-3. 对话推动情节，体现角色个性
-4. 章末设钩子，保持阅读欲望
-5. 2000-4000字
-6. ${editEmotionTarget ? `确保整体情感基调为"${editEmotionTarget}"` : ''}
-7. ${editHookStart ? `章节开头使用"${editHookStart}"类型钩子` : ''}
-8. ${editHookEnd ? `章节结尾使用"${editHookEnd}"类型钩子` : ''}
-
-请直接输出小说正文内容。`;
-
     try {
+      const generationSource = await loadGenerationContext();
+      const semanticContext = buildChapterSemanticContext(generationSource);
+      const selectedContext = buildChapterGenerationContext(generationSource);
+      const prompt = `以下の章要約と詳細プロットから、日本語小説の章本文を書いてください。
+
+【章タイトル】
+${editTitle}
+
+【章要約】
+${editSummary}
+
+【詳細プロット】
+${editOutline || '未設定。章要約と既存設定を優先する。'}
+
+${semanticContext ? `【感情・章構成の指定】\n${semanticContext}\n\n` : ''}${selectedContext ? `${selectedContext}\n\n` : ''}【このタスクの指示】
+- 章要約を中心に、詳細プロットと既存設定に矛盾しない本文へ展開する。
+- 視点人物の知識範囲、人物の性格、関係性、呼称、話し方の手掛かりを守る。
+- 前章の状態を自然に引き継ぎ、未回収伏線や時系列は本章に関連する場合だけ反映する。
+- 説明、描写、心理、行動、台詞は場面の目的と速度に応じて選ぶ。五感描写や行動による心理表現を機械的に増やさない。
+- 章末は指定があればその意味を踏まえ、指定がなければ引き、余韻、疑問、発見、転換、静かな終了などから章の役割に合う形を選ぶ。
+- 利用可能な個別文字数指定はないため、共通の約3,000字を目標とする。ただし自然な章の終了を文字数合わせより優先する。
+
+前置きや解説を付けず、章本文だけを日本語で出力してください。`;
+
       const res = await fetch('/api/ai', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -694,6 +759,8 @@ export function ChapterEditor({ projectId }: ChapterEditorProps) {
                 <AdversarialReviewPanel
                   content={editContent}
                   chapterTitle={editTitle}
+                  projectId={projectId}
+                  chapterPurpose={editOutline}
                 />
               )}
               {sidePanel === 'adversarial' && !selectedChapter && (

@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { useAppStore } from '@/lib/store';
 import { extractVariables } from '@/lib/variable-resolver';
 import { displayLabel, PROMPT_PRESET_NAME_LABELS } from '@/lib/i18n';
+import { JAPANESE_NOVEL_CORE_PRINCIPLES } from '@/lib/prompts/ja';
 import { FlaskConical, Plus, Trash2, Edit3, Save, X, Code, Star } from 'lucide-react';
 
 interface PromptTemplate {
@@ -37,37 +38,37 @@ const PRESET_TEMPLATES = [
   {
     name: '默认大纲生成',
     type: 'outline',
-    content: '请为以下类型小说生成完整大纲：\n\n类型：${genre}\n世界观：${background}\n角色：${characters}\n\n要求：\n1. 包含主线和副线剧情\n2. 标注关键转折点\n3. 设计合理的节奏\n4. 每卷有明确目标',
+    content: `${JAPANESE_NOVEL_CORE_PRINCIPLES}\n\n【タスク固有指示：プロット作成】\nジャンル：\${genre}\n世界観：\${background}\n人物：\${characters}\n\n作品の目的、人物の選択、対立、出来事の因果、情報開示、伏線を整理してください。主線・副線・巻構成は必要な場合だけ用い、特定の構成理論や成長を強制しないでください。`,
     isDefault: true,
   },
   {
     name: '默认章节生成',
     type: 'chapter',
-    content: '请根据以下信息创作章节：\n\n章节细纲：${chapter_outline}\n风格要求：${style}\n世界观：${background}\n角色设定：${characters}\n人物关系：${relationships}\n整体大纲：${outline}\n\n要求：\n1. 严格遵循细纲\n2. 角色行为符合设定\n3. 场景描写生动\n4. 对话自然有特色\n5. 章末设悬念钩子',
+    content: `${JAPANESE_NOVEL_CORE_PRINCIPLES}\n\n【タスク固有指示：章本文】\n詳細プロット：\${chapter_outline}\n文体指定：\${style}\n世界観：\${background}\n人物設定：\${characters}\n人物関係：\${relationships}\n全体プロット：\${outline}\n\n詳細プロットと既存設定の整合性を保ち、人物ごとの話し方と視点人物の知識範囲を反映してください。章末は章の役割に合う形を選び、クリフハンガーを必須にしないでください。`,
     isDefault: true,
   },
   {
     name: '默认润色',
     type: 'edit',
-    content: '请润色以下文本，去除AI痕迹，提升文学性：\n\n${selected_text}\n\n要求：\n1. 消除AI写作特征（过度过渡词、每段总结等）\n2. 增加文字韵律感\n3. 丰富表达手法\n4. 保持原意不变\n5. 对话更口语化',
+    content: `${JAPANESE_NOVEL_CORE_PRINCIPLES}\n\n【タスク固有指示：推敲】\n対象本文：\n\${selected_text}\n\n作者の意図、情報、視点、文章の声を保ち、誤文、助詞、係り受け、冗長、表記揺れなど必要な箇所だけを修正してください。文章を一律に口語化・短文化せず、意味やニュアンスの変更を最小限にしてください。`,
     isDefault: true,
   },
   {
     name: '默认角色设计',
     type: 'character',
-    content: '请为以下类型的小说设计角色：\n\n类型：${genre}\n世界观：${background}\n\n请设计主角和3-5个核心配角，每个角色包含：\n1. 姓名、年龄、角色定位\n2. 性格特征\n3. 外貌描写\n4. 背景故事\n5. 成长弧线\n6. 独特的语言风格',
+    content: `${JAPANESE_NOVEL_CORE_PRINCIPLES}\n\n【タスク固有指示：人物設計】\nジャンル：\${genre}\n世界観：\${background}\n\n作品に必要な人物だけを設計してください。各人物について、目的、価値観、弱点、関係性に加え、一人称、相手別の呼称、敬語、語彙、語尾、発話の長さを具体化してください。人数や成長を固定条件にしないでください。`,
     isDefault: true,
   },
   {
     name: '默认评审',
     type: 'review',
-    content: '请从多个维度评审以下内容：\n\n${selected_text}\n\n评分维度（1-10分）：\n1. 情节逻辑\n2. 人物塑造\n3. 文笔质量\n4. 节奏把控\n5. 创新程度\n6. 情感共鸣\n7. 完读欲望\n8. 商业潜力\n\n请给出每项评分、简要评语和改进建议。',
+    content: `${JAPANESE_NOVEL_CORE_PRINCIPLES}\n\n【タスク固有指示：評価】\n対象本文：\n\${selected_text}\n\n作品の目的への適合、構成と因果、人物、視点と文章、情報開示、設定の整合性を評価してください。指摘には根拠、影響、改善案を添え、商業性や完読欲は依頼または作品目的に含まれる場合だけ扱ってください。`,
     isDefault: true,
   },
   {
     name: '默认世界观构建',
     type: 'world',
-    content: '请为以下类型小说构建世界观：\n\n类型：${genre}\n\n请包含：\n1. 基础设定（物理法则、自然环境）\n2. 力量体系（等级、来源、限制）\n3. 社会结构（政治、经济、阶级）\n4. 历史文化（重要事件、传统、禁忌）\n5. 自洽性检查\n\n要求有独特创新点和内在逻辑。',
+    content: `${JAPANESE_NOVEL_CORE_PRINCIPLES}\n\n【タスク固有指示：世界観設計】\nジャンル：\${genre}\n\n物語の人物、選択、対立、事件に必要な設定を優先して設計してください。自然環境、社会、制度、文化、歴史などから必要な領域だけを選び、規則、例外、代価、物語への影響を示してください。能力体系やレベル制度は必要な作品だけに適用してください。`,
     isDefault: true,
   },
 ];

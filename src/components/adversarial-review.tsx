@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Loader2, Swords, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { formatSemanticLabel } from '@/lib/prompts/ja';
 
 interface ReviewResult {
   perspective: string;
@@ -19,59 +20,26 @@ interface ReviewResult {
 interface AdversarialReviewProps {
   content: string;
   chapterTitle: string;
+  projectId?: string;
+  chapterPurpose?: string;
 }
 
 const REVIEW_PERSPECTIVES = [
-  { id: 'structure', label: '構成レビュー', emoji: '🏗️', color: 'text-amber-400', systemPrompt: `你是一位专注于故事结构的评审专家。请从以下维度评审小说章节：
-
-1. 情节推进（事件是否有因果关系）
-2. 节奏把控（张弛有度还是一路紧绷/松散）
-3. 场景切换（是否自然流畅）
-4. 信息释放（悬念和揭秘的节奏）
-
-请用S1-S4严重度标注问题：
-- S1(致命): 根本性错误，需要重写
-- S2(严重): 明显问题，需要修改
-- S3(一般): 可以改进
-- S4(建议): 锦上添花的建议
-
-输出格式：
-## 结构评审
-### 整体评价
-[100字内总体评价]
-
-### 具体问题
-- [S级别] 问题描述
-
-### 改进建议
-1. 具体建议` },
-  { id: 'character', label: '人物レビュー', emoji: '👤', color: 'text-rose-400', systemPrompt: `你是一位专注于角色塑造的评审专家。请从以下维度评审：
-
-1. 角色行为一致性（是否OOC）
-2. 对话质量（是否有个人特色）
-3. 动机合理性（行为是否有内在逻辑）
-4. 情感表达（是否真实自然）
-
-请用S1-S4严重度标注问题。输出格式同上。` },
-  { id: 'narrative', label: '語り口レビュー', emoji: '✍️', color: 'text-blue-400', systemPrompt: `你是一位专注于叙事技巧的评审专家。请从以下维度评审：
-
-1. 叙事视角（是否统一，有无越界）
-2. 展示vs叙述（是否用场景展示而非平铺直叙）
-3. 文笔质量（修辞、节奏、韵律）
-4. 沉浸感（读者是否能代入场景）
-
-请用S1-S4严重度标注问题。输出格式同上。` },
-  { id: 'consistency', label: '整合性チェック', emoji: '🔍', color: 'text-emerald-400', systemPrompt: `你是一位专注于事实一致性的评审专家。请从以下维度评审：
-
-1. 事实冲突（前后矛盾之处）
-2. 伏笔一致性（已埋伏笔是否被尊重）
-3. 世界规则（是否违反已设定规则）
-4. 时间线（事件顺序是否合理）
-
-请用S1-S4严重度标注问题。输出格式同上。` },
+  { id: 'structure', label: '構成レビュー', emoji: '🏗️', color: 'text-amber-400', systemPrompt: `構成と因果を中心に評価してください。出来事と人物の選択のつながり、章内の焦点と変化、場面転換、情報開示を確認します。緊張の強弱や章末フックを一律に要求せず、この章の目的と作品の文体に合っているかを基準にしてください。` },
+  { id: 'character', label: '人物レビュー', emoji: '👤', color: 'text-rose-400', systemPrompt: `人物を中心に評価してください。設定された動機と行動の整合性、人物ごとの会話、呼称、敬語、関係性、感情の変化を確認します。静かな人物や変化しない人物を、それだけで欠点としないでください。` },
+  { id: 'narrative', label: '語り口レビュー', emoji: '✍️', color: 'text-blue-400', systemPrompt: `語り口を中心に評価してください。視点と知識範囲、自然な日本語、段落、文章の速度、説明・描写・要約・台詞の選択を確認します。Show, don't tell、五感描写、短文中心を絶対基準にせず、採用された文体と場面の効果から判断してください。` },
+  { id: 'consistency', label: '整合性チェック', emoji: '🔍', color: 'text-emerald-400', systemPrompt: `事実の整合性を中心に評価してください。本文内の矛盾、既出情報、伏線、世界の規則、時間順序を確認します。提供されていない設定を推測で事実とせず、本文だけでは判断できない点は「確認が必要」と区別してください。` },
 ];
 
-export function AdversarialReviewPanel({ content, chapterTitle }: AdversarialReviewProps) {
+const REVIEW_OUTPUT_RULES = `問題には次の重大度を付けてください。
+- S1（致命的）：章の成立や事実関係を根本から損なう問題
+- S2（重大）：読解や作品目的への適合を明確に損なう問題
+- S3（改善）：修正すると効果が高まる問題
+- S4（提案）：作者が選択できる任意の案
+
+各指摘には、可能な限り本文中の根拠、読者または作品への影響、具体的な改善案を付けてください。商業性や完読欲は作品目的に含まれる場合だけ評価してください。長所も根拠とともに示してください。`;
+
+export function AdversarialReviewPanel({ content, chapterTitle, projectId, chapterPurpose }: AdversarialReviewProps) {
   const [results, setResults] = useState<ReviewResult[]>([]);
   const [isReviewing, setIsReviewing] = useState(false);
   const [activeReview, setActiveReview] = useState('structure');
@@ -81,6 +49,21 @@ export function AdversarialReviewPanel({ content, chapterTitle }: AdversarialRev
     if (!content.trim()) return;
     setIsReviewing(true);
     setResults([]);
+    abortRef.current = new AbortController();
+
+    let projectContext = '';
+    if (projectId) {
+      try {
+        const response = await fetch('/api/projects');
+        if (response.ok) {
+          const projects = await response.json() as Array<{ id: string; title: string; genre: string; description: string }>;
+          const project = projects.find(item => item.id === projectId);
+          if (project) projectContext = `作品：${project.title}\nジャンル：${formatSemanticLabel('genre', project.genre)}\n作品概要：${project.description || '未設定'}`;
+        }
+      } catch {
+        // Project context is optional; review can continue with the chapter alone.
+      }
+    }
 
     const reviewPromises = REVIEW_PERSPECTIVES.map(async (perspective) => {
       try {
@@ -91,9 +74,10 @@ export function AdversarialReviewPanel({ content, chapterTitle }: AdversarialRev
             agentType: 'reviewer',
             messages: [{
               role: 'user',
-              content: `${perspective.systemPrompt}\n\n请评审以下章节：\n\n## ${chapterTitle}\n\n${content}`,
+              content: `${perspective.systemPrompt}\n\n${REVIEW_OUTPUT_RULES}\n\n${projectContext ? `【作品情報】\n${projectContext}\n\n` : ''}${chapterPurpose ? `【この章の詳細プロット・目的】\n${chapterPurpose}\n\n` : ''}【評価対象】\n## ${chapterTitle}\n\n${content}`,
             }],
           }),
+          signal: abortRef.current?.signal,
         });
 
         if (!res.ok || !res.body) throw new Error('Failed');
@@ -150,6 +134,7 @@ export function AdversarialReviewPanel({ content, chapterTitle }: AdversarialRev
     const reviewResults = await Promise.all(reviewPromises);
     setResults(reviewResults);
     setIsReviewing(false);
+    abortRef.current = null;
   };
 
   const handleStop = () => {

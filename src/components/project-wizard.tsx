@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Loader2, CheckCircle2, XCircle, ArrowRight, ArrowLeft, Sparkles, Sprout, Expand, Shield } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { CHARACTER_ROLE_LABELS, displayLabel, GENRE_LABELS } from '@/lib/i18n';
+import { formatSemanticLabel } from '@/lib/prompts/ja';
 
 interface ProjectWizardProps {
   onComplete: (project: { id: string; title: string; genre: string; description: string }) => void;
@@ -84,35 +85,37 @@ export function ProjectWizard({ onComplete, onCancel }: ProjectWizardProps) {
     setExpandResult(null);
     abortRef.current = new AbortController();
 
-    const prompt = `你是一位资深小说策划，请根据以下种子设定，生成扩展内容：
+    const prompt = `以下の種となる設定から、作品の規模と目的に合う企画案を作成してください。
 
-小说标题：${seed.title}
-类型：${seed.genre}
-核心设定：${seed.premise}
-主角名：${seed.protagonistName}
-核心渴望：${seed.coreDesire}
-核心缺陷：${seed.coreFlaw}
-内心冲突：${seed.innerConflict}
+作品タイトル：${seed.title}
+ジャンル：${formatSemanticLabel('genre', seed.genre)}
+中心となる設定：${seed.premise}
+主人公名：${seed.protagonistName}
+中心的な欲求：${seed.coreDesire}
+弱点・課題：${seed.coreFlaw}
+内的対立：${seed.innerConflict}
 
-请按以下JSON格式输出（不要输出其他内容）：
+次のJSON形式だけを出力してください。JSONキーと値の型は変更しないでください。
 {
   "characters": [
-    {"name": "角色名", "role": "角色定位（如导师、对手、盟友等）", "relation": "与主角关系", "motivation": "动机"}
+    {"name": "人物名", "role": "既存の中国語内部値", "relation": "主人公との関係", "motivation": "動機"}
   ],
   "outlineBeats": [
-    {"title": "节拍标题", "conflict": "核心冲突", "summary": "情节摘要", "wordTarget": 3000}
+    {"title": "区切りの名称", "conflict": "中心となる対立または問い", "summary": "出来事と変化の要約", "wordTarget": 3000}
   ],
   "worldviewEntries": [
-    {"name": "设定名", "description": "设定描述"}
+    {"name": "設定名", "description": "物語に関係する設定内容"}
   ]
 }
 
-要求：
-1. 生成5-8个配角
-2. 生成8-15个故事节拍
-3. 生成3-5个世界观设定条目
-4. 确保角色与主角有实质关联
-5. 节拍要体现主角的成长弧线`;
+企画方針：
+- 人物、構成上の区切り、世界設定の数は固定せず、この作品を成立させるために必要な数だけ作る。
+- 出来事の因果、人物の目的と対立、情報開示、伏線を実行可能な形で整理する。
+- 主人公の成長を必須にせず、停滞、後退、破綻、静かな変化も作品意図に合えば採用する。
+- 能力体系やレベル制度は、この作品に必要な場合だけ世界設定へ含める。
+- 人物は主人公または中心的な出来事と実質的な関係を持たせる。
+- roleはDB互換性のため「主角」「女主」「反派」「配角」「导师」「路人」のいずれかを使用する。
+- wordTargetは個別指定がないため3,000を標準目標とし、場面に応じて調整してよい。`;
 
     try {
       const res = await fetch('/api/ai', {
@@ -183,23 +186,23 @@ export function ProjectWizard({ onComplete, onCancel }: ProjectWizardProps) {
     setValidateResult(null);
     abortRef.current = new AbortController();
 
-    const prompt = `你是一位严格的小说质量检查专家，请验证以下设定的完整性和一致性：
+    const prompt = `以下の企画案が、作品自身の目的に対して十分かつ整合しているか検証してください。
 
-种子设定：
-标题：${seed.title}
-类型：${seed.genre}
-核心设定：${seed.premise}
-主角：${seed.protagonistName}
-渴望：${seed.coreDesire}
-缺陷：${seed.coreFlaw}
-内心冲突：${seed.innerConflict}
+【種となる設定】
+タイトル：${seed.title}
+ジャンル：${formatSemanticLabel('genre', seed.genre)}
+中心となる設定：${seed.premise}
+主人公：${seed.protagonistName}
+欲求：${seed.coreDesire}
+弱点・課題：${seed.coreFlaw}
+内的対立：${seed.innerConflict}
 
-扩展内容：
-角色：${expandResult ? expandResult.characters.map(c => `${c.name}(${c.role})`).join(', ') : '无'}
-节拍：${expandResult ? expandResult.outlineBeats.map(b => b.title).join(', ') : '无'}
-世界观：${expandResult ? expandResult.worldviewEntries.map(w => w.name).join(', ') : '无'}
+【企画案】
+人物：${expandResult ? expandResult.characters.map(c => `${c.name}(${c.role})`).join('、') : 'なし'}
+構成上の区切り：${expandResult ? expandResult.outlineBeats.map(b => b.title).join('、') : 'なし'}
+世界設定：${expandResult ? expandResult.worldviewEntries.map(w => w.name).join('、') : 'なし'}
 
-请按以下JSON格式输出验证结果：
+次のJSON形式だけを出力してください。JSONキーと値の型は変更しないでください。
 {
   "arcComplete": true/false,
   "causalChain": true/false,
@@ -208,11 +211,12 @@ export function ProjectWizard({ onComplete, onCancel }: ProjectWizardProps) {
   "overallScore": 85
 }
 
-检查维度：
-1. 角色弧线是否完整（有明确起点、转折、终点）
-2. 情节因果链是否合理（事件之间有因果关系）
-3. 世界设定是否自洽（设定间无矛盾）
-4. 给出1-100的整体评分`;
+検証方針：
+- arcCompleteは、成長の有無ではなく、意図された人物の変化・停滞・後退が物語上追跡可能かを示す。
+- causalChainは、主要な出来事と選択の因果が成立しているかを示す。
+- settingConsistentは、使用する世界設定同士と物語上の制約に矛盾がないかを示す。
+- patchesには根拠のある具体的な修正案だけを入れる。
+- overallScoreは作品目的への適合と実行可能性を総合した1～100の値とし、商業性を絶対基準にしない。`;
 
     try {
       const res = await fetch('/api/ai', {

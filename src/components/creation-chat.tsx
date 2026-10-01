@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { useAppStore, type AgentMessage, type ToolCallResult } from '@/lib/store';
-import { UNIVERSAL_AGENT_PROMPT, parseToolCalls, type ParsedToolCall } from '@/lib/universal-agent';
+import { UNIVERSAL_AGENT_PROMPT, isExecutableToolId, parseToolCalls, type ParsedToolCall } from '@/lib/universal-agent';
 import { ToolPanel } from '@/components/tool-panel';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -13,6 +13,7 @@ import { AntiAIPanel } from '@/components/anti-ai-panel';
 import { AdversarialReviewPanel } from '@/components/adversarial-review';
 import { ChapterPreview } from '@/components/chapter-preview';
 import { APP_LOCALE, displayLabel, TOOL_LABELS } from '@/lib/i18n';
+import { formatSemanticLabel } from '@/lib/prompts/ja';
 import {
   Send, Loader2, Trash2, StopCircle, Sparkles,
   ChevronDown, ChevronRight, Wrench, Eye, Shield, Swords,
@@ -156,21 +157,22 @@ function MessageBubble({ message, onExecuteTool, toolResults }: {
 }
 
 // ─── Side Panel ───────────────────────────────────────
-function SidePanel({ type, onClose }: {
+function SidePanel({ type, onClose, projectId }: {
   type: 'preview' | 'antiAi' | 'adversarial';
   onClose: () => void;
+  projectId: string;
 }) {
   const { activeChapterId } = useAppStore();
-  const [chapter, setChapter] = useState<{ title: string; content: string; summary: string; emotionTarget: string; emotionArc: string } | null>(null);
+  const [chapter, setChapter] = useState<{ id: string; title: string; outlineContent: string; content: string; summary: string; emotionTarget: string; emotionArc: string } | null>(null);
 
   useEffect(() => {
     if (activeChapterId && type !== 'none') {
-      fetch(`/api/chapters?id=${activeChapterId}`)
-        .then(r => r.ok ? r.json() : null)
-        .then(d => d && setChapter(d))
+      fetch(`/api/chapters?projectId=${projectId}`)
+        .then(r => r.ok ? r.json() as Promise<Array<{ id: string; title: string; outlineContent: string; content: string; summary: string; emotionTarget: string; emotionArc: string }>> : [])
+        .then(chapters => setChapter(chapters.find(item => item.id === activeChapterId) || null))
         .catch(() => {});
     }
-  }, [activeChapterId, type]);
+  }, [activeChapterId, projectId, type]);
 
   const panelConfig = {
     preview: { icon: Eye, label: 'リアルタイムプレビュー', color: 'text-cyan-400' },
@@ -229,6 +231,8 @@ function SidePanel({ type, onClose }: {
             <AdversarialReviewPanel
               content={chapter.content}
               chapterTitle={chapter.title}
+              projectId={projectId}
+              chapterPurpose={chapter.outlineContent}
             />
           </div>
         )}
@@ -311,10 +315,34 @@ export function CreationChat({ projectId }: { projectId: string }) {
       abortRef.current = new AbortController();
 
       // Build enabled tools context
-      const enabledTools = agentTools.filter(t => t.enabled);
+      const enabledTools = agentTools.filter(t => t.enabled && isExecutableToolId(t.id));
       const toolsContext = enabledTools.length > 0
-        ? `\n\n当前已启用工具：${enabledTools.map(t => `${t.name}(${t.id})`).join('、')}`
-        : '\n\n当前未启用任何工具。';
+        ? `\n\n今回利用できる実装済みツール：${enabledTools.map(t => `${displayLabel(TOOL_LABELS, t.id)}(${t.id})`).join('、')}`
+        : '\n\n今回利用できる実装済みツールはありません。ツール呼び出しを出力しないでください。';
+
+      let projectContext = '';
+      try {
+        const [projectsRes, outlinesRes, charactersRes, worldsRes] = await Promise.all([
+          fetch('/api/projects'),
+          fetch(`/api/outlines?projectId=${projectId}`),
+          fetch(`/api/characters?projectId=${projectId}`),
+          fetch(`/api/world-settings?projectId=${projectId}`),
+        ]);
+        const projects = projectsRes.ok ? await projectsRes.json() as Array<{ id: string; title: string; genre: string; description: string }> : [];
+        const outlines = outlinesRes.ok ? await outlinesRes.json() as Array<{ content: string }> : [];
+        const characterData = charactersRes.ok ? await charactersRes.json() as { characters?: Array<{ name: string; role: string }> } : {};
+        const worlds = worldsRes.ok ? await worldsRes.json() as Array<{ name: string }> : [];
+        const project = projects.find(item => item.id === projectId);
+        projectContext = `\n\n現在のプロジェクト概要（必要な場合だけ参照）：
+- 作品：${project?.title || '未取得'}
+- ジャンル：${project?.genre ? formatSemanticLabel('genre', project.genre) : '未設定'}
+- 概要：${project?.description?.slice(0, 800) || '未設定'}
+- 人物：${characterData.characters?.slice(0, 12).map(character => `${character.name}(${character.role})`).join('、') || '未登録'}
+- 世界設定：${worlds.slice(0, 10).map(world => world.name).join('、') || '未登録'}
+- 最新プロット抜粋：${outlines[0]?.content?.slice(0, 1600) || '未登録'}`;
+      } catch {
+        // The conversation can continue without optional project context.
+      }
 
       // Build conversation history
       const chatMessages = [...messages, userMsg]
@@ -327,7 +355,7 @@ export function CreationChat({ projectId }: { projectId: string }) {
         body: JSON.stringify({
           agentType: 'planner', // Fallback, will be overridden by systemPrompt
           messages: chatMessages,
-          systemPrompt: UNIVERSAL_AGENT_PROMPT + toolsContext,
+          systemPrompt: UNIVERSAL_AGENT_PROMPT + projectContext + toolsContext,
         }),
         signal: abortRef.current.signal,
       });
@@ -481,20 +509,21 @@ export function CreationChat({ projectId }: { projectId: string }) {
           ]);
           let found = '';
           if (charRes.ok) {
-            const chars = await charRes.json();
+            const data = await charRes.json() as { characters?: Array<{ name: string; personality?: string }> };
+            const chars = data.characters || [];
             const match = chars.find((c: { name: string }) => c.name.includes(query));
             if (match) found += `👤 キャラクター: ${match.name} - ${match.personality || ''}\n`;
           }
           if (worldRes.ok) {
-            const worlds = await worldRes.json();
-            const match = worlds.find((w: { title: string }) => w.title.includes(query));
-            if (match) found += `🌍 世界設定: ${match.title}\n`;
+            const worlds = await worldRes.json() as Array<{ name: string; description?: string }>;
+            const match = worlds.find((w) => w.name.includes(query));
+            if (match) found += `🌍 世界設定: ${match.name} - ${match.description || ''}\n`;
           }
           result = found || `🔍 「${query}」に関連するアセットが見つかりません`;
           break;
         }
         default:
-          result = `🔧 ツール ${tc.toolId} を受け付けました（API連携準備中）`;
+          result = `❌ ツール ${tc.toolId} は現在の実行側では利用できません`;
       }
 
       setToolResults(prev => ({ ...prev, [key]: result }));
@@ -669,6 +698,7 @@ export function CreationChat({ projectId }: { projectId: string }) {
           <SidePanel
             type={sidePanel as 'preview' | 'antiAi' | 'adversarial'}
             onClose={() => setSidePanel('none')}
+            projectId={projectId}
           />
         )}
       </AnimatePresence>
