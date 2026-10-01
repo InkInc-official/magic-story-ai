@@ -2,6 +2,7 @@ import { formatSemanticLabel } from './semantic-labels';
 import { DEFAULT_CHAPTER_TARGET } from '@/lib/writing-settings';
 import { displayLabel, NARRATIVE_PERSPECTIVE_LABELS, SPEECH_REGISTER_LABELS } from '@/lib/i18n';
 import { resolveDirectedVoice, shouldUseNarrationVoice } from '@/lib/character-voice';
+import { buildContextWithinBudget, safeContextExcerpt, type ContextEntry } from './context-budget';
 
 export interface GenerationCharacter {
   id: string;
@@ -229,7 +230,7 @@ export function buildChapterGenerationContext(source: ChapterGenerationSource): 
 
   const selectedWorld = source.worldSettings
     .filter(setting => includesAny(chapterText, [setting.name, ...(safeStringArray(setting.tags))]))
-    .slice(0, 5);
+    .slice(0, 8);
   const worldFallback = selectedWorld.length > 0 ? selectedWorld : source.worldSettings.slice(0, 3);
 
   const selectedScenes = source.scenes
@@ -255,75 +256,106 @@ export function buildChapterGenerationContext(source: ChapterGenerationSource): 
     .filter(edge => selectedNodeIds.has(edge.sourceId) || selectedNodeIds.has(edge.targetId))
     .slice(0, 6);
 
-  const sections: string[] = [];
-  if (source.project) {
-    sections.push(`【プロジェクト】\n作品名：${source.project.title}\nジャンル：${formatSemanticLabel('genre', source.project.genre)}\n作品概要：${compact(source.project.description) || '未設定'}`);
-  }
+  const entries: ContextEntry[] = [];
+  const semanticContext = buildChapterSemanticContext(source);
+  entries.push({
+    id: 'current-chapter', tier: 0, required: true,
+    full: `【現在章】\nタイトル：${source.title || '未設定'}\n詳細プロット：\n${safeContextExcerpt(source.outline || '未設定', 7000)}${source.summary ? `\n既存要約：${safeContextExcerpt(source.summary, 1200)}` : ''}${semanticContext ? `\n${semanticContext}` : ''}`,
+    compact: `【現在章】\nタイトル：${source.title || '未設定'}\n詳細プロット：\n${safeContextExcerpt(source.outline || '未設定', 4200)}${semanticContext ? `\n${semanticContext}` : ''}`,
+    minimum: `【現在章】\nタイトル：${safeContextExcerpt(source.title || '未設定', 300)}\n詳細プロット：\n${safeContextExcerpt(source.outline || '未設定', 2200)}${semanticContext ? `\n${semanticContext}` : ''}`,
+  });
   const writingInstructions = buildChapterWritingInstructions(source);
-  if (writingInstructions) sections.push(`【作品・章の執筆設定】\n${writingInstructions}`);
-  if (source.latestOutline) sections.push(`【全体プロット】\n${compact(source.latestOutline, 3000)}`);
+  if (writingInstructions) entries.push({ id: 'writing-instructions', tier: 0, required: true, full: `【作品・章の執筆設定】\n${writingInstructions}` });
+  if (source.project) entries.push({
+    id: 'project', tier: 0, required: true,
+    full: `【プロジェクト】\n作品名：${source.project.title}\nジャンル：${formatSemanticLabel('genre', source.project.genre)}\n作品概要：${safeContextExcerpt(source.project.description || '未設定', 1600)}`,
+    compact: `【プロジェクト】\n作品名：${source.project.title}\nジャンル：${formatSemanticLabel('genre', source.project.genre)}\n作品概要：${safeContextExcerpt(source.project.description || '未設定', 700)}`,
+    minimum: `【プロジェクト】\n作品名：${source.project.title}\nジャンル：${formatSemanticLabel('genre', source.project.genre)}`,
+  });
   if (source.previousChapter) {
-    sections.push(`【直前の章】\nタイトル：${source.previousChapter.title}\n要約：${compact(source.previousChapter.summary, 800) || '未設定'}\n末尾：${compact(source.previousChapter.content.slice(-1800), 1800) || '本文なし'}`);
+    const previousSummary = safeContextExcerpt(source.previousChapter.summary, 1200) || '未設定';
+    const previousTail = safeContextExcerpt(source.previousChapter.content, 2200, true) || '本文なし';
+    entries.push({
+      id: 'previous-chapter', tier: 1, relevance: 100,
+      full: `【直前の章（継続性）】\nタイトル：${source.previousChapter.title}\n要約：${previousSummary}\n本文末尾：${previousTail}`,
+      compact: `【直前の章（継続性）】\nタイトル：${source.previousChapter.title}\n要約：${safeContextExcerpt(source.previousChapter.summary, 800) || '未設定'}\n本文末尾：${safeContextExcerpt(source.previousChapter.content, 900, true) || '本文なし'}`,
+      minimum: `【直前の章（継続性）】\n${source.previousChapter.title}：${safeContextExcerpt(source.previousChapter.summary || source.previousChapter.content, 500, !source.previousChapter.summary) || '内容なし'}`,
+    });
   }
-  if (selectedCharacters.length > 0) {
-    sections.push(`【${cast.explicit ? '登場人物（明示キャスト＋POV）' : '関連人物'}】\n${selectedCharacters.map(character =>
-      `- ${character.name}（${formatSemanticLabel('characterRole', character.role)}）` +
-      `${character.age ? `／年齢：${character.age}` : ''}` +
-      `${character.personality ? `\n  性格・話し方の手掛かり：${compact(character.personality, 500)}` : ''}` +
-      `${character.background ? `\n  背景：${compact(character.background, 500)}` : ''}` +
-      `${character.arc ? `\n  人物の変化：${compact(character.arc, 400)}` : ''}`
-    ).join('\n')}`);
-  }
-  if (cast.explicit && cast.compactPresent.length > 0) {
-    sections.push(`【その他の明示登場人物（簡略）】\n${cast.compactPresent.map(entry =>
-      `- ${entry.character.name}（${formatSemanticLabel('characterRole', entry.character.role)}）${entry.notes ? `：${compact(entry.notes, 300)}` : ''}`
-    ).join('\n')}`);
-  }
-  if (cast.explicit && cast.mentioned.length > 0) {
-    sections.push(`【言及のみの人物】\n${cast.mentioned.map(entry =>
-      `- ${entry.character.name}（${formatSemanticLabel('characterRole', entry.character.role)}）${entry.notes ? `：${compact(entry.notes, 300)}` : ''}\n  現在場面の参加人物として扱わず、回想・噂・記録など章の文脈に沿って言及する。`
-    ).join('\n')}`);
-  }
-  if (cast.explicit) {
-    const fullIds = new Set(cast.fullCharacters.map(character => character.id));
-    const notes = (source.chapterCharacters || []).filter(entry => fullIds.has(entry.characterId) && entry.notes?.trim());
-    if (notes.length > 0) sections.push(`【章キャスト補足】\n${notes.map(entry => `- ${entry.character.name}：${compact(entry.notes, 400)}`).join('\n')}`);
-  }
+  const castById = new Map((source.chapterCharacters || []).map(entry => [entry.characterId, entry]));
+  selectedCharacters.forEach((character, index) => {
+    const chapterEntry = castById.get(character.id);
+    const role = formatSemanticLabel('characterRole', character.role);
+    const voice = [
+      character.firstPerson && `一人称：${character.firstPerson}`,
+      character.defaultSecondPerson && `基本二人称：${character.defaultSecondPerson}`,
+      character.speechRegister && `敬語・話し方：${displayLabel(SPEECH_REGISTER_LABELS, character.speechRegister)}`,
+      character.speechStyleNotes && `台詞：${safeContextExcerpt(character.speechStyleNotes, 500)}`,
+      character.id === resolvedPov?.id && character.narrationVoiceNotes && shouldUseNarrationVoice(source.project?.narrativePerspective)
+        ? `地の文：${safeContextExcerpt(character.narrationVoiceNotes, 600)}` : '',
+    ].filter(Boolean).join('\n  ');
+    const heading = character.id === resolvedPov?.id ? 'POV人物' : '主要登場人物';
+    entries.push({
+      id: `character:${character.id}`, tier: 1, relevance: character.id === resolvedPov?.id ? 200 : 100 - index,
+      full: `【${heading}】\n- ${character.name}（${role}）${character.age ? `／年齢：${character.age}` : ''}${character.personality ? `\n  性格：${safeContextExcerpt(character.personality, 650)}` : ''}${character.background ? `\n  背景：${safeContextExcerpt(character.background, 650)}` : ''}${character.arc ? `\n  変化：${safeContextExcerpt(character.arc, 450)}` : ''}${voice ? `\n  ${voice}` : ''}${chapterEntry?.notes ? `\n  この章での扱い：${safeContextExcerpt(chapterEntry.notes, 500)}` : ''}`,
+      compact: `【${heading}】\n- ${character.name}（${role}）${character.personality ? `：${safeContextExcerpt(character.personality, 250)}` : ''}${voice ? `\n  ${voice}` : ''}${chapterEntry?.notes ? `\n  この章：${safeContextExcerpt(chapterEntry.notes, 220)}` : ''}`,
+      minimum: `【${heading}】\n- ${character.name}（${role}）${chapterEntry?.notes ? `：${safeContextExcerpt(chapterEntry.notes, 140)}` : ''}${character.firstPerson ? `／一人称：${character.firstPerson}` : ''}${character.speechRegister ? `／話し方：${displayLabel(SPEECH_REGISTER_LABELS, character.speechRegister)}` : ''}`,
+    });
+  });
+  cast.compactPresent.forEach((entry, index) => entries.push({
+    id: `present:${entry.characterId}`, tier: 3, relevance: 120 - index,
+    full: `【その他の明示登場人物】\n- ${entry.character.name}（${formatSemanticLabel('characterRole', entry.character.role)}）${entry.notes ? `：${safeContextExcerpt(entry.notes, 300)}` : ''}${entry.character.firstPerson ? `／一人称：${entry.character.firstPerson}` : ''}${entry.character.speechRegister ? `／話し方：${displayLabel(SPEECH_REGISTER_LABELS, entry.character.speechRegister)}` : ''}`,
+    compact: `【その他の明示登場人物】\n- ${entry.character.name}（${formatSemanticLabel('characterRole', entry.character.role)}）${entry.notes ? `：${safeContextExcerpt(entry.notes, 160)}` : ''}`,
+    minimum: `【その他の明示登場人物】\n- ${entry.character.name}（${formatSemanticLabel('characterRole', entry.character.role)}）`,
+  }));
+  cast.mentioned.forEach((entry, index) => entries.push({
+    id: `mentioned:${entry.characterId}`, tier: 3, relevance: -index,
+    full: `【言及のみの人物】\n- ${entry.character.name}（${formatSemanticLabel('characterRole', entry.character.role)}）${entry.notes ? `：${safeContextExcerpt(entry.notes, 220)}` : ''}\n  現在場面の参加人物として扱わず、章の文脈に沿って言及する。`,
+    compact: `【言及のみの人物】\n- ${entry.character.name}${entry.notes ? `：${safeContextExcerpt(entry.notes, 120)}` : ''}`, minimum: `【言及のみ】${entry.character.name}`,
+  }));
   if (selectedRelationships.length > 0) {
-    sections.push(`【人物関係】\n${selectedRelationships.map(relation =>
-      `- ${relation.fromCharacter?.name || relation.fromCharacterId} → ${relation.toCharacter?.name || relation.toCharacterId}：${formatSemanticLabel('relationship', relation.type)}${relation.description ? `。${compact(relation.description, 400)}` : ''}`
-    ).join('\n')}`);
+    selectedRelationships.forEach((relation, index) => {
+      const speaker = selectedCharacters.find(character => character.id === relation.fromCharacterId);
+      const resolvedVoice = speaker ? resolveDirectedVoice(speaker, relation) : undefined;
+      const base = `${relation.fromCharacter?.name || relation.fromCharacterId} → ${relation.toCharacter?.name || relation.toCharacterId}：${formatSemanticLabel('relationship', relation.type)}`;
+      const overrides = [relation.addressTerm && `呼称：${relation.addressTerm}`, relation.speechRegister && `話し方：${displayLabel(SPEECH_REGISTER_LABELS, relation.speechRegister)}`, relation.speechStyleNotes && `話し方メモ：${safeContextExcerpt(relation.speechStyleNotes, 400)}`].filter(Boolean).join('／');
+      entries.push({ id: `relationship:${index}`, tier: 1, relevance: 50 - index,
+        full: `【人物関係・相手別音声】\n- ${base}${relation.description ? `。${safeContextExcerpt(relation.description, 400)}` : ''}${overrides ? `\n  ${overrides}` : resolvedVoice?.addressTerm ? `\n  基本呼称：${resolvedVoice.addressTerm}` : ''}`,
+        compact: `【人物関係・相手別音声】\n- ${base}${overrides ? `／${overrides}` : ''}`, minimum: `【人物関係】${base}` });
+    });
   }
-  const voiceContext = buildCharacterVoiceContext(
-    selectedCharacters,
-    selectedRelationships,
-    source.project?.narrativePerspective,
-    resolvedPov?.id,
-  );
-  if (voiceContext) sections.push(voiceContext);
-  if (worldFallback.length > 0) {
-    sections.push(`【関連世界設定】\n${worldFallback.map(setting =>
-      `- ${setting.name}：${compact(setting.description, 700)}${setting.rules ? `\n  規則・制約：${compact(setting.rules, 500)}` : ''}`
-    ).join('\n')}`);
-  }
-  if (selectedScenes.length > 0) {
-    sections.push(`【関連シーン設定】\n${selectedScenes.map(scene => {
+  worldFallback.forEach((setting, index) => entries.push({
+    id: `world:${setting.name}:${index}`, tier: 2, relevance: selectedWorld.includes(setting) ? 100 - index : -index,
+    full: `【関連世界設定】\n- ${setting.name}${setting.rules ? `\n  規則・制約：${safeContextExcerpt(setting.rules, 800)}` : ''}${setting.description ? `\n  説明：${safeContextExcerpt(setting.description, 700)}` : ''}`,
+    compact: `【関連世界設定】\n- ${setting.name}${setting.rules ? `／重要規則：${safeContextExcerpt(setting.rules, 420)}` : setting.description ? `：${safeContextExcerpt(setting.description, 350)}` : ''}`,
+    minimum: `【関連世界設定】\n- ${setting.name}${setting.rules ? `：${safeContextExcerpt(setting.rules, 180)}` : ''}`,
+  }));
+  selectedScenes.forEach((scene, index) => {
       const atmosphere = scene.atmosphere ? formatSemanticLabel('atmosphere', scene.atmosphere) : '未設定';
       const time = scene.timeOfDay ? formatSemanticLabel('timeOfDay', scene.timeOfDay) : '未設定';
-      return `- ${scene.name}（場所：${scene.location || '未設定'}／時間帯：${time}／雰囲気：${atmosphere}）：${compact(scene.description, 500)}`;
-    }).join('\n')}`);
-  }
-  if (selectedPlots.length > 0) sections.push(`【進行中・関連プロット】\n${selectedPlots.map(plot => `- ${plot.name}：${compact(plot.description, 700)}`).join('\n')}`);
-  if (activeForeshadowings.length > 0) sections.push(`【未回収・関連伏線】\n${activeForeshadowings.map(item => `- ${compact(item.content, 500)}（重要度：${item.importance}／想定回収章：${item.expectedResolveChapter || '未定'}）`).join('\n')}`);
-  if (selectedStates.length > 0) sections.push(`【直近の物語状態】\n${selectedStates.map(state => `- ${state.type}：${compact(state.data, 700)}`).join('\n')}`);
-  if (selectedNodes.length > 0) sections.push(`【関連タイムライン／物語ノード】\n${selectedNodes.map(node => `- ${node.title}：${compact(node.description, 500)}`).join('\n')}`);
-  if (selectedEdges.length > 0) sections.push(`【ノード間関係】\n${selectedEdges.map(edge => `- ${edge.sourceNode?.title || edge.sourceId} → ${edge.targetNode?.title || edge.targetId}（${edge.edgeType}${edge.label ? `：${edge.label}` : ''}）`).join('\n')}`);
+      entries.push({ id: `scene:${scene.name}:${index}`, tier: 3, relevance: 50 - index,
+        full: `【関連シーン設定】\n- ${scene.name}（場所：${scene.location || '未設定'}／時間帯：${time}／雰囲気：${atmosphere}）：${safeContextExcerpt(scene.description || '', 500)}`,
+        compact: `【関連シーン設定】\n- ${scene.name}（${scene.location || '場所未設定'}／${time}／${atmosphere}）`, minimum: `【関連シーン】${scene.name}` });
+  });
+  selectedPlots.forEach((plot, index) => entries.push({ id: `plot:${plot.name}:${index}`, tier: 2, relevance: plot.status === 'active' ? 100 + plot.priority : plot.priority,
+    full: `【進行中・関連プロット】\n- ${plot.name}：${safeContextExcerpt(plot.description || '詳細未設定', 900)}`,
+    compact: `【進行中・関連プロット】\n- ${plot.name}：${safeContextExcerpt(plot.description || '詳細未設定', 400)}`, minimum: `【関連プロット】${plot.name}` }));
+  activeForeshadowings.forEach((item, index) => entries.push({ id: `foreshadowing:${index}`, tier: 2, relevance: item.chapterId === source.chapterId ? 120 - index : 50 - index,
+    full: `【未回収・関連伏線】\n- ${safeContextExcerpt(item.content, 600)}（重要度：${item.importance}／想定回収章：${item.expectedResolveChapter || '未定'}）`,
+    compact: `【未回収・関連伏線】\n- ${safeContextExcerpt(item.content, 300)}（重要度：${item.importance}）`, minimum: `【関連伏線】${safeContextExcerpt(item.content, 140)}` }));
+  selectedStates.forEach((state, index) => entries.push({ id: `state:${state.chapterId}:${index}`, tier: 2, relevance: state.chapterId === source.chapterId ? 120 - index : 80 - index,
+    full: `【直近の物語状態】\n- ${state.type}：${safeContextExcerpt(state.data, 900)}`, compact: `【直近の物語状態】\n- ${state.type}：${safeContextExcerpt(state.data, 400)}`, minimum: `【物語状態】${state.type}：${safeContextExcerpt(state.data, 150)}` }));
+  if (source.latestOutline) entries.push({ id: 'overall-plot', tier: 3, relevance: 30, full: `【全体プロット】\n${safeContextExcerpt(source.latestOutline, 3000)}`, compact: `【全体プロット】\n${safeContextExcerpt(source.latestOutline, 1200)}`, minimum: `【全体プロット要点】\n${safeContextExcerpt(source.latestOutline, 400)}` });
+  selectedNodes.forEach((node, index) => entries.push({ id: `node:${node.id}`, tier: 3, relevance: 20 - index, full: `【関連タイムライン／物語ノード】\n- ${node.title}：${safeContextExcerpt(node.description || '', 500)}`, compact: `【関連物語ノード】${node.title}：${safeContextExcerpt(node.description || '', 220)}`, minimum: `【関連物語ノード】${node.title}` }));
+  selectedEdges.forEach((edge, index) => {
+    const relation = `${edge.sourceNode?.title || edge.sourceId} → ${edge.targetNode?.title || edge.targetId}（${edge.edgeType}${edge.label ? `：${edge.label}` : ''}）`;
+    entries.push({ id: `edge:${index}`, tier: 4, relevance: -index, full: `【ノード間関係】\n- ${relation}`, minimum: `【物語ノード関係】${relation}` });
+  });
 
-  const context = sections.join('\n\n');
-  const maxContextCharacters = 18000;
-  return context.length > maxContextCharacters
-    ? `${context.slice(0, maxContextCharacters)}\n（関連コンテキストは上限に達したため、以降を省略）`
-    : context;
+  const result = buildContextWithinBudget(entries);
+  if (result.omitted.length === 0 || result.text.length > 17_950) return result.text;
+  const note = '\n\n（追加の背景設定はコンテキスト上限のため省略）';
+  return result.text.length + note.length <= 18_000 ? `${result.text}${note}` : result.text;
 }
 
 export function buildChapterSemanticContext(values: Pick<ChapterGenerationSource, 'emotionTarget' | 'emotionArc' | 'hookStart' | 'hookEnd'>): string {

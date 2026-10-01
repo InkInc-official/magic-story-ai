@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Loader2, Swords, AlertTriangle, CheckCircle2 } from 'lucide-react';
-import { buildCharacterVoiceContext, formatSemanticLabel, type GenerationChapterCharacter, type GenerationCharacter, type GenerationRelationship } from '@/lib/prompts/ja';
+import { buildCharacterVoiceContext, buildContextWithinBudget, formatSemanticLabel, type ContextEntry, type GenerationChapterCharacter, type GenerationCharacter, type GenerationRelationship } from '@/lib/prompts/ja';
 import { displayLabel, NARRATIVE_PERSPECTIVE_LABELS } from '@/lib/i18n';
 
 interface ReviewResult {
@@ -76,17 +76,15 @@ export function AdversarialReviewPanel({ content, chapterTitle, projectId, chapt
             `言及のみ：${explicitCast.filter(entry => entry.participation === 'mentioned').map(entry => `${entry.character.name}${entry.notes ? `（${entry.notes}）` : ''}`).join('、') || 'なし'}`,
             '言及のみの人物や明示キャスト外人物が現在場面で発話・行動している場合は、回想、電話、通信、記録、夢、作中作などの文脈を確認した上で整合性の確認点として扱ってください。機械的に誤りと断定しないでください。',
           ].join('\n') : '';
-          if (project) projectContext = [
-            `作品：${project.title}`,
-            `ジャンル：${formatSemanticLabel('genre', project.genre)}`,
-            `作品概要：${project.description || '未設定'}`,
-            project.narrativePerspective && `視点方式：${displayLabel(NARRATIVE_PERSPECTIVE_LABELS, project.narrativePerspective)}`,
-            povName && `視点人物：${povName}`,
-            project.writingStyleNotes && `文体メモ：${project.writingStyleNotes}`,
-            endingNotes && `章末メモ：${endingNotes}`,
-            voiceContext && `\n${voiceContext}\n設定されていない音声要素を正解として作らず、上記の明示設定との不整合だけを評価してください。`,
-            castContext && `\n【明示章キャスト】\n${castContext}`,
-          ].filter(Boolean).join('\n');
+          if (project) {
+            const reviewEntries: ContextEntry[] = [
+              { id: 'review-project', tier: 0, required: true, full: `作品：${project.title}\nジャンル：${formatSemanticLabel('genre', project.genre)}\n作品概要：${project.description || '未設定'}`, compact: `作品：${project.title}\nジャンル：${formatSemanticLabel('genre', project.genre)}`, minimum: `作品：${project.title}` },
+              { id: 'review-intent', tier: 0, required: true, full: [project.narrativePerspective && `視点方式：${displayLabel(NARRATIVE_PERSPECTIVE_LABELS, project.narrativePerspective)}`, povName && `視点人物：${povName}`, project.writingStyleNotes && `文体メモ：${project.writingStyleNotes}`, endingNotes && `章末メモ：${endingNotes}`].filter(Boolean).join('\n') || '作品固有の追加設定なし' },
+            ];
+            if (voiceContext) reviewEntries.push({ id: 'review-voice', tier: 1, relevance: 100, full: `${voiceContext}\n設定されていない音声要素を正解として作らず、上記の明示設定との不整合だけを評価してください。`, compact: voiceContext, minimum: voiceContext.split('\n').slice(0, 8).join('\n') });
+            if (castContext) reviewEntries.push({ id: 'review-cast', tier: 1, relevance: 90, full: `【明示章キャスト】\n${castContext}`, compact: `【明示章キャスト】\n${castContext.split('\n').slice(0, 2).join('\n')}` });
+            projectContext = buildContextWithinBudget(reviewEntries, 8_000).text;
+          }
         }
       } catch {
         // Project context is optional; review can continue with the chapter alone.

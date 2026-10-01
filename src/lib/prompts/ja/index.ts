@@ -32,3 +32,11 @@ export {
   type GenerationStoryState,
   type GenerationWorldSetting,
 } from './generation-context';
+export {
+  GENERATION_CONTEXT_HARD_CAP,
+  buildContextWithinBudget,
+  safeContextExcerpt,
+  type ContextBudgetResult,
+  type ContextEntry,
+  type ContextTier,
+} from './context-budget';
