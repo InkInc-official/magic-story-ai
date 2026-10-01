@@ -99,6 +99,7 @@ model Character {
   toRelations   CharacterRelationship[] @relation("ToCharacter")
   defaultPovForProjects Project[] @relation("ProjectDefaultPov")
   povChapters Chapter[] @relation("ChapterPov")
+  chapterCharacters ChapterCharacter[]
 
   @@schema("magic_story")
 }
@@ -219,8 +220,24 @@ model Chapter {
   storyStates StoryState[]
   foreshadowings Foreshadowing[]
   povCharacter Character? @relation("ChapterPov", fields: [povCharacterId], references: [id], onDelete: SetNull)
+  chapterCharacters ChapterCharacter[]
 
   @@index([povCharacterId])
+  @@schema("magic_story")
+}
+
+model ChapterCharacter {
+  chapterId     String
+  characterId   String
+  participation String @default("present")
+  notes         String @default("")
+  order         Int    @default(0)
+
+  chapter   Chapter   @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  character Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+
+  @@id([chapterId, characterId])
+  @@index([characterId])
   @@schema("magic_story")
 }
 

@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Loader2, Swords, AlertTriangle, CheckCircle2 } from 'lucide-react';
-import { buildCharacterVoiceContext, formatSemanticLabel, type GenerationCharacter, type GenerationRelationship } from '@/lib/prompts/ja';
+import { buildCharacterVoiceContext, formatSemanticLabel, type GenerationChapterCharacter, type GenerationCharacter, type GenerationRelationship } from '@/lib/prompts/ja';
 import { displayLabel, NARRATIVE_PERSPECTIVE_LABELS } from '@/lib/i18n';
 
 interface ReviewResult {
@@ -25,6 +25,7 @@ interface AdversarialReviewProps {
   chapterPurpose?: string;
   povCharacterId?: string;
   endingNotes?: string;
+  chapterId?: string;
 }
 
 const REVIEW_PERSPECTIVES = [
@@ -42,7 +43,7 @@ const REVIEW_OUTPUT_RULES = `問題には次の重大度を付けてください
 
 各指摘には、可能な限り本文中の根拠、読者または作品への影響、具体的な改善案を付けてください。商業性や完読欲は作品目的に含まれる場合だけ評価してください。長所も根拠とともに示してください。`;
 
-export function AdversarialReviewPanel({ content, chapterTitle, projectId, chapterPurpose, povCharacterId, endingNotes }: AdversarialReviewProps) {
+export function AdversarialReviewPanel({ content, chapterTitle, projectId, chapterPurpose, povCharacterId, endingNotes, chapterId }: AdversarialReviewProps) {
   const [results, setResults] = useState<ReviewResult[]>([]);
   const [isReviewing, setIsReviewing] = useState(false);
   const [activeReview, setActiveReview] = useState('structure');
@@ -57,17 +58,24 @@ export function AdversarialReviewPanel({ content, chapterTitle, projectId, chapt
     let projectContext = '';
     if (projectId) {
       try {
-        const [response, characterResponse] = await Promise.all([fetch('/api/projects'), fetch(`/api/characters?projectId=${projectId}`)]);
+        const [response, characterResponse, castResponse] = await Promise.all([fetch('/api/projects'), fetch(`/api/characters?projectId=${projectId}`), chapterId ? fetch(`/api/chapter-characters?chapterId=${chapterId}`) : Promise.resolve(null)]);
         if (response.ok) {
           const projects = await response.json() as Array<{ id: string; title: string; genre: string; description: string; narrativePerspective?: string | null; defaultPovCharacterId?: string | null; writingStyleNotes?: string }>;
           const project = projects.find(item => item.id === projectId);
           const characterData = characterResponse.ok ? await characterResponse.json() as { characters?: GenerationCharacter[]; relationships?: GenerationRelationship[] } : {};
+          const explicitCast = castResponse?.ok ? await castResponse.json() as GenerationChapterCharacter[] : [];
           const resolvedPovId = povCharacterId || project?.defaultPovCharacterId;
           const povName = characterData.characters?.find(character => character.id === resolvedPovId)?.name;
-          const reviewCharacters = (characterData.characters || []).filter(character => character.id === resolvedPovId || content.includes(character.name)).slice(0, 8);
+          const presentIds = new Set(explicitCast.filter(entry => entry.participation === 'present').map(entry => entry.characterId));
+          const reviewCharacters = (characterData.characters || []).filter(character => character.id === resolvedPovId || (explicitCast.length > 0 ? presentIds.has(character.id) : content.includes(character.name))).slice(0, 8);
           const reviewCharacterIds = new Set(reviewCharacters.map(character => character.id));
           const reviewRelationships = (characterData.relationships || []).filter(relation => reviewCharacterIds.has(relation.fromCharacterId) && reviewCharacterIds.has(relation.toCharacterId));
           const voiceContext = buildCharacterVoiceContext(reviewCharacters, reviewRelationships, project?.narrativePerspective, resolvedPovId);
+          const castContext = explicitCast.length > 0 ? [
+            `明示された登場人物：${explicitCast.filter(entry => entry.participation === 'present').map(entry => `${entry.character.name}${entry.notes ? `（${entry.notes}）` : ''}`).join('、') || 'なし'}`,
+            `言及のみ：${explicitCast.filter(entry => entry.participation === 'mentioned').map(entry => `${entry.character.name}${entry.notes ? `（${entry.notes}）` : ''}`).join('、') || 'なし'}`,
+            '言及のみの人物や明示キャスト外人物が現在場面で発話・行動している場合は、回想、電話、通信、記録、夢、作中作などの文脈を確認した上で整合性の確認点として扱ってください。機械的に誤りと断定しないでください。',
+          ].join('\n') : '';
           if (project) projectContext = [
             `作品：${project.title}`,
             `ジャンル：${formatSemanticLabel('genre', project.genre)}`,
@@ -77,6 +85,7 @@ export function AdversarialReviewPanel({ content, chapterTitle, projectId, chapt
             project.writingStyleNotes && `文体メモ：${project.writingStyleNotes}`,
             endingNotes && `章末メモ：${endingNotes}`,
             voiceContext && `\n${voiceContext}\n設定されていない音声要素を正解として作らず、上記の明示設定との不整合だけを評価してください。`,
+            castContext && `\n【明示章キャスト】\n${castContext}`,
           ].filter(Boolean).join('\n');
         }
       } catch {

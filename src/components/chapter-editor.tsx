@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAppStore } from '@/lib/store';
-import { BookOpen, Plus, Trash2, Save, Sparkles, ChevronRight, ChevronDown, Shield, Swords, Loader2, FileText, Zap, Eye, PanelRightClose, PanelRightOpen } from 'lucide-react';
+import { BookOpen, Plus, Trash2, Save, Sparkles, ChevronRight, ChevronDown, Shield, Swords, Loader2, FileText, Zap, Eye, PanelRightClose, PanelRightOpen, ArrowUp, ArrowDown, X } from 'lucide-react';
 import { AntiAIPanel } from '@/components/anti-ai-panel';
 import { AdversarialReviewPanel } from '@/components/adversarial-review';
 import { ChapterPreview } from '@/components/chapter-preview';
@@ -41,6 +41,15 @@ interface Chapter {
 
 interface ChapterEditorProps {
   projectId: string;
+}
+
+interface ChapterCastEntry {
+  chapterId: string;
+  characterId: string;
+  participation: 'present' | 'mentioned';
+  notes: string;
+  order: number;
+  character: ChapterGenerationSource['characters'][number];
 }
 
 const STATUS_OPTIONS = [
@@ -82,6 +91,9 @@ export function ChapterEditor({ projectId }: ChapterEditorProps) {
   const [editTargetWordCount, setEditTargetWordCount] = useState('');
   const [editEndingNotes, setEditEndingNotes] = useState('');
   const [projectCharacters, setProjectCharacters] = useState<ChapterGenerationSource['characters']>([]);
+  const [chapterCast, setChapterCast] = useState<ChapterCastEntry[]>([]);
+  const [castCharacterId, setCastCharacterId] = useState('');
+  const [projectDefaultPovCharacterId, setProjectDefaultPovCharacterId] = useState('');
   const [isCreating, setIsCreating] = useState(false);
   const [newTitle, setNewTitle] = useState('');
   const [isSaving, setIsSaving] = useState(false);
@@ -106,9 +118,10 @@ export function ChapterEditor({ projectId }: ChapterEditorProps) {
       }
     };
 
-    const [projects, characterData, worldSettings, scenes, foreshadowings, storyStates, outlines, plots, storyNodes, storyEdges] = await Promise.all([
+    const [projects, characterData, chapterCharacters, worldSettings, scenes, foreshadowings, storyStates, outlines, plots, storyNodes, storyEdges] = await Promise.all([
       safeJson<Array<NonNullable<ChapterGenerationSource['project']> & { id: string }>>('/api/projects', []),
       safeJson<{ characters: ChapterGenerationSource['characters']; relationships: ChapterGenerationSource['relationships'] }>(`/api/characters?projectId=${projectId}`, { characters: [], relationships: [] }),
+      selectedId ? safeJson<NonNullable<ChapterGenerationSource['chapterCharacters']>>(`/api/chapter-characters?chapterId=${selectedId}`, []) : [],
       safeJson<ChapterGenerationSource['worldSettings']>(`/api/world-settings?projectId=${projectId}`, []),
       safeJson<ChapterGenerationSource['scenes']>(`/api/scenes?projectId=${projectId}`, []),
       safeJson<ChapterGenerationSource['foreshadowings']>(`/api/foreshadowings?projectId=${projectId}`, []),
@@ -143,6 +156,7 @@ export function ChapterEditor({ projectId }: ChapterEditorProps) {
       latestOutline: outlines[0]?.content,
       characters: characterData.characters,
       relationships: characterData.relationships,
+      chapterCharacters,
       worldSettings,
       scenes,
       foreshadowings,
@@ -153,14 +167,25 @@ export function ChapterEditor({ projectId }: ChapterEditorProps) {
     };
   };
 
+  const fetchChapterCast = async (chapterId: string) => {
+    try {
+      const response = await fetch(`/api/chapter-characters?chapterId=${chapterId}`);
+      setChapterCast(response.ok ? await response.json() : []);
+    } catch { setChapterCast([]); }
+  };
+
   const fetchChapters = useCallback(async () => {
     try {
-      const [res, characterRes] = await Promise.all([fetch(`/api/chapters?projectId=${projectId}`), fetch(`/api/characters?projectId=${projectId}`)]);
+      const [res, characterRes, projectRes] = await Promise.all([fetch(`/api/chapters?projectId=${projectId}`), fetch(`/api/characters?projectId=${projectId}`), fetch('/api/projects')]);
       if (res.ok) {
         const data = await res.json();
         setChapters(data);
       }
       if (characterRes.ok) setProjectCharacters((await characterRes.json()).characters || []);
+      if (projectRes.ok) {
+        const projects = await projectRes.json() as Array<{ id: string; defaultPovCharacterId?: string | null }>;
+        setProjectDefaultPovCharacterId(projects.find(project => project.id === projectId)?.defaultPovCharacterId || '');
+      }
     } catch (e) {
       console.error('Failed to fetch chapters:', e);
     }
@@ -186,10 +211,37 @@ export function ChapterEditor({ projectId }: ChapterEditorProps) {
     setEditPurpose(chapter.purpose || '');
     setEditTargetWordCount(chapter.targetWordCount?.toString() || '');
     setEditEndingNotes(chapter.endingNotes || '');
+    setCastCharacterId('');
+    void fetchChapterCast(chapter.id);
     // 打开章节时自动显示预览面板
     if (sidePanel === 'none') {
       setSidePanel('preview');
     }
+  };
+
+  const addCastMember = async (participation: 'present' | 'mentioned') => {
+    if (!selectedId || !castCharacterId) return;
+    const response = await fetch('/api/chapter-characters', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chapterId: selectedId, characterId: castCharacterId, participation }) });
+    if (response.ok) { setCastCharacterId(''); await fetchChapterCast(selectedId); }
+  };
+
+  const updateCastMember = async (entry: ChapterCastEntry, changes: Partial<Pick<ChapterCastEntry, 'participation' | 'notes' | 'order'>>, refresh = true) => {
+    const response = await fetch('/api/chapter-characters', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chapterId: entry.chapterId, characterId: entry.characterId, ...changes }) });
+    if (response.ok && selectedId && refresh) await fetchChapterCast(selectedId);
+  };
+
+  const removeCastMember = async (entry: ChapterCastEntry) => {
+    const response = await fetch(`/api/chapter-characters?chapterId=${entry.chapterId}&characterId=${entry.characterId}`, { method: 'DELETE' });
+    if (response.ok && selectedId) await fetchChapterCast(selectedId);
+  };
+
+  const moveCastMember = async (entry: ChapterCastEntry, direction: -1 | 1) => {
+    const group = chapterCast.filter(item => item.participation === entry.participation).sort((a, b) => a.order - b.order);
+    const index = group.findIndex(item => item.characterId === entry.characterId);
+    const other = group[index + direction];
+    if (!other) return;
+    await Promise.all([updateCastMember(entry, { order: other.order }, false), updateCastMember(other, { order: entry.order }, false)]);
+    if (selectedId) await fetchChapterCast(selectedId);
   };
 
   const handleCreate = async () => {
@@ -652,6 +704,34 @@ ${semanticContext ? `【感情・章構成の指定】\n${semanticContext}\n\n` 
                   <div className="md:col-span-2"><label className="block text-[10px] text-muted-foreground mb-1">章末メモ</label><Textarea value={editEndingNotes} onChange={e => setEditEndingNotes(e.target.value)} rows={2} className="text-xs resize-none" placeholder="余韻、発見、静かな終了など。未設定時は章末フックまたは内容から判断" /></div>
                 </div>
 
+                <div className="rounded-lg border border-border/60 bg-secondary/10 p-3 space-y-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div><p className="text-xs font-medium text-foreground">章の登場人物</p><p className="text-[10px] text-muted-foreground">POVは上の視点人物設定を使用し、ここには二重保存しません。</p></div>
+                    <div className="flex items-center gap-1">
+                      <select value={castCharacterId} onChange={e => setCastCharacterId(e.target.value)} className="h-8 max-w-44 px-2 bg-secondary border border-input rounded text-xs"><option value="">人物を選択</option>{projectCharacters.filter(character => !chapterCast.some(entry => entry.characterId === character.id)).map(character => <option key={character.id} value={character.id}>{character.name}</option>)}</select>
+                      <Button type="button" size="sm" variant="outline" className="h-8 text-xs" onClick={() => addCastMember('present')} disabled={!castCharacterId}><Plus size={12} className="mr-1" />登場</Button>
+                      <Button type="button" size="sm" variant="outline" className="h-8 text-xs" onClick={() => addCastMember('mentioned')} disabled={!castCharacterId}>言及</Button>
+                    </div>
+                  </div>
+                  {chapterCast.length === 0 && <p className="text-xs text-muted-foreground rounded bg-secondary/40 px-3 py-2">登場人物は章タイトル・詳細プロット・要約から自動判定されます。</p>}
+                  {(['present', 'mentioned'] as const).map(participation => {
+                    const entries = chapterCast.filter(entry => entry.participation === participation).sort((a, b) => a.order - b.order);
+                    if (entries.length === 0) return null;
+                    return <div key={participation} className="space-y-1.5">
+                      <p className="text-[10px] font-medium text-muted-foreground">{participation === 'present' ? '登場人物' : '言及のみ'}</p>
+                      {entries.map((entry, index) => {
+                        const resolvedPovId = editPovCharacterId || projectDefaultPovCharacterId;
+                        return <div key={entry.characterId} className="grid grid-cols-[minmax(90px,auto)_110px_1fr_auto] items-center gap-2 rounded bg-secondary/40 px-2 py-1.5">
+                          <div className="flex items-center gap-1 text-xs font-medium"><span>{entry.character.name}</span>{entry.characterId === resolvedPovId && <Badge variant="outline" className="text-[9px] px-1 py-0">POV</Badge>}</div>
+                          <select value={entry.participation} onChange={e => updateCastMember(entry, { participation: e.target.value as 'present' | 'mentioned' })} className="h-7 px-2 bg-secondary border border-input rounded text-[11px]"><option value="present">登場人物</option><option value="mentioned">言及のみ</option></select>
+                          <Input value={entry.notes} onChange={e => setChapterCast(current => current.map(item => item.characterId === entry.characterId ? { ...item, notes: e.target.value } : item))} onBlur={() => updateCastMember(entry, { notes: chapterCast.find(item => item.characterId === entry.characterId)?.notes || '' })} placeholder="補足（途中から登場、電話越しなど）" className="h-7 text-[11px]" />
+                          <div className="flex"><button type="button" onClick={() => moveCastMember(entry, -1)} disabled={index === 0} className="p-1 text-muted-foreground disabled:opacity-20"><ArrowUp size={12} /></button><button type="button" onClick={() => moveCastMember(entry, 1)} disabled={index === entries.length - 1} className="p-1 text-muted-foreground disabled:opacity-20"><ArrowDown size={12} /></button><button type="button" onClick={() => removeCastMember(entry)} className="p-1 text-muted-foreground hover:text-destructive"><X size={12} /></button></div>
+                        </div>;
+                      })}
+                    </div>;
+                  })}
+                </div>
+
                 {/* Chapter Outline */}
                 <div>
                   <button
@@ -792,6 +872,7 @@ ${semanticContext ? `【感情・章構成の指定】\n${semanticContext}\n\n` 
                   chapterPurpose={editPurpose || editOutline}
                   povCharacterId={editPovCharacterId}
                   endingNotes={editEndingNotes}
+                  chapterId={selectedId || undefined}
                 />
               )}
               {sidePanel === 'adversarial' && !selectedChapter && (

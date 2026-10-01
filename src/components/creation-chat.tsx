@@ -235,6 +235,7 @@ function SidePanel({ type, onClose, projectId }: {
               chapterPurpose={chapter.purpose || chapter.outlineContent}
               povCharacterId={chapter.povCharacterId || ''}
               endingNotes={chapter.endingNotes || ''}
+              chapterId={chapter.id}
             />
           </div>
         )}

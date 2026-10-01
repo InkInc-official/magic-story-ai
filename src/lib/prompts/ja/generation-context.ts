@@ -31,6 +31,14 @@ export interface GenerationRelationship {
   toCharacter?: { name: string };
 }
 
+export interface GenerationChapterCharacter {
+  characterId: string;
+  participation: 'present' | 'mentioned';
+  notes?: string;
+  order: number;
+  character: GenerationCharacter;
+}
+
 export function buildCharacterVoiceContext(
   characters: GenerationCharacter[],
   relationships: GenerationRelationship[],
@@ -143,6 +151,7 @@ export interface ChapterGenerationSource {
   latestOutline?: string;
   characters: GenerationCharacter[];
   relationships: GenerationRelationship[];
+  chapterCharacters?: GenerationChapterCharacter[];
   worldSettings: GenerationWorldSetting[];
   scenes: GenerationScene[];
   foreshadowings: GenerationForeshadowing[];
@@ -185,12 +194,34 @@ export function buildChapterWritingInstructions(source: ChapterGenerationSource)
 const includesAny = (text: string, values: string[]) => values.some(value => value && text.includes(value));
 const compact = (value?: string, limit = 1200) => value?.trim().slice(0, limit) || '';
 
+export function selectChapterCast(source: ChapterGenerationSource) {
+  const chapterText = `${source.title}\n${source.outline}\n${source.summary}`;
+  const resolvedPov = resolveChapterWritingSettings(source).povCharacter;
+  const explicitEntries = source.chapterCharacters || [];
+  if (explicitEntries.length === 0) {
+    const namedCharacters = source.characters.filter(character => chapterText.includes(character.name));
+    const mainCharacters = source.characters.filter(character => ['主角', '女主'].includes(character.role));
+    const fullCharacters = [...new Map([...namedCharacters, ...(resolvedPov ? [resolvedPov] : []), ...mainCharacters].map(character => [character.id, character])).values()].slice(0, 8);
+    return { explicit: false, resolvedPov, fullCharacters, compactPresent: [] as GenerationChapterCharacter[], mentioned: [] as GenerationChapterCharacter[] };
+  }
+
+  const sortEntries = (a: GenerationChapterCharacter, b: GenerationChapterCharacter) => {
+    const aNamed = chapterText.includes(a.character.name) ? 1 : 0;
+    const bNamed = chapterText.includes(b.character.name) ? 1 : 0;
+    return bNamed - aNamed || a.order - b.order;
+  };
+  const present = explicitEntries.filter(entry => entry.participation === 'present').sort(sortEntries);
+  const mentioned = explicitEntries.filter(entry => entry.participation === 'mentioned').sort((a, b) => a.order - b.order);
+  const fullCharacters = [...new Map([...(resolvedPov ? [resolvedPov] : []), ...present.map(entry => entry.character)].map(character => [character.id, character])).values()].slice(0, 8);
+  const fullIds = new Set(fullCharacters.map(character => character.id));
+  return { explicit: true, resolvedPov, fullCharacters, compactPresent: present.filter(entry => !fullIds.has(entry.characterId)), mentioned };
+}
+
 export function buildChapterGenerationContext(source: ChapterGenerationSource): string {
   const chapterText = `${source.title}\n${source.outline}\n${source.summary}`;
-  const namedCharacters = source.characters.filter(character => chapterText.includes(character.name));
-  const mainCharacters = source.characters.filter(character => ['主角', '女主'].includes(character.role));
-  const resolvedPov = resolveChapterWritingSettings(source).povCharacter;
-  const selectedCharacters = [...new Map([...namedCharacters, ...(resolvedPov ? [resolvedPov] : []), ...mainCharacters].map(character => [character.id, character])).values()].slice(0, 8);
+  const cast = selectChapterCast(source);
+  const resolvedPov = cast.resolvedPov;
+  const selectedCharacters = cast.fullCharacters;
   const selectedIds = new Set(selectedCharacters.map(character => character.id));
   const selectedRelationships = source.relationships
     .filter(relation => selectedIds.has(relation.fromCharacterId) && selectedIds.has(relation.toCharacterId))
@@ -235,13 +266,28 @@ export function buildChapterGenerationContext(source: ChapterGenerationSource): 
     sections.push(`【直前の章】\nタイトル：${source.previousChapter.title}\n要約：${compact(source.previousChapter.summary, 800) || '未設定'}\n末尾：${compact(source.previousChapter.content.slice(-1800), 1800) || '本文なし'}`);
   }
   if (selectedCharacters.length > 0) {
-    sections.push(`【関連人物】\n${selectedCharacters.map(character =>
+    sections.push(`【${cast.explicit ? '登場人物（明示キャスト＋POV）' : '関連人物'}】\n${selectedCharacters.map(character =>
       `- ${character.name}（${formatSemanticLabel('characterRole', character.role)}）` +
       `${character.age ? `／年齢：${character.age}` : ''}` +
       `${character.personality ? `\n  性格・話し方の手掛かり：${compact(character.personality, 500)}` : ''}` +
       `${character.background ? `\n  背景：${compact(character.background, 500)}` : ''}` +
       `${character.arc ? `\n  人物の変化：${compact(character.arc, 400)}` : ''}`
     ).join('\n')}`);
+  }
+  if (cast.explicit && cast.compactPresent.length > 0) {
+    sections.push(`【その他の明示登場人物（簡略）】\n${cast.compactPresent.map(entry =>
+      `- ${entry.character.name}（${formatSemanticLabel('characterRole', entry.character.role)}）${entry.notes ? `：${compact(entry.notes, 300)}` : ''}`
+    ).join('\n')}`);
+  }
+  if (cast.explicit && cast.mentioned.length > 0) {
+    sections.push(`【言及のみの人物】\n${cast.mentioned.map(entry =>
+      `- ${entry.character.name}（${formatSemanticLabel('characterRole', entry.character.role)}）${entry.notes ? `：${compact(entry.notes, 300)}` : ''}\n  現在場面の参加人物として扱わず、回想・噂・記録など章の文脈に沿って言及する。`
+    ).join('\n')}`);
+  }
+  if (cast.explicit) {
+    const fullIds = new Set(cast.fullCharacters.map(character => character.id));
+    const notes = (source.chapterCharacters || []).filter(entry => fullIds.has(entry.characterId) && entry.notes?.trim());
+    if (notes.length > 0) sections.push(`【章キャスト補足】\n${notes.map(entry => `- ${entry.character.name}：${compact(entry.notes, 400)}`).join('\n')}`);
   }
   if (selectedRelationships.length > 0) {
     sections.push(`【人物関係】\n${selectedRelationships.map(relation =>
