@@ -25,6 +25,7 @@ export interface StoryFactContext {
   chapterId: string;
   chapterOrder: number;
   chapterText: string;
+  forceRelevantFactIds?: ReadonlySet<string>;
 }
 
 export function validateStoryFactInput(value: Record<string, unknown>, partial = false): string | null {
@@ -59,14 +60,15 @@ export function isStoryFactRelevant(fact: StoryFactValue, chapterText: string): 
 }
 
 export function classifyStoryFact(fact: StoryFactValue, context: StoryFactContext): StoryFactAudience {
-  if (fact.readerInitiallyKnows) return isStoryFactRelevant(fact, context.chapterText) ? 'reader-known' : 'excluded';
+  const forcedRelevant = context.forceRelevantFactIds?.has(fact.id) || false;
+  if (fact.readerInitiallyKnows) return forcedRelevant || isStoryFactRelevant(fact, context.chapterText) ? 'reader-known' : 'excluded';
   const revealedOrder = fact.revealedChapter?.order;
   if (typeof revealedOrder === 'number' && revealedOrder < context.chapterOrder) {
-    return isStoryFactRelevant(fact, context.chapterText) || revealedOrder === context.chapterOrder - 1 ? 'reader-known' : 'excluded';
+    return forcedRelevant || isStoryFactRelevant(fact, context.chapterText) || revealedOrder === context.chapterOrder - 1 ? 'reader-known' : 'excluded';
   }
   if (fact.revealedChapterId === context.chapterId || fact.plannedRevealChapterId === context.chapterId) return 'reveal-now';
 
-  const relevantByText = isStoryFactRelevant(fact, context.chapterText);
+  const relevantByText = forcedRelevant || isStoryFactRelevant(fact, context.chapterText);
   const plannedOrder = fact.plannedRevealChapter?.order;
   const nearPlannedReveal = typeof plannedOrder === 'number'
     && plannedOrder > context.chapterOrder

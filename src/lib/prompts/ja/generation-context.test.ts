@@ -76,4 +76,41 @@ describe('buildChapterGenerationContext integration', () => {
     assert.ok(context.includes('本文で直接明かさず'));
     assert.ok(!context.includes('北方の姫は生存している'));
   });
+
+  test('keeps hidden truth separate from POV unknown, suspicion, false belief and knowledge', () => {
+    const hiddenFact = { id: 'secret', content: '人物0の父は禁域で生存している', importance: 'high', readerInitiallyKnows: false };
+    const build = (status?: string, beliefNotes = '') => buildChapterGenerationContext(source({
+      storyFacts: [hiddenFact],
+      characterKnowledge: status ? [{ id: 'k', factId: 'secret', characterId: 'c0', status, effectiveChapterId: null, beliefNotes }] : [],
+    }));
+    assert.ok(build().includes('内面や台詞で確定事実として扱わない'));
+    assert.ok(build('suspects', '父の痕跡を疑う').includes('確定していない疑い'));
+    const falseBelief = build('believes_false', '父は十年前に死亡したと信じている');
+    assert.ok(falseBelief.includes('父は十年前に死亡'));
+    assert.ok(falseBelief.includes('作者の真実を人物の認識へ漏らさない'));
+    assert.ok(build('knows').includes('真実として知っている'));
+  });
+
+  test('separates current changes, excludes future events and includes present non-POV knowledge', () => {
+    const context = buildChapterGenerationContext(source({
+      storyFacts: [
+        { id: 'current-fact', content: '遠い王国の王は偽物である', importance: 'high', readerInitiallyKnows: false },
+        { id: 'related', content: '人物0の父は禁域で生存している', importance: 'high', readerInitiallyKnows: false },
+        { id: 'unrelated', content: '北方の姫は生存している', importance: 'high', readerInitiallyKnows: false },
+      ],
+      characterKnowledge: [
+        { id: 'current', factId: 'current-fact', characterId: 'c0', status: 'suspects', effectiveChapterId: 'chapter', effectiveChapter: { id: 'chapter', order: 10 }, beliefNotes: '章中に王の正体を疑う' },
+        { id: 'future', factId: 'related', characterId: 'c0', status: 'knows', effectiveChapterId: 'future', effectiveChapter: { id: 'future', order: 11 }, beliefNotes: '未来だけの印' },
+        { id: 'present', factId: 'related', characterId: 'c1', status: 'suspects', effectiveChapterId: null, beliefNotes: '人物1は父の生存を疑う' },
+        { id: 'unrelated-past', factId: 'unrelated', characterId: 'c0', status: 'knows', effectiveChapterId: null, beliefNotes: '非関連の知識' },
+      ],
+    }));
+    assert.ok(context.length <= 18_000);
+    assert.ok(context.includes('この章で予定されている認識変化'));
+    assert.ok(context.includes('章中に王の正体を疑う'));
+    assert.ok(context.includes('人物1は父の生存を疑う'));
+    assert.ok(!context.includes('未来だけの印'));
+    assert.ok(!context.includes('非関連の知識'));
+    assert.ok(!context.includes('北方の姫は生存している'));
+  });
 });

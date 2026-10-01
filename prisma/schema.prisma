@@ -101,6 +101,7 @@ model Character {
   defaultPovForProjects Project[] @relation("ProjectDefaultPov")
   povChapters Chapter[] @relation("ChapterPov")
   chapterCharacters ChapterCharacter[]
+  knowledgeEvents CharacterKnowledge[]
 
   @@schema("magic_story")
 }
@@ -224,6 +225,7 @@ model Chapter {
   chapterCharacters ChapterCharacter[]
   plannedStoryFacts StoryFact[] @relation("PlannedFactReveal")
   revealedStoryFacts StoryFact[] @relation("ActualFactReveal")
+  knowledgeChanges CharacterKnowledge[]
 
   @@index([povCharacterId])
   @@schema("magic_story")
@@ -288,10 +290,32 @@ model StoryFact {
   project              Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
   plannedRevealChapter Chapter? @relation("PlannedFactReveal", fields: [plannedRevealChapterId], references: [id], onDelete: SetNull)
   revealedChapter      Chapter? @relation("ActualFactReveal", fields: [revealedChapterId], references: [id], onDelete: SetNull)
+  characterKnowledge   CharacterKnowledge[]
 
   @@index([projectId])
   @@index([plannedRevealChapterId])
   @@index([revealedChapterId])
+  @@schema("magic_story")
+}
+
+model CharacterKnowledge {
+  id                 String   @id @default(cuid())
+  factId             String
+  characterId        String
+  status             String
+  effectiveChapterId String?
+  beliefNotes        String   @default("")
+  notes              String   @default("")
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  fact             StoryFact @relation(fields: [factId], references: [id], onDelete: Cascade)
+  character        Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  effectiveChapter Chapter?  @relation(fields: [effectiveChapterId], references: [id], onDelete: Cascade)
+
+  @@index([factId])
+  @@index([characterId])
+  @@index([effectiveChapterId])
   @@schema("magic_story")
 }
 

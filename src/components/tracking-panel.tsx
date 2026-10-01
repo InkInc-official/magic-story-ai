@@ -47,6 +47,19 @@ interface StoryFactEntry {
   revealedChapter?: ChapterInfo | null;
 }
 
+interface KnowledgeCharacter { id: string; name: string }
+interface CharacterKnowledgeEntry {
+  id: string;
+  factId: string;
+  characterId: string;
+  status: 'knows' | 'suspects' | 'believes_false';
+  effectiveChapterId: string | null;
+  beliefNotes: string;
+  notes: string;
+  character: KnowledgeCharacter;
+  effectiveChapter?: ChapterInfo | null;
+}
+
 interface TrackingPanelProps {
   projectId: string;
 }
@@ -71,11 +84,19 @@ const IMPORTANCE_LEVELS = [
   { value: 'low', label: '低', color: 'text-muted-foreground' },
 ];
 
+const KNOWLEDGE_STATUSES = [
+  { value: 'knows', label: '真実を知っている' },
+  { value: 'suspects', label: '疑っている' },
+  { value: 'believes_false', label: '誤った内容を信じている' },
+];
+
 export function TrackingPanel({ projectId }: TrackingPanelProps) {
   const [storyStates, setStoryStates] = useState<StoryStateEntry[]>([]);
   const [foreshadowings, setForeshadowings] = useState<ForeshadowingEntry[]>([]);
   const [chapters, setChapters] = useState<ChapterInfo[]>([]);
   const [storyFacts, setStoryFacts] = useState<StoryFactEntry[]>([]);
+  const [knowledgeCharacters, setKnowledgeCharacters] = useState<KnowledgeCharacter[]>([]);
+  const [knowledgeEvents, setKnowledgeEvents] = useState<CharacterKnowledgeEntry[]>([]);
   const [activeTab, setActiveTab] = useState('character_state');
 
   // Create forms
@@ -89,14 +110,20 @@ export function TrackingPanel({ projectId }: TrackingPanelProps) {
   const [isCreatingFact, setIsCreatingFact] = useState(false);
   const [editingFactId, setEditingFactId] = useState<string | null>(null);
   const [factForm, setFactForm] = useState(emptyFactForm);
+  const emptyKnowledgeForm = { characterId: '', status: 'knows', effectiveChapterId: '', beliefNotes: '', notes: '' };
+  const [expandedFactId, setExpandedFactId] = useState<string | null>(null);
+  const [editingKnowledgeId, setEditingKnowledgeId] = useState<string | null>(null);
+  const [knowledgeForm, setKnowledgeForm] = useState(emptyKnowledgeForm);
 
   const fetchData = useCallback(async () => {
     try {
-      const [statesRes, foreshadowRes, chaptersRes, factsRes] = await Promise.all([
+      const [statesRes, foreshadowRes, chaptersRes, factsRes, charactersRes, knowledgeRes] = await Promise.all([
         fetch(`/api/story-states?projectId=${projectId}`),
         fetch(`/api/foreshadowings?projectId=${projectId}`),
         fetch(`/api/chapters?projectId=${projectId}`),
         fetch(`/api/story-facts?projectId=${projectId}`),
+        fetch(`/api/characters?projectId=${projectId}`),
+        fetch(`/api/character-knowledge?projectId=${projectId}`),
       ]);
 
       if (statesRes.ok) {
@@ -112,6 +139,8 @@ export function TrackingPanel({ projectId }: TrackingPanelProps) {
         setChapters(data.map((c: { id: string; order: number; title: string }) => ({ id: c.id, order: c.order, title: c.title })));
       }
       if (factsRes.ok) setStoryFacts(await factsRes.json());
+      if (charactersRes.ok) setKnowledgeCharacters((await charactersRes.json()).characters || []);
+      if (knowledgeRes.ok) setKnowledgeEvents(await knowledgeRes.json());
     } catch (e) {
       console.error('Failed to fetch tracking data:', e);
     }
@@ -222,6 +251,25 @@ export function TrackingPanel({ projectId }: TrackingPanelProps) {
     setEditingFactId(fact.id);
     setIsCreatingFact(false);
     setFactForm({ content: fact.content, importance: fact.importance, readerInitiallyKnows: fact.readerInitiallyKnows, plannedRevealChapterId: fact.plannedRevealChapterId || '', revealedChapterId: fact.revealedChapterId || '', notes: fact.notes });
+  };
+
+  const handleSaveKnowledge = async (factId: string) => {
+    if (!knowledgeForm.characterId) return;
+    const response = await fetch('/api/character-knowledge', {
+      method: editingKnowledgeId ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...(editingKnowledgeId ? { id: editingKnowledgeId } : {}), projectId, factId, ...knowledgeForm, effectiveChapterId: knowledgeForm.effectiveChapterId || null }),
+    });
+    if (response.ok) { await fetchData(); setEditingKnowledgeId(null); setKnowledgeForm(emptyKnowledgeForm); }
+  };
+
+  const startEditingKnowledge = (event: CharacterKnowledgeEntry) => {
+    setEditingKnowledgeId(event.id);
+    setKnowledgeForm({ characterId: event.characterId, status: event.status, effectiveChapterId: event.effectiveChapterId || '', beliefNotes: event.beliefNotes, notes: event.notes });
+  };
+
+  const handleDeleteKnowledge = async (id: string) => {
+    const response = await fetch(`/api/character-knowledge?id=${id}&projectId=${projectId}`, { method: 'DELETE' });
+    if (response.ok) await fetchData();
   };
 
   const getStatusInfo = (status: string) => FORESHADOW_STATUSES.find(s => s.value === status) || FORESHADOW_STATUSES[0];
@@ -624,6 +672,41 @@ export function TrackingPanel({ projectId }: TrackingPanelProps) {
                         <Button variant="ghost" size="sm" onClick={() => startEditingFact(fact)} className="h-7 w-7 p-0"><Edit3 size={12} /></Button>
                         <Button variant="ghost" size="sm" onClick={() => handleDeleteFact(fact.id)} className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"><Trash2 size={12} /></Button>
                       </div>
+                    </div>
+                    <div className="mt-3 pt-3 border-t border-border/50">
+                      <Button variant="ghost" size="sm" onClick={() => { setExpandedFactId(expandedFactId === fact.id ? null : fact.id); setEditingKnowledgeId(null); setKnowledgeForm(emptyKnowledgeForm); }}>
+                        人物の認識 {knowledgeEvents.filter(event => event.factId === fact.id).length}件 {expandedFactId === fact.id ? '▲' : '▼'}
+                      </Button>
+                      {expandedFactId === fact.id && (
+                        <div className="mt-3 space-y-3">
+                          <div className="space-y-2">
+                            {knowledgeEvents.filter(event => event.factId === fact.id).sort((a, b) => {
+                              const aOrder = a.effectiveChapter?.order ?? -1;
+                              const bOrder = b.effectiveChapter?.order ?? -1;
+                              return a.character.name.localeCompare(b.character.name, 'ja') || aOrder - bOrder;
+                            }).map(event => (
+                              <div key={event.id} className="rounded border border-border/50 p-2 text-xs">
+                                <div className="flex items-center justify-between gap-2">
+                                  <div><span className="font-medium text-foreground">{event.character.name}</span> ／ {event.effectiveChapter ? `第${event.effectiveChapter.order + 1}章で変化` : '物語開始時'} ／ {KNOWLEDGE_STATUSES.find(status => status.value === event.status)?.label}</div>
+                                  <div className="flex gap-1"><Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => startEditingKnowledge(event)}><Edit3 size={11} /></Button><Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-destructive" onClick={() => handleDeleteKnowledge(event.id)}><Trash2 size={11} /></Button></div>
+                                </div>
+                                {event.beliefNotes && <p className="mt-1 text-muted-foreground">誤認・推測内容: {event.beliefNotes}</p>}
+                                {event.notes && <p className="mt-1 text-muted-foreground">作者メモ: {event.notes}</p>}
+                              </div>
+                            ))}
+                          </div>
+                          <div className="rounded border border-primary/20 p-3 space-y-2">
+                            <div className="grid grid-cols-2 gap-2">
+                              <div><label className="block text-xs text-muted-foreground mb-1">人物</label><select value={knowledgeForm.characterId} onChange={e => setKnowledgeForm(current => ({ ...current, characterId: e.target.value }))} className="w-full h-8 px-2 bg-secondary border border-input rounded text-xs text-foreground"><option value="">人物を選択</option>{knowledgeCharacters.map(character => <option key={character.id} value={character.id}>{character.name}</option>)}</select></div>
+                              <div><label className="block text-xs text-muted-foreground mb-1">認識状態</label><select value={knowledgeForm.status} onChange={e => setKnowledgeForm(current => ({ ...current, status: e.target.value }))} className="w-full h-8 px-2 bg-secondary border border-input rounded text-xs text-foreground">{KNOWLEDGE_STATUSES.map(status => <option key={status.value} value={status.value}>{status.label}</option>)}</select></div>
+                            </div>
+                            <div><label className="block text-xs text-muted-foreground mb-1">認識が変わる章</label><select value={knowledgeForm.effectiveChapterId} onChange={e => setKnowledgeForm(current => ({ ...current, effectiveChapterId: e.target.value }))} className="w-full h-8 px-2 bg-secondary border border-input rounded text-xs text-foreground"><option value="">物語開始時</option>{chapters.map(chapter => <option key={chapter.id} value={chapter.id}>第{chapter.order + 1}章: {chapter.title || '無題'}</option>)}</select><p className="mt-1 text-[11px] text-muted-foreground">選択した章の中で認識が変化します。章開始時点の状態ではありません。</p></div>
+                            <div><label className="block text-xs text-muted-foreground mb-1">誤認・推測内容{knowledgeForm.status === 'believes_false' ? '（必須）' : ''}</label><Textarea value={knowledgeForm.beliefNotes} onChange={e => setKnowledgeForm(current => ({ ...current, beliefNotes: e.target.value }))} rows={2} className="text-xs resize-none" placeholder={knowledgeForm.status === 'believes_false' ? '例：健一が犯人だと確信している' : '疑う理由など（任意）'} /></div>
+                            <div><label className="block text-xs text-muted-foreground mb-1">作者メモ</label><Textarea value={knowledgeForm.notes} onChange={e => setKnowledgeForm(current => ({ ...current, notes: e.target.value }))} rows={2} className="text-xs resize-none" /></div>
+                            <div className="flex gap-2"><Button size="sm" onClick={() => handleSaveKnowledge(fact.id)} disabled={!knowledgeForm.characterId || (knowledgeForm.status === 'believes_false' && !knowledgeForm.beliefNotes.trim())}><Save size={12} className="mr-1" />{editingKnowledgeId ? '更新' : '認識を追加'}</Button>{editingKnowledgeId && <Button size="sm" variant="ghost" onClick={() => { setEditingKnowledgeId(null); setKnowledgeForm(emptyKnowledgeForm); }}>キャンセル</Button>}</div>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </CardContent>
                 </Card>;

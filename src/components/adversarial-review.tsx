@@ -10,6 +10,7 @@ import { Loader2, Swords, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { buildCharacterVoiceContext, buildContextWithinBudget, formatSemanticLabel, type ContextEntry, type GenerationChapterCharacter, type GenerationCharacter, type GenerationRelationship } from '@/lib/prompts/ja';
 import { displayLabel, NARRATIVE_PERSPECTIVE_LABELS } from '@/lib/i18n';
 import { buildStoryFactContextEntries, STORY_FACT_REVIEW_GUIDANCE, type StoryFactValue } from '@/lib/story-facts';
+import { buildCharacterKnowledgeContextEntries, CHARACTER_KNOWLEDGE_REVIEW_GUIDANCE, type CharacterKnowledgeEvent } from '@/lib/character-knowledge';
 
 interface ReviewResult {
   perspective: string;
@@ -59,12 +60,13 @@ export function AdversarialReviewPanel({ content, chapterTitle, projectId, chapt
     let projectContext = '';
     if (projectId) {
       try {
-        const [response, characterResponse, castResponse, factsResponse, chaptersResponse] = await Promise.all([
+        const [response, characterResponse, castResponse, factsResponse, chaptersResponse, knowledgeResponse] = await Promise.all([
           fetch('/api/projects'),
           fetch(`/api/characters?projectId=${projectId}`),
           chapterId ? fetch(`/api/chapter-characters?chapterId=${chapterId}`) : Promise.resolve(null),
           fetch(`/api/story-facts?projectId=${projectId}`),
           fetch(`/api/chapters?projectId=${projectId}`),
+          fetch(`/api/character-knowledge?projectId=${projectId}`),
         ]);
         if (response.ok) {
           const projects = await response.json() as Array<{ id: string; title: string; genre: string; description: string; narrativePerspective?: string | null; defaultPovCharacterId?: string | null; writingStyleNotes?: string }>;
@@ -73,6 +75,7 @@ export function AdversarialReviewPanel({ content, chapterTitle, projectId, chapt
           const explicitCast = castResponse?.ok ? await castResponse.json() as GenerationChapterCharacter[] : [];
           const storyFacts = factsResponse.ok ? await factsResponse.json() as StoryFactValue[] : [];
           const chapters = chaptersResponse.ok ? await chaptersResponse.json() as Array<{ id: string; order: number }> : [];
+          const knowledgeEvents = knowledgeResponse.ok ? await knowledgeResponse.json() as CharacterKnowledgeEvent[] : [];
           const resolvedPovId = povCharacterId || project?.defaultPovCharacterId;
           const povName = characterData.characters?.find(character => character.id === resolvedPovId)?.name;
           const presentIds = new Set(explicitCast.filter(entry => entry.participation === 'present').map(entry => entry.characterId));
@@ -94,11 +97,15 @@ export function AdversarialReviewPanel({ content, chapterTitle, projectId, chapt
             if (castContext) reviewEntries.push({ id: 'review-cast', tier: 1, relevance: 90, full: `【明示章キャスト】\n${castContext}`, compact: `【明示章キャスト】\n${castContext.split('\n').slice(0, 2).join('\n')}` });
             const currentChapter = chapters.find(chapter => chapter.id === chapterId);
             if (chapterId && currentChapter) {
-              reviewEntries.push(...buildStoryFactContextEntries(storyFacts, { chapterId, chapterOrder: currentChapter.order, chapterText: `${chapterTitle}\n${chapterPurpose || ''}\n${content}` }));
+              const currentKnowledgeFactIds = new Set(knowledgeEvents.filter(event => event.effectiveChapterId === chapterId).map(event => event.factId));
+              const factContext = { chapterId, chapterOrder: currentChapter.order, chapterText: `${chapterTitle}\n${chapterPurpose || ''}\n${content}`, forceRelevantFactIds: currentKnowledgeFactIds };
+              reviewEntries.push(...buildStoryFactContextEntries(storyFacts, factContext));
+              reviewEntries.push(...buildCharacterKnowledgeContextEntries({ facts: storyFacts, events: knowledgeEvents, characters: reviewCharacters, factContext, povCharacterId: resolvedPovId, perspective: project.narrativePerspective }));
               if (storyFacts.length > 0) reviewEntries.push({
                 id: 'review-fact-boundary', tier: 1, relevance: 146,
                 full: `【事実開示の確認方針】\n${STORY_FACT_REVIEW_GUIDANCE}`,
               });
+              if (knowledgeEvents.length > 0) reviewEntries.push({ id: 'review-knowledge-boundary', tier: 1, relevance: 147, full: `【人物認識の確認方針】\n${CHARACTER_KNOWLEDGE_REVIEW_GUIDANCE}` });
             }
             projectContext = buildContextWithinBudget(reviewEntries, 8_000).text;
           }

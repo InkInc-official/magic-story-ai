@@ -4,6 +4,7 @@ import { displayLabel, NARRATIVE_PERSPECTIVE_LABELS, SPEECH_REGISTER_LABELS } fr
 import { resolveDirectedVoice, shouldUseNarrationVoice } from '@/lib/character-voice';
 import { buildContextWithinBudget, safeContextExcerpt, type ContextEntry } from './context-budget';
 import { buildStoryFactContextEntries, type StoryFactValue } from '@/lib/story-facts';
+import { buildCharacterKnowledgeContextEntries, type CharacterKnowledgeEvent } from '@/lib/character-knowledge';
 
 export interface GenerationCharacter {
   id: string;
@@ -162,6 +163,7 @@ export interface ChapterGenerationSource {
   storyNodes: GenerationStoryNode[];
   storyEdges: GenerationStoryEdge[];
   storyFacts?: StoryFactValue[];
+  characterKnowledge?: CharacterKnowledgeEvent[];
 }
 
 export function resolveChapterWritingSettings(source: ChapterGenerationSource) {
@@ -347,10 +349,23 @@ export function buildChapterGenerationContext(source: ChapterGenerationSource): 
     compact: `【未回収・関連伏線】\n- ${safeContextExcerpt(item.content, 300)}（重要度：${item.importance}）`, minimum: `【関連伏線】${safeContextExcerpt(item.content, 140)}` }));
   selectedStates.forEach((state, index) => entries.push({ id: `state:${state.chapterId}:${index}`, tier: 2, relevance: state.chapterId === source.chapterId ? 120 - index : 80 - index,
     full: `【直近の物語状態】\n- ${state.type}：${safeContextExcerpt(state.data, 900)}`, compact: `【直近の物語状態】\n- ${state.type}：${safeContextExcerpt(state.data, 400)}`, minimum: `【物語状態】${state.type}：${safeContextExcerpt(state.data, 150)}` }));
-  entries.push(...buildStoryFactContextEntries(source.storyFacts || [], {
+  const knowledgeEvents = source.characterKnowledge || [];
+  const currentKnowledgeFactIds = new Set(knowledgeEvents.filter(event => event.effectiveChapterId === source.chapterId).map(event => event.factId));
+  const factContext = {
     chapterId: source.chapterId,
     chapterOrder: source.chapterOrder,
     chapterText,
+    forceRelevantFactIds: currentKnowledgeFactIds,
+  };
+  entries.push(...buildStoryFactContextEntries(source.storyFacts || [], factContext));
+  const knowledgeCharacters = [...new Map([
+    ...selectedCharacters,
+    ...cast.compactPresent.map(entry => entry.character),
+    ...cast.mentioned.filter(entry => knowledgeEvents.some(event => event.characterId === entry.characterId && event.effectiveChapterId === source.chapterId)).map(entry => entry.character),
+  ].map(character => [character.id, character])).values()];
+  entries.push(...buildCharacterKnowledgeContextEntries({
+    facts: source.storyFacts || [], events: knowledgeEvents, characters: knowledgeCharacters,
+    factContext, povCharacterId: resolvedPov?.id, perspective: source.project?.narrativePerspective,
   }));
   if (source.latestOutline) entries.push({ id: 'overall-plot', tier: 3, relevance: 30, full: `【全体プロット】\n${safeContextExcerpt(source.latestOutline, 3000)}`, compact: `【全体プロット】\n${safeContextExcerpt(source.latestOutline, 1200)}`, minimum: `【全体プロット要点】\n${safeContextExcerpt(source.latestOutline, 400)}` });
   selectedNodes.forEach((node, index) => entries.push({ id: `node:${node.id}`, tier: 3, relevance: 20 - index, full: `【関連タイムライン／物語ノード】\n- ${node.title}：${safeContextExcerpt(node.description || '', 500)}`, compact: `【関連物語ノード】${node.title}：${safeContextExcerpt(node.description || '', 220)}`, minimum: `【関連物語ノード】${node.title}` }));
