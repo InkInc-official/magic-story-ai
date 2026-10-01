@@ -9,6 +9,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Loader2, Swords, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { buildCharacterVoiceContext, buildContextWithinBudget, formatSemanticLabel, type ContextEntry, type GenerationChapterCharacter, type GenerationCharacter, type GenerationRelationship } from '@/lib/prompts/ja';
 import { displayLabel, NARRATIVE_PERSPECTIVE_LABELS } from '@/lib/i18n';
+import { buildStoryFactContextEntries, STORY_FACT_REVIEW_GUIDANCE, type StoryFactValue } from '@/lib/story-facts';
 
 interface ReviewResult {
   perspective: string;
@@ -58,12 +59,20 @@ export function AdversarialReviewPanel({ content, chapterTitle, projectId, chapt
     let projectContext = '';
     if (projectId) {
       try {
-        const [response, characterResponse, castResponse] = await Promise.all([fetch('/api/projects'), fetch(`/api/characters?projectId=${projectId}`), chapterId ? fetch(`/api/chapter-characters?chapterId=${chapterId}`) : Promise.resolve(null)]);
+        const [response, characterResponse, castResponse, factsResponse, chaptersResponse] = await Promise.all([
+          fetch('/api/projects'),
+          fetch(`/api/characters?projectId=${projectId}`),
+          chapterId ? fetch(`/api/chapter-characters?chapterId=${chapterId}`) : Promise.resolve(null),
+          fetch(`/api/story-facts?projectId=${projectId}`),
+          fetch(`/api/chapters?projectId=${projectId}`),
+        ]);
         if (response.ok) {
           const projects = await response.json() as Array<{ id: string; title: string; genre: string; description: string; narrativePerspective?: string | null; defaultPovCharacterId?: string | null; writingStyleNotes?: string }>;
           const project = projects.find(item => item.id === projectId);
           const characterData = characterResponse.ok ? await characterResponse.json() as { characters?: GenerationCharacter[]; relationships?: GenerationRelationship[] } : {};
           const explicitCast = castResponse?.ok ? await castResponse.json() as GenerationChapterCharacter[] : [];
+          const storyFacts = factsResponse.ok ? await factsResponse.json() as StoryFactValue[] : [];
+          const chapters = chaptersResponse.ok ? await chaptersResponse.json() as Array<{ id: string; order: number }> : [];
           const resolvedPovId = povCharacterId || project?.defaultPovCharacterId;
           const povName = characterData.characters?.find(character => character.id === resolvedPovId)?.name;
           const presentIds = new Set(explicitCast.filter(entry => entry.participation === 'present').map(entry => entry.characterId));
@@ -83,6 +92,14 @@ export function AdversarialReviewPanel({ content, chapterTitle, projectId, chapt
             ];
             if (voiceContext) reviewEntries.push({ id: 'review-voice', tier: 1, relevance: 100, full: `${voiceContext}\n設定されていない音声要素を正解として作らず、上記の明示設定との不整合だけを評価してください。`, compact: voiceContext, minimum: voiceContext.split('\n').slice(0, 8).join('\n') });
             if (castContext) reviewEntries.push({ id: 'review-cast', tier: 1, relevance: 90, full: `【明示章キャスト】\n${castContext}`, compact: `【明示章キャスト】\n${castContext.split('\n').slice(0, 2).join('\n')}` });
+            const currentChapter = chapters.find(chapter => chapter.id === chapterId);
+            if (chapterId && currentChapter) {
+              reviewEntries.push(...buildStoryFactContextEntries(storyFacts, { chapterId, chapterOrder: currentChapter.order, chapterText: `${chapterTitle}\n${chapterPurpose || ''}\n${content}` }));
+              if (storyFacts.length > 0) reviewEntries.push({
+                id: 'review-fact-boundary', tier: 1, relevance: 146,
+                full: `【事実開示の確認方針】\n${STORY_FACT_REVIEW_GUIDANCE}`,
+              });
+            }
             projectContext = buildContextWithinBudget(reviewEntries, 8_000).text;
           }
         }

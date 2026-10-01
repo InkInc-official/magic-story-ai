@@ -118,7 +118,7 @@ export function ChapterEditor({ projectId }: ChapterEditorProps) {
       }
     };
 
-    const [projects, characterData, chapterCharacters, worldSettings, scenes, foreshadowings, storyStates, outlines, plots, storyNodes, storyEdges] = await Promise.all([
+    const [projects, characterData, chapterCharacters, worldSettings, scenes, foreshadowings, storyStates, outlines, plots, storyNodes, storyEdges, storyFacts] = await Promise.all([
       safeJson<Array<NonNullable<ChapterGenerationSource['project']> & { id: string }>>('/api/projects', []),
       safeJson<{ characters: ChapterGenerationSource['characters']; relationships: ChapterGenerationSource['relationships'] }>(`/api/characters?projectId=${projectId}`, { characters: [], relationships: [] }),
       selectedId ? safeJson<NonNullable<ChapterGenerationSource['chapterCharacters']>>(`/api/chapter-characters?chapterId=${selectedId}`, []) : [],
@@ -130,6 +130,7 @@ export function ChapterEditor({ projectId }: ChapterEditorProps) {
       safeJson<ChapterGenerationSource['plots']>(`/api/plots?projectId=${projectId}`, []),
       safeJson<ChapterGenerationSource['storyNodes']>(`/api/story-nodes?projectId=${projectId}`, []),
       safeJson<ChapterGenerationSource['storyEdges']>(`/api/story-edges?projectId=${projectId}`, []),
+      safeJson<NonNullable<ChapterGenerationSource['storyFacts']>>(`/api/story-facts?projectId=${projectId}`, []),
     ]);
 
     return {
@@ -164,6 +165,7 @@ export function ChapterEditor({ projectId }: ChapterEditorProps) {
       plots,
       storyNodes,
       storyEdges,
+      storyFacts,
     };
   };
 

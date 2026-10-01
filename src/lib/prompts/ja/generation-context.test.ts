@@ -50,4 +50,30 @@ describe('buildChapterGenerationContext integration', () => {
     assert.ok(context.includes('【POV人物】'));
     assert.ok(context.includes('人物0'));
   });
+
+  test('keeps StoryFact disclosure boundaries inside the hard cap', () => {
+    const context = buildChapterGenerationContext(source({ storyFacts: [
+      { id: 'known', content: '人物0は禁域の存在を知っている', importance: 'high', readerInitiallyKnows: true },
+      { id: 'now', content: '禁域の門は人物0の血で開く', importance: 'high', readerInitiallyKnows: false, plannedRevealChapterId: 'chapter', plannedRevealChapter: { id: 'chapter', order: 10 } },
+      { id: 'hidden', content: '人物0の父は禁域で生存している', importance: 'high', readerInitiallyKnows: false },
+      { id: 'unrelated', content: '遠い王国の王は偽物である', importance: 'high', readerInitiallyKnows: false },
+    ] }));
+    assert.ok(context.length <= 18_000);
+    assert.ok(context.includes('読者に開示済み'));
+    assert.ok(context.includes('この章で読者へ開示してよい'));
+    assert.ok(context.includes('作者専用：この章では直接明かさない'));
+    assert.ok(!context.includes('遠い王国の王は偽物である'));
+  });
+
+  test('excludes overdue unrelated facts while keeping a future-near fact author-only', () => {
+    const context = buildChapterGenerationContext(source({ storyFacts: [
+      { id: 'future-near', content: '遠い王国の王は偽物である', importance: 'high', readerInitiallyKnows: false, plannedRevealChapterId: 'next', plannedRevealChapter: { id: 'next', order: 11 } },
+      { id: 'overdue', content: '北方の姫は生存している', importance: 'high', readerInitiallyKnows: false, plannedRevealChapterId: 'past', plannedRevealChapter: { id: 'past', order: 9 } },
+    ] }));
+    assert.ok(context.length <= 18_000);
+    assert.ok(context.includes('遠い王国の王は偽物である'));
+    assert.ok(context.includes('作者専用：この章では直接明かさない事実'));
+    assert.ok(context.includes('本文で直接明かさず'));
+    assert.ok(!context.includes('北方の姫は生存している'));
+  });
 });

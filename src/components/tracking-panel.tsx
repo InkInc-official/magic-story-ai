@@ -35,6 +35,18 @@ interface ChapterInfo {
   title: string;
 }
 
+interface StoryFactEntry {
+  id: string;
+  content: string;
+  importance: string;
+  readerInitiallyKnows: boolean;
+  plannedRevealChapterId: string | null;
+  revealedChapterId: string | null;
+  notes: string;
+  plannedRevealChapter?: ChapterInfo | null;
+  revealedChapter?: ChapterInfo | null;
+}
+
 interface TrackingPanelProps {
   projectId: string;
 }
@@ -63,6 +75,7 @@ export function TrackingPanel({ projectId }: TrackingPanelProps) {
   const [storyStates, setStoryStates] = useState<StoryStateEntry[]>([]);
   const [foreshadowings, setForeshadowings] = useState<ForeshadowingEntry[]>([]);
   const [chapters, setChapters] = useState<ChapterInfo[]>([]);
+  const [storyFacts, setStoryFacts] = useState<StoryFactEntry[]>([]);
   const [activeTab, setActiveTab] = useState('character_state');
 
   // Create forms
@@ -72,13 +85,18 @@ export function TrackingPanel({ projectId }: TrackingPanelProps) {
   const [foreshadowForm, setForeshadowForm] = useState({ chapterId: '', content: '', expectedResolveChapter: 0, importance: 'medium' });
   const [editingForeshadowId, setEditingForeshadowId] = useState<string | null>(null);
   const [editForeshadowForm, setEditForeshadowForm] = useState({ content: '', expectedResolveChapter: 0, status: 'planted', importance: 'medium' });
+  const emptyFactForm = { content: '', importance: 'medium', readerInitiallyKnows: false, plannedRevealChapterId: '', revealedChapterId: '', notes: '' };
+  const [isCreatingFact, setIsCreatingFact] = useState(false);
+  const [editingFactId, setEditingFactId] = useState<string | null>(null);
+  const [factForm, setFactForm] = useState(emptyFactForm);
 
   const fetchData = useCallback(async () => {
     try {
-      const [statesRes, foreshadowRes, chaptersRes] = await Promise.all([
+      const [statesRes, foreshadowRes, chaptersRes, factsRes] = await Promise.all([
         fetch(`/api/story-states?projectId=${projectId}`),
         fetch(`/api/foreshadowings?projectId=${projectId}`),
         fetch(`/api/chapters?projectId=${projectId}`),
+        fetch(`/api/story-facts?projectId=${projectId}`),
       ]);
 
       if (statesRes.ok) {
@@ -93,6 +111,7 @@ export function TrackingPanel({ projectId }: TrackingPanelProps) {
         const data = await chaptersRes.json();
         setChapters(data.map((c: { id: string; order: number; title: string }) => ({ id: c.id, order: c.order, title: c.title })));
       }
+      if (factsRes.ok) setStoryFacts(await factsRes.json());
     } catch (e) {
       console.error('Failed to fetch tracking data:', e);
     }
@@ -174,6 +193,37 @@ export function TrackingPanel({ projectId }: TrackingPanelProps) {
     }
   };
 
+  const handleSaveFact = async () => {
+    if (!factForm.content.trim()) return;
+    const response = await fetch('/api/story-facts', {
+      method: editingFactId ? 'PUT' : 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ...(editingFactId ? { id: editingFactId } : {}), projectId,
+        ...factForm,
+        plannedRevealChapterId: factForm.plannedRevealChapterId || null,
+        revealedChapterId: factForm.revealedChapterId || null,
+      }),
+    });
+    if (response.ok) {
+      await fetchData();
+      setIsCreatingFact(false);
+      setEditingFactId(null);
+      setFactForm(emptyFactForm);
+    }
+  };
+
+  const handleDeleteFact = async (id: string) => {
+    const response = await fetch(`/api/story-facts?id=${id}&projectId=${projectId}`, { method: 'DELETE' });
+    if (response.ok) await fetchData();
+  };
+
+  const startEditingFact = (fact: StoryFactEntry) => {
+    setEditingFactId(fact.id);
+    setIsCreatingFact(false);
+    setFactForm({ content: fact.content, importance: fact.importance, readerInitiallyKnows: fact.readerInitiallyKnows, plannedRevealChapterId: fact.plannedRevealChapterId || '', revealedChapterId: fact.revealedChapterId || '', notes: fact.notes });
+  };
+
   const getStatusInfo = (status: string) => FORESHADOW_STATUSES.find(s => s.value === status) || FORESHADOW_STATUSES[0];
   const getImportanceInfo = (importance: string) => IMPORTANCE_LEVELS.find(i => i.value === importance) || IMPORTANCE_LEVELS[1];
   const getTypeInfo = (type: string) => STATE_TYPES.find(t => t.value === type) || STATE_TYPES[0];
@@ -198,9 +248,10 @@ export function TrackingPanel({ projectId }: TrackingPanelProps) {
           <h2 className="text-lg font-bold text-foreground">ストーリー追跡</h2>
           <Badge variant="secondary" className="text-xs">{storyStates.length} 件</Badge>
           <Badge variant="outline" className="text-xs">伏線 {foreshadowings.length} 件</Badge>
+          <Badge variant="outline" className="text-xs">秘密・事実 {storyFacts.length} 件</Badge>
         </div>
         <div className="flex items-center gap-2">
-          {activeTab !== 'foreshadowing' && (
+          {!['foreshadowing', 'story_facts'].includes(activeTab) && (
             <Button size="sm" onClick={() => setIsCreatingState(true)}>
               <Plus size={14} className="mr-1" />
               状態を追加
@@ -210,6 +261,11 @@ export function TrackingPanel({ projectId }: TrackingPanelProps) {
             <Button size="sm" onClick={() => setIsCreatingForeshadow(true)}>
               <Plus size={14} className="mr-1" />
               伏線を追加
+            </Button>
+          )}
+          {activeTab === 'story_facts' && (
+            <Button size="sm" onClick={() => { setIsCreatingFact(true); setEditingFactId(null); setFactForm(emptyFactForm); }}>
+              <Plus size={14} className="mr-1" />秘密・事実を追加
             </Button>
           )}
         </div>
@@ -238,6 +294,7 @@ export function TrackingPanel({ projectId }: TrackingPanelProps) {
           <TabsTrigger value="foreshadowing" className="text-xs">🧵 伏線</TabsTrigger>
           <TabsTrigger value="timeline" className="text-xs">⏱️ タイムライン</TabsTrigger>
           <TabsTrigger value="relationship_delta" className="text-xs">🔗 関係の変化</TabsTrigger>
+          <TabsTrigger value="story_facts" className="text-xs">🔒 秘密・事実</TabsTrigger>
         </TabsList>
 
         {/* Tab: Character State */}
@@ -485,6 +542,91 @@ export function TrackingPanel({ projectId }: TrackingPanelProps) {
                     </CardContent>
                   </Card>
                 );
+              })}
+            </div>
+          )}
+        </TabsContent>
+
+        {/* Tab: Story Facts */}
+        <TabsContent value="story_facts" className="mt-4">
+          <p className="text-xs text-muted-foreground mb-3">作者だけが知っている真実や、読者へ明かすタイミングを管理します。通常の人物・世界設定ではなく、開示管理が必要な事実を一件ずつ登録してください。</p>
+          {(isCreatingFact || editingFactId) && (
+            <Card className="bg-card/50 border-primary/30 mb-3">
+              <CardContent className="p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-medium text-foreground">{editingFactId ? '秘密・事実を編集' : '秘密・事実を追加'}</h3>
+                  <Button variant="ghost" size="sm" onClick={() => { setIsCreatingFact(false); setEditingFactId(null); setFactForm(emptyFactForm); }}><X size={14} /></Button>
+                </div>
+                <div>
+                  <label className="block text-xs text-muted-foreground mb-1">明確な事実</label>
+                  <Textarea value={factForm.content} onChange={e => setFactForm(current => ({ ...current, content: e.target.value }))} placeholder="例：犯人は美咲である" rows={3} className="text-sm resize-none" />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs text-muted-foreground mb-1">重要度</label>
+                    <select value={factForm.importance} onChange={e => setFactForm(current => ({ ...current, importance: e.target.value }))} className="w-full h-9 px-3 bg-secondary border border-input rounded-md text-sm text-foreground">
+                      {IMPORTANCE_LEVELS.map(level => <option key={level.value} value={level.value}>{level.label}</option>)}
+                    </select>
+                  </div>
+                  <label className="flex items-center gap-2 text-sm text-foreground pt-6">
+                    <input type="checkbox" checked={factForm.readerInitiallyKnows} onChange={e => setFactForm(current => ({ ...current, readerInitiallyKnows: e.target.checked }))} />
+                    読者は最初から知っている
+                  </label>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs text-muted-foreground mb-1">読者への公開予定</label>
+                    <select disabled={factForm.readerInitiallyKnows} value={factForm.plannedRevealChapterId} onChange={e => setFactForm(current => ({ ...current, plannedRevealChapterId: e.target.value }))} className="w-full h-9 px-3 bg-secondary border border-input rounded-md text-sm text-foreground disabled:opacity-50">
+                      <option value="">未設定</option>
+                      {chapters.map(chapter => <option key={chapter.id} value={chapter.id}>第{chapter.order + 1}章: {chapter.title || '無題'}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs text-muted-foreground mb-1">実際の公開</label>
+                    <select disabled={factForm.readerInitiallyKnows} value={factForm.revealedChapterId} onChange={e => setFactForm(current => ({ ...current, revealedChapterId: e.target.value }))} className="w-full h-9 px-3 bg-secondary border border-input rounded-md text-sm text-foreground disabled:opacity-50">
+                      <option value="">未確認</option>
+                      {chapters.map(chapter => <option key={chapter.id} value={chapter.id}>第{chapter.order + 1}章: {chapter.title || '無題'}</option>)}
+                    </select>
+                  </div>
+                </div>
+                {factForm.readerInitiallyKnows && <p className="text-xs text-muted-foreground">最初から既知の場合、公開予定と実際の公開は判定に使用しません。保存済みの章指定は自動削除されません。</p>}
+                <div>
+                  <label className="block text-xs text-muted-foreground mb-1">作者メモ</label>
+                  <Textarea value={factForm.notes} onChange={e => setFactForm(current => ({ ...current, notes: e.target.value }))} placeholder="関連人物、伏線との関係、扱いの注意点など" rows={2} className="text-sm resize-none" />
+                </div>
+                <Button size="sm" onClick={handleSaveFact} disabled={!factForm.content.trim()}><Save size={14} className="mr-1" />保存</Button>
+              </CardContent>
+            </Card>
+          )}
+          {storyFacts.length === 0 ? (
+            <div className="text-center py-12 text-muted-foreground"><Route size={32} className="mx-auto mb-2 opacity-30" /><p className="text-sm">秘密・重要な事実はありません</p><p className="text-xs mt-1">情報開示のタイミングが重要な真実だけを登録します</p></div>
+          ) : (
+            <div className="space-y-2">
+              {storyFacts.map(fact => {
+                const planned = fact.plannedRevealChapter || chapters.find(chapter => chapter.id === fact.plannedRevealChapterId);
+                const revealed = fact.revealedChapter || chapters.find(chapter => chapter.id === fact.revealedChapterId);
+                const maxOrder = chapters.length > 0 ? Math.max(...chapters.map(chapter => chapter.order)) : -1;
+                const overdue = !fact.readerInitiallyKnows && !revealed && planned && planned.order < maxOrder;
+                return <Card key={fact.id} className={`bg-card/50 border-border/50 ${overdue ? 'border-amber-400/50' : ''}`}>
+                  <CardContent className="p-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="space-y-2">
+                        <div className="flex flex-wrap items-center gap-2">
+                          {overdue && <Badge className="bg-amber-400/10 text-amber-400">公開予定を過ぎています</Badge>}
+                          <Badge variant="outline" className={getImportanceInfo(fact.importance).color}>重要度: {getImportanceInfo(fact.importance).label}</Badge>
+                          {fact.readerInitiallyKnows && <Badge variant="secondary">読者は最初から既知</Badge>}
+                        </div>
+                        <p className="text-sm text-foreground whitespace-pre-wrap">{fact.content}</p>
+                        {!fact.readerInitiallyKnows && <div className="text-xs text-muted-foreground">公開予定: {planned ? `第${planned.order + 1}章 ${planned.title || ''}` : '未設定'} ／ 実際の公開: {revealed ? `第${revealed.order + 1}章 ${revealed.title || ''}` : '未確認'}</div>}
+                        {fact.notes && <p className="text-xs text-muted-foreground whitespace-pre-wrap">作者メモ: {fact.notes}</p>}
+                      </div>
+                      <div className="flex gap-1">
+                        <Button variant="ghost" size="sm" onClick={() => startEditingFact(fact)} className="h-7 w-7 p-0"><Edit3 size={12} /></Button>
+                        <Button variant="ghost" size="sm" onClick={() => handleDeleteFact(fact.id)} className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"><Trash2 size={12} /></Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>;
               })}
             </div>
           )}
