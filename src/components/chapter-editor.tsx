@@ -9,10 +9,11 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAppStore } from '@/lib/store';
-import { BookOpen, Plus, Trash2, Save, Sparkles, ChevronRight, ChevronDown, Shield, Swords, Loader2, FileText, Zap, Eye, PanelRightClose, PanelRightOpen, ArrowUp, ArrowDown, X } from 'lucide-react';
+import { BookOpen, Plus, Trash2, Save, Sparkles, ChevronRight, ChevronDown, Shield, Swords, Loader2, FileText, Zap, Eye, PanelRightClose, PanelRightOpen, ArrowUp, ArrowDown, X, ScanSearch } from 'lucide-react';
 import { AntiAIPanel } from '@/components/anti-ai-panel';
 import { AdversarialReviewPanel } from '@/components/adversarial-review';
 import { ChapterPreview } from '@/components/chapter-preview';
+import { NarrativeInspectorPanel } from '@/components/narrative-inspector-panel';
 import { EMOTION_ARC_LABELS, EMOTION_LABELS, HOOK_LABELS } from '@/lib/i18n';
 import {
   buildChapterFullUserMessage,
@@ -104,10 +105,11 @@ export function ChapterEditor({ projectId }: ChapterEditorProps) {
   const [isSaving, setIsSaving] = useState(false);
   const [showOutline, setShowOutline] = useState(true);
   const [showEmotion, setShowEmotion] = useState(false);
-  const [sidePanel, setSidePanel] = useState<'none' | 'preview' | 'antiAi' | 'adversarial'>('preview');
+  const [sidePanel, setSidePanel] = useState<'none' | 'preview' | 'antiAi' | 'adversarial' | 'inspector'>('preview');
   const [generatingPhase, setGeneratingPhase] = useState<'none' | 'summary' | 'full'>('none');
   const { setActiveAgent, setActiveChapterId } = useAppStore();
   const abortRef = useRef<AbortController | null>(null);
+  const contentRef = useRef<HTMLTextAreaElement | null>(null);
 
   const loadGenerationContext = async (): Promise<ChapterGenerationSource> => {
     const selectedChapter = chapters.find(chapter => chapter.id === selectedId);
@@ -606,6 +608,15 @@ export function ChapterEditor({ projectId }: ChapterEditorProps) {
                     >
                       <Swords size={14} />
                     </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setSidePanel(sidePanel === 'inspector' ? 'none' : 'inspector')}
+                      className={`text-violet-400 hover:bg-violet-400/10 ${sidePanel === 'inspector' ? 'bg-violet-400/10' : ''}`}
+                      title="叙述検査"
+                    >
+                      <ScanSearch size={14} />
+                    </Button>
                     <Button size="sm" onClick={handleSave} disabled={isSaving}>
                       <Save size={14} className="mr-1" />
                       {isSaving ? '...' : '保存'}
@@ -793,6 +804,7 @@ export function ChapterEditor({ projectId }: ChapterEditorProps) {
 
                 {/* Chapter Content */}
                 <Textarea
+                  ref={contentRef}
                   value={editContent}
                   onChange={e => setEditContent(e.target.value)}
                   placeholder="この章の本文を書き始めましょう..."
@@ -854,6 +866,18 @@ export function ChapterEditor({ projectId }: ChapterEditorProps) {
                 <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground px-6">
                   <Swords size={28} className="mb-3 opacity-30" />
                   <p className="text-sm">章を選択すると多角的レビューを実行できます</p>
+                </div>
+              )}
+              {sidePanel === 'inspector' && selectedChapter && (
+                <NarrativeInspectorPanel projectId={projectId} chapterId={selectedChapter.id} onSelectRange={(start, end) => {
+                  contentRef.current?.focus();
+                  contentRef.current?.setSelectionRange(start, end);
+                }} />
+              )}
+              {sidePanel === 'inspector' && !selectedChapter && (
+                <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground px-6">
+                  <ScanSearch size={28} className="mb-3 opacity-30" />
+                  <p className="text-sm">章を選択すると叙述検査を実行できます</p>
                 </div>
               )}
             </Card>
