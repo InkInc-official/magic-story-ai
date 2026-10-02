@@ -147,9 +147,12 @@ export function extractNarrativeInspectorOutput(raw: string, context: BuiltInspe
 }
 
 export function sanitizeInspectorResult(result: NarrativeInspectorResult, context: BuiltInspectorContext): NarrativeInspectorResult {
+  return { schemaVersion: 1, issues: result.issues.map(issue => ({ ...issue, explanation: sanitizeInspectorText(issue.explanation, context), suggestedDirection: sanitizeInspectorText(issue.suggestedDirection, context) })) };
+}
+
+export function sanitizeInspectorText(text: string, context: BuiltInspectorContext): string {
   const concealedNarrator = context.roles.narrator?.identityDisclosureMode === 'concealed' ? context.roles.narrator : null;
   const identityFact = concealedNarrator?.identityFactId ? context.knowledge.authorTruth.find(fact => fact.id === concealedNarrator.identityFactId) : null;
   const secrets = [concealedNarrator?.name, identityFact?.content].filter((value): value is string => Boolean(value && value.length >= 2));
-  const redact = (text: string) => secrets.reduce((result, secret) => result.split(secret).join('［秘匿中の作者設定］'), text);
-  return { schemaVersion: 1, issues: result.issues.map(issue => ({ ...issue, explanation: redact(issue.explanation), suggestedDirection: redact(issue.suggestedDirection) })) };
+  return secrets.reduce((result, secret) => result.split(secret).join('［秘匿中の作者設定］'), text);
 }

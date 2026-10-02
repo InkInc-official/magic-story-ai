@@ -4,6 +4,7 @@ import { InspectorContextInputError } from './inspector-context';
 import { loadAndBuildInspectorContext } from './inspector-context-loader';
 import { NarrativeInspectorError, type NarrativeInspectorIssue } from './narrative-inspector';
 import { inspectBuiltContext, type InspectorCompletion } from './narrative-inspector-runner';
+import { learningStatusAfterReinspection } from './narrative-learning';
 import {
   buildContextFingerprint,
   buildIssueFingerprint,
@@ -87,6 +88,20 @@ export async function runNarrativeInspector(
       }
       const resolvedIds = existing.filter(issue => !detectedFingerprints.has(issue.fingerprint) && issue.status !== 'superseded' && issueCoveredByScope(issue, scope)).map(issue => issue.id);
       if (resolvedIds.length > 0) await transaction.narrativeIssue.updateMany({ where: { id: { in: resolvedIds } }, data: { status: 'resolved' } });
+      const activeLearning = await transaction.narrativeLearningSession.findMany({ where: { projectId: request.projectId, chapterId: request.chapterId, status: 'active' }, include: { issue: { select: { fingerprint: true } } } });
+      for (const session of activeLearning) {
+        const resolvedInScope = resolvedIds.includes(session.issueId);
+        const nextStatus = resolvedInScope
+          ? 'completed'
+          : scope.fullChapter
+            ? learningStatusAfterReinspection(session, { issueFingerprint: session.issue.fingerprint, contentHash: context.inspectedText.contentHash, contextFingerprint }, false)
+            : 'active';
+        if (nextStatus === 'completed') {
+          await transaction.narrativeLearningSession.update({ where: { id: session.id }, data: { status: 'completed', completedAt: new Date() } });
+        } else if (nextStatus === 'stale') {
+          await transaction.narrativeLearningSession.update({ where: { id: session.id }, data: { status: 'stale' } });
+        }
+      }
       await transaction.narrativeInspectionRun.update({ where: { id: run.id }, data: {
         inspectedStartOffset: context.inspectedText.startOffset, inspectedEndOffset: context.inspectedText.endOffset,
         contentHash: context.inspectedText.contentHash, contextManifest: JSON.stringify(context.manifest), contextFingerprint,

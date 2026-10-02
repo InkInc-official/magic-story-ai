@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { AlertTriangle, CheckCircle2, Loader2, ScanSearch } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, GraduationCap, Lightbulb, Loader2, ScanSearch } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -13,6 +13,11 @@ interface InspectorIssue {
   category: 'viewpoint' | 'knowledge' | 'voice' | 'narrative_rule'; issueType: string; locationKind: 'excerpt' | 'chapter'; excerpt: string; startOffset: number; endOffset: number;
   explanation: string; suggestedDirection: string; severity: 'problem' | 'check' | 'suggestion'; evidenceRefs: string[]; adjustments?: string[];
   latestDecision: { decision: 'accepted_issue' | 'allowed_exception' | 'not_an_issue'; authorNote: string; createdAt: string; fresh: boolean } | null;
+}
+interface LearningSession {
+  id: string; issueId: string; status: 'active' | 'completed' | 'stale' | 'abandoned'; currentHintLevel: number;
+  issueExcerptSnapshot: string; issueExplanationSnapshot: string; evidenceRefsSnapshot: string[];
+  steps: Array<{ id: string; level: number; type: string; content: string }>;
 }
 
 const ISSUE_LABELS: Record<string, string> = {
@@ -33,6 +38,8 @@ export function NarrativeInspectorPanel({ projectId, chapterId, onSelectRange }:
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [notes, setNotes] = useState<Record<string, string>>({});
+  const [learningSession, setLearningSession] = useState<LearningSession | null>(null);
+  const [learningLoading, setLearningLoading] = useState(false);
 
   const loadHistory = async () => {
     setLoading(true); setError('');
@@ -46,6 +53,7 @@ export function NarrativeInspectorPanel({ projectId, chapterId, onSelectRange }:
   };
 
   useEffect(() => { void loadHistory(); }, [projectId, chapterId]);
+  useEffect(() => { setLearningSession(null); }, [chapterId]);
 
   const inspect = async () => {
     setLoading(true); setError('');
@@ -66,6 +74,36 @@ export function NarrativeInspectorPanel({ projectId, chapterId, onSelectRange }:
       await loadHistory();
     } catch (caught) { setError(caught instanceof Error ? caught.message : '作者判断の保存に失敗しました'); setLoading(false); }
   };
+  const startLearning = async (issue: InspectorIssue) => {
+    setLearningLoading(true); setError('');
+    try {
+      const response = await fetch(`/api/narrative-inspector/issues/${issue.id}/learning`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ projectId }) });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || '学習モードを開始できませんでした');
+      setLearningSession(result.session);
+    } catch (caught) { setError(caught instanceof Error ? caught.message : '学習モードを開始できませんでした'); }
+    finally { setLearningLoading(false); }
+  };
+  const requestHint = async () => {
+    if (!learningSession) return;
+    setLearningLoading(true); setError('');
+    try {
+      const response = await fetch(`/api/narrative-inspector/learning/${learningSession.id}/hint`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ projectId }) });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'ヒントを生成できませんでした');
+      setLearningSession(result.session);
+    } catch (caught) { setError(caught instanceof Error ? caught.message : 'ヒントを生成できませんでした'); }
+    finally { setLearningLoading(false); }
+  };
+  const reinspectLearning = async () => {
+    if (!learningSession) return;
+    await inspect();
+    try {
+      const response = await fetch(`/api/narrative-inspector/issues/${learningSession.issueId}/learning?projectId=${encodeURIComponent(projectId)}`);
+      const result = await response.json();
+      if (response.ok) setLearningSession(result.session);
+    } catch { /* Inspector result remains visible even if session refresh fails. */ }
+  };
   const visible = issues.filter(issue => (filter === 'all' || issue.category === filter) && (statusFilter === 'resolved' ? issue.status === 'resolved' : issue.status !== 'resolved' && issue.status !== 'superseded'));
 
   return <div className="flex h-full flex-col">
@@ -77,6 +115,17 @@ export function NarrativeInspectorPanel({ projectId, chapterId, onSelectRange }:
     <div className="flex gap-1 border-b border-border/50 px-2 py-1">{(['current', 'resolved'] as const).map(value => <Button key={value} size="sm" variant={statusFilter === value ? 'secondary' : 'ghost'} className="h-7 text-xs" onClick={() => setStatusFilter(value)}>{value === 'current' ? '現在のIssue' : '解決済み'}</Button>)}</div>
     <ScrollArea className="flex-1"><div className="space-y-3 p-3">
       {error && <Card className="border-destructive/30 bg-destructive/5"><CardContent className="p-3 text-xs text-destructive">{error}</CardContent></Card>}
+      {learningSession && <Card className="border-violet-400/40 bg-violet-400/5"><CardContent className="space-y-3 p-3">
+        <div className="flex items-center justify-between"><div className="flex items-center gap-2"><GraduationCap size={16} className="text-violet-400" /><span className="text-sm font-medium">学習モード</span></div><Badge variant="outline">{learningSession.status === 'active' ? '学習中' : learningSession.status === 'completed' ? '再検査で解決' : learningSession.status === 'stale' ? '再確認が必要' : '終了'}</Badge></div>
+        <blockquote className="border-l-2 border-violet-400/40 pl-2 text-xs">{learningSession.issueExcerptSnapshot || '章全体のIssue'}</blockquote>
+        <div><p className="text-[10px] font-medium text-muted-foreground">なぜ確認候補なのか</p><p className="text-xs">{learningSession.issueExplanationSnapshot}</p></div>
+        <div className="flex flex-wrap gap-1">{[...new Set(learningSession.evidenceRefsSnapshot.map(evidenceLabel))].map(label => <Badge key={label} variant="outline" className="text-[9px]">{label}</Badge>)}</div>
+        {learningSession.steps.map(step => <div key={step.id} className="rounded border border-border/60 p-2"><p className="mb-1 text-[10px] font-medium text-muted-foreground">{step.level === 0 ? '考えるための問い' : `ヒント Level ${step.level}`}</p><p className="text-xs">{step.content}</p></div>)}
+        {learningSession.status === 'stale' && <p className="rounded bg-amber-500/10 p-2 text-[10px] text-amber-600">本文または設定が変更されています。再検査して新しいIssueから学習を開始してください。</p>}
+        {learningSession.status === 'completed' && <p className="rounded bg-emerald-500/10 p-2 text-[10px] text-emerald-600">この指摘は再検査で検出されなくなりました。</p>}
+        {learningSession.status === 'active' && <p className="text-[10px] text-muted-foreground">本文はChapter Editorで自分で修正してから再検査してください。</p>}
+        <div className="flex flex-wrap gap-1">{learningSession.status === 'active' && learningSession.currentHintLevel < 2 && <Button size="sm" variant="outline" disabled={learningLoading} onClick={() => void requestHint()}>{learningLoading ? <Loader2 size={12} className="mr-1 animate-spin" /> : <Lightbulb size={12} className="mr-1" />}ヒントを見る</Button>}{learningSession.status === 'active' && <Button size="sm" variant="outline" disabled={loading || learningLoading} onClick={() => void reinspectLearning()}><ScanSearch size={12} className="mr-1" />再検査</Button>}<Button size="sm" variant="ghost" onClick={() => setLearningSession(null)}>閉じる</Button></div>
+      </CardContent></Card>}
       {!loading && !error && issues.length === 0 && <div className="py-10 text-center text-muted-foreground"><CheckCircle2 size={28} className="mx-auto mb-2 opacity-40" /><p className="text-xs">「検査」を押すと確認候補を表示します</p><p className="mt-1 text-[10px]">結果は採点ではなく、作者が判断するための候補です。</p></div>}
       {visible.map((issue, index) => <Card key={`${issue.id}:${index}`} onClick={() => issue.locationKind === 'excerpt' && onSelectRange?.(issue.startOffset, issue.endOffset)} className="border-border/60 transition-colors hover:border-violet-400/40"><CardContent className="space-y-2 p-3">
         <div className="flex flex-wrap items-center gap-1"><Badge variant="outline">{CATEGORY_LABELS[issue.category]}</Badge><Badge variant="outline">{ISSUE_LABELS[issue.issueType] || issue.issueType}</Badge><Badge variant={issue.severity === 'problem' ? 'destructive' : 'secondary'}>{SEVERITY_LABELS[issue.severity]}</Badge></div>
@@ -91,6 +140,8 @@ export function NarrativeInspectorPanel({ projectId, chapterId, onSelectRange }:
         <div className="space-y-1" onClick={event => event.stopPropagation()}>
           <Textarea value={notes[issue.id] || ''} onChange={event => setNotes(current => ({ ...current, [issue.id]: event.target.value }))} placeholder="作者メモ（任意）" className="min-h-14 text-xs" maxLength={4000} />
           <div className="flex flex-wrap gap-1">{(Object.keys(DECISION_LABELS) as Array<keyof typeof DECISION_LABELS>).map(decision => <Button key={decision} type="button" size="sm" variant="outline" className="h-7 text-[10px]" disabled={loading} onClick={() => void decide(issue, decision)}>{DECISION_LABELS[decision]}</Button>)}</div>
+          {issue.status === 'open' && <Button type="button" size="sm" variant="outline" className="h-7 text-[10px]" disabled={learningLoading} onClick={() => void startLearning(issue)}><GraduationCap size={11} className="mr-1" />学習モード</Button>}
+          {issue.latestDecision && ['allowed_exception', 'not_an_issue'].includes(issue.latestDecision.decision) && <p className="text-[10px] text-muted-foreground">作者判断済みのため学習を強く推奨しませんが、必要なら開始できます。</p>}
         </div>
       </CardContent></Card>)}
       {issues.length > 0 && visible.length === 0 && <p className="py-8 text-center text-xs text-muted-foreground">この分類の確認候補はありません</p>}

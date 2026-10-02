@@ -57,6 +57,7 @@ model Project {
   narrativeRules       NarrativeRule[]
   narrativeInspectionRuns NarrativeInspectionRun[]
   narrativeIssues      NarrativeIssue[]
+  narrativeLearningSessions NarrativeLearningSession[]
   defaultPovCharacter Character? @relation("ProjectDefaultPov", fields: [defaultPovCharacterId], references: [id], onDelete: SetNull)
   defaultNarrator NarratorProfile? @relation("ProjectDefaultNarrator", fields: [defaultNarratorId], references: [id], onDelete: SetNull)
 
@@ -294,6 +295,7 @@ model Chapter {
   storyNavigatorObservationSources StoryNavigatorObservation[] @relation("ObservationSource")
   narrativeInspectionRuns NarrativeInspectionRun[]
   narrativeIssues NarrativeIssue[]
+  narrativeLearningSessions NarrativeLearningSession[]
 
   @@index([povCharacterId])
   @@index([narratorId])
@@ -448,6 +450,7 @@ model NarrativeIssue {
   firstDetectedRun NarrativeInspectionRun @relation("IssueFirstDetectedRun", fields: [firstDetectedRunId], references: [id], onDelete: Cascade)
   lastSeenRun NarrativeInspectionRun @relation("IssueLastSeenRun", fields: [lastSeenRunId], references: [id], onDelete: Cascade)
   decisions NarrativeIssueDecision[]
+  learningSessions NarrativeLearningSession[]
 
   @@unique([projectId, chapterId, fingerprint])
   @@index([chapterId, status, lastDetectedAt])
@@ -470,6 +473,51 @@ model NarrativeIssueDecision {
   issue NarrativeIssue @relation(fields: [issueId], references: [id], onDelete: Cascade)
 
   @@index([issueId, createdAt])
+  @@schema("magic_story")
+}
+
+model NarrativeLearningSession {
+  id                         String   @id @default(cuid())
+  projectId                  String
+  chapterId                  String
+  issueId                    String
+  startingIssueFingerprint   String
+  startingContentHash        String
+  startingContextFingerprint String
+  issueExcerptSnapshot       String
+  issueExplanationSnapshot   String
+  evidenceRefsSnapshot       String   @default("[]")
+  status                     String   @default("active")
+  currentHintLevel           Int      @default(0)
+  createdAt                  DateTime @default(now())
+  updatedAt                  DateTime @updatedAt
+  completedAt                DateTime?
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  chapter Chapter @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  issue NarrativeIssue @relation(fields: [issueId], references: [id], onDelete: Cascade)
+  steps NarrativeLearningStep[]
+
+  @@index([projectId, chapterId, status])
+  @@index([issueId, createdAt])
+  @@schema("magic_story")
+}
+
+model NarrativeLearningStep {
+  id                 String   @id @default(cuid())
+  sessionId          String
+  level              Int
+  type               String
+  content            String
+  promptVersion      String
+  contentHash        String
+  contextFingerprint String
+  createdAt          DateTime @default(now())
+
+  session NarrativeLearningSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, level])
+  @@index([sessionId, createdAt])
   @@schema("magic_story")
 }
 
