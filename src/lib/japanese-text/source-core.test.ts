@@ -14,6 +14,10 @@ test('empty source is valid and has no phantom line', () => {
   assert.deepEqual(result.lines, []);
   assert.deepEqual(result.symbolRegions, []);
   assert.deepEqual(result.symbolUsage, []);
+  assert.deepEqual(result.sectionBreaks, []);
+  assert.deepEqual(result.sections, []);
+  assert.deepEqual(result.paragraphs, []);
+  assert.deepEqual(result.sentences, []);
   assert.deepEqual(result.diagnostics, []);
 });
 

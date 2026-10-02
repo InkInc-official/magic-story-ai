@@ -78,6 +78,51 @@ export interface SymbolPairUsage {
 export interface JapaneseTextParserOptions {
   pairedSymbols?: readonly SymbolPairDefinition[];
   maxSymbolNestingDepth?: number;
+  sectionBreaks?: readonly SectionBreakDefinition[];
+}
+
+export interface SectionBreakDefinition {
+  id: string;
+  marker: string;
+}
+
+export interface SectionBreakCandidate extends SourceRange {
+  id: string;
+  kind: 'section_break_candidate';
+  lineIndex: number;
+  marker: string;
+  markerRange: SourceRange;
+  definitionId: string;
+}
+
+export interface TextSection extends SourceRange {
+  id: string;
+  index: number;
+  kind: 'text_section';
+  contentRange: SourceRange;
+  precedingBreakId: string | null;
+  paragraphIds: string[];
+}
+
+export interface TextParagraph extends SourceRange {
+  id: string;
+  index: number;
+  kind: 'text_paragraph';
+  sectionId: string;
+  lineStartIndex: number;
+  lineEndIndex: number;
+  contentRange: SourceRange;
+  sentenceIds: string[];
+}
+
+export interface StructuralSentence extends SourceRange {
+  id: string;
+  index: number;
+  kind: 'structural_sentence';
+  sectionId: string;
+  paragraphIds: string[];
+  terminalRange: SourceRange | null;
+  terminalText: string | null;
 }
 
 export interface JapaneseTextSourceDocument {
@@ -88,5 +133,9 @@ export interface JapaneseTextSourceDocument {
   lines: SourceLine[];
   symbolRegions: PairedSymbolRegion[];
   symbolUsage: SymbolPairUsage[];
+  sectionBreaks: SectionBreakCandidate[];
+  sections: TextSection[];
+  paragraphs: TextParagraph[];
+  sentences: StructuralSentence[];
   diagnostics: TextDiagnostic[];
 }

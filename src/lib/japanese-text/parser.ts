@@ -1,22 +1,28 @@
 import { buildSourceDiagnostics } from './diagnostics';
 import { detectLineEndingStyle, scanSourceLines } from './line-scanner';
 import { scanPairedSymbolRegions } from './paired-symbols';
+import { parseStructuralText } from './structural-parser';
 import type { JapaneseTextParserOptions, JapaneseTextSourceDocument } from './types';
 import { measureUnicode } from './unicode';
 
-export const JAPANESE_TEXT_PARSER_VERSION = '5b2-v1';
+export const JAPANESE_TEXT_PARSER_VERSION = '5b3-v1';
 
 export function analyzeJapaneseTextSource(text: string, options: JapaneseTextParserOptions = {}): JapaneseTextSourceDocument {
   const lines = scanSourceLines(text);
   const lineEndingStyle = detectLineEndingStyle(lines);
   const symbols = scanPairedSymbolRegions(text, options);
+  const structure = parseStructuralText(text, lines, symbols.regions, options);
   return {
     parserVersion: JAPANESE_TEXT_PARSER_VERSION,
     source: { ...measureUnicode(text), lineEndingStyle },
     lines,
     symbolRegions: symbols.regions,
     symbolUsage: symbols.usage,
-    diagnostics: [...buildSourceDiagnostics(lines, lineEndingStyle), ...symbols.diagnostics]
+    sectionBreaks: structure.breaks,
+    sections: structure.sections,
+    paragraphs: structure.paragraphs,
+    sentences: structure.sentences,
+    diagnostics: [...buildSourceDiagnostics(lines, lineEndingStyle), ...symbols.diagnostics, ...structure.diagnostics]
       .sort((left, right) => left.startOffset - right.startOffset || left.endOffset - right.endOffset || left.code.localeCompare(right.code)),
   };
 }
