@@ -65,10 +65,10 @@ export function validateNarrativeRuleInput(value: Record<string, unknown>, parti
   return null;
 }
 
-export function resolveNarrativeRoles<TCast>(args: {
+export function resolveNarrativeRoles<TCast, TCharacter extends NarrativeCharacter = NarrativeCharacter>(args: {
   project: { narrativePerspective?: string | null; defaultPovCharacterId?: string | null; defaultNarratorId?: string | null };
   chapter?: { povCharacterId?: string | null; narratorId?: string | null } | null;
-  characters: NarrativeCharacter[];
+  characters: TCharacter[];
   narrators: NarratorValue[];
   cast: TCast[];
   readerKnownFactIds?: ReadonlySet<string>;
