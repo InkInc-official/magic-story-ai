@@ -1,8 +1,8 @@
 import type { BuiltInspectorContext } from '../../narrative-inspector';
 import { allowedInspectorEvidenceRefs } from '../../narrative-inspector';
 
-export const NARRATIVE_INSPECTOR_SYSTEM_PROMPT = `あなたは日本語小説の「叙述検査・執筆学習」における、Viewpoint / Knowledge専用の編集検査者です。
-作品本文を一般論で採点せず、提供された作品固有のPerspective、Narrator、POV、Narrative Rule、Author Truth、Reader Knowledge、Character Perceptionに照らし、作者が確認すべき箇所だけを抽出してください。
+export const NARRATIVE_INSPECTOR_SYSTEM_PROMPT = `あなたは日本語小説の「叙述検査・執筆学習」における、Viewpoint / Knowledge / Voice / Narrative Rule専用の編集検査者です。
+作品本文を一般論で採点せず、提供された作品固有のPerspective、Narrator、POV、Narrative Rule、Author Truth、Reader Knowledge、Character Perception、人物別Voiceに照らし、作者が確認すべき箇所だけを抽出してください。
 
 原則：
 - 指摘は原則「確認候補」とし、明示Ruleまたは明示Knowledge Boundaryとの直接矛盾だけproblemを使用する。
@@ -13,6 +13,13 @@ export const NARRATIVE_INSPECTOR_SYSTEM_PROMPT = `あなたは日本語小説の
 - Author TruthとNarrator/Character beliefを統合しない。信頼できない語り手のNarrated ClaimはStoryFactとの差だけで問題にしない。
 - hidden Factが存在するだけで漏洩Issueを作らない。明示、暗示、ミスリード、比喩、意味未確定の伏線を区別する。
 - revealed_duringおよびchangesDuringChapterは位置が未登録である。章内の取得・開示順を推測で確定せず、必要ならknowledge_timing_unclear/checkにする。
+- Voiceは文字列一致で判定しない。話者・相手・引用・物真似・演技・感情・緊急性・関係変化を本文意味から考慮し、話者や相手が不明なら断定しない。
+- 相手が特定できるVoiceは、方向付きRelationship override（呼称・register・style）、Character base voice、場面判断の順に参照する。逆方向Relationshipを使用しない。
+- 呼称設定は、その語を全発言で必ず使うという意味ではない。呼びかけがないことだけでIssueにしない。
+- Narrator voice、POV Characterのnarration voice、Characterの台詞口調を分離し、相互の基準として誤用しない。「」等の記号だけで話者を確定しない。
+- requireは適用scopeを確認し、検査range外を含む条件を部分rangeだけで欠落と断定しない。forbidは暗示・伏線・象徴まで禁止へ拡張しない。
+- allowは例外または許可であり、不使用をIssueにしない。guidanceだけを根拠にproblemを使用しない。
+- 複数Ruleが競合して見える場合は勝手に片方を無効化せず、解決不能ならrule_conflict/checkにする。overridable=trueは例外可能性を考慮するが、未登録の例外を捏造しない。
 - 秘匿中のNarrator identityやStoryFactの内容をexplanation/suggestedDirectionへ必要以上に再掲しない。「登録された秘匿中の設定」と表現する。
 - 修正文を生成せず、修正または確認の方向性だけを示す。本文を書き換えない。
 
@@ -22,18 +29,25 @@ export function buildNarrativeInspectorUserPrompt(context: BuiltInspectorContext
   const evidenceRefs = [...allowedInspectorEvidenceRefs(context)].sort();
   const timingCaution = context.knowledge.reader.some(value => value.revealedDuringChapter)
     || context.knowledge.characters.some(value => value.changesDuringChapter.length > 0);
+  const fullChapter = context.inspectedText.requestedRange.start === 0
+    && context.inspectedText.requestedRange.end === context.inspectedText.endOffset
+    && !context.inspectedText.truncated;
   return `【Inspector Context】
 ${context.text}
 
 【利用可能なevidenceRefs】
 ${evidenceRefs.join('\n') || 'なし'}
 
-${timingCaution ? '【章内タイミング注意】\nこの章にはReader開示または人物認識変化があるが、本文offsetとの対応は未登録である。章冒頭から既知とは扱わず、前後関係を確定できない指摘はproblemではなくcheckにする。\n\n' : ''}【出力形式】
+${timingCaution ? '【章内タイミング注意】\nこの章にはReader開示または人物認識変化があるが、本文offsetとの対応は未登録である。章冒頭から既知とは扱わず、前後関係を確定できない指摘はproblemではなくcheckにする。\n\n' : ''}【検査scope】
+${fullChapter ? 'Chapter全体を検査している。require Ruleの欠落は、条件成立を本文全体から確認できる場合だけchapter locationで報告できる。' : '部分rangeまたは安全上限で切り詰めた本文を検査している。章冒頭・章末・各章などrange外を含み得るrequire Ruleの欠落を断定せず、required_rule_missingを返さない。必要なら実在箇所を根拠にrule_application_unclear/checkとする。'}
+
+【出力形式】
 {
   "schemaVersion": 1,
   "issues": [{
-    "category": "viewpoint | knowledge",
+    "category": "viewpoint | knowledge | voice | narrative_rule",
     "issueType": "許可された安定ID",
+    "locationKind": "excerpt | chapter",
     "excerpt": "検査対象本文に実在する連続文字列",
     "startOffset": 0,
     "endOffset": 0,
@@ -45,6 +59,8 @@ ${timingCaution ? '【章内タイミング注意】\nこの章にはReader開�
 }
 
 offsetは【検査対象本文】の先頭を0とする相対offsetです。
-許可issueType：pov_shift, other_character_inner_state, narrator_pov_confusion, perspective_mismatch, unknown_fact_assertion, reader_hidden_leak, future_knowledge, belief_truth_conflict, knowledge_timing_unclear
+通常はlocationKind=excerptとし、本文に実在するexcerptと一致するoffsetを返してください。
+required_rule_missingだけは、Chapter全体検査の場合に限りlocationKind=chapter、excerpt=""、startOffset=0、endOffset=0を使用できます。架空のexcerptを作らないでください。
+許可issueType：pov_shift, other_character_inner_state, narrator_pov_confusion, perspective_mismatch, unknown_fact_assertion, reader_hidden_leak, future_knowledge, belief_truth_conflict, knowledge_timing_unclear, first_person_mismatch, address_term_mismatch, speech_register_mismatch, speech_style_mismatch, narration_voice_mismatch, speaker_unclear, required_rule_missing, forbidden_rule_violation, rule_conflict, rule_application_unclear
 最大30件。同一箇所・同一issueTypeを重複させないでください。`;
 }
