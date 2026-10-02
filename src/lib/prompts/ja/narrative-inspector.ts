@@ -38,6 +38,9 @@ ${context.text}
 【利用可能なevidenceRefs】
 ${evidenceRefs.join('\n') || 'なし'}
 
+【本文範囲の境界】
+Issueのexcerptと相対offsetは【検査対象本文】の内部だけから返す。【前後の参考文脈】は解釈の参考であり、そこだけに存在する文章をIssue evidenceとして返さない。
+
 ${timingCaution ? '【章内タイミング注意】\nこの章にはReader開示または人物認識変化があるが、本文offsetとの対応は未登録である。章冒頭から既知とは扱わず、前後関係を確定できない指摘はproblemではなくcheckにする。\n\n' : ''}【検査scope】
 ${fullChapter ? 'Chapter全体を検査している。require Ruleの欠落は、条件成立を本文全体から確認できる場合だけchapter locationで報告できる。' : '部分rangeまたは安全上限で切り詰めた本文を検査している。章冒頭・章末・各章などrange外を含み得るrequire Ruleの欠落を断定せず、required_rule_missingを返さない。必要なら実在箇所を根拠にrule_application_unclear/checkとする。'}
 

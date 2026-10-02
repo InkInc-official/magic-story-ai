@@ -37,7 +37,7 @@ function publicIssue(issue: Record<string, unknown>, current?: { contentHash: st
 
 async function currentChapterContext(projectId: string, chapterId: string) {
   const context = await loadAndBuildInspectorContext(projectId, chapterId);
-  return { context, contextFingerprint: buildContextFingerprint({ manifest: context.manifest, semanticContext: context.text }) };
+  return { context, contextFingerprint: buildContextFingerprint(context.legacyFreshnessPayload) };
 }
 
 export async function runNarrativeInspector(
@@ -61,7 +61,7 @@ export async function runNarrativeInspector(
     } }),
     inspectAndCommit: async run => {
     const context = await buildContext(request.projectId, request.chapterId, hasRange ? { range: { start: requestedStart, end: requestedEnd } } : {});
-    const contextFingerprint = buildContextFingerprint({ manifest: context.manifest, semanticContext: context.text });
+    const contextFingerprint = buildContextFingerprint(context.legacyFreshnessPayload);
     const result = await inspectBuiltContext(context, complete);
     const fingerprintSource = { text: context.inspectedText.excerpt, startOffset: context.inspectedText.startOffset };
     const detected = result.issues.map(issue => ({ issue, fingerprint: buildIssueFingerprint(request.projectId, request.chapterId, issue, fingerprintSource) }));

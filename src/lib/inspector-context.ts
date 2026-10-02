@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
+import { buildInspectorTextStructure } from './inspector-text-structure';
 import { resolveNarrativeRoles, resolveProjectNarrativeRules, type NarrativeRuleValue, type NarratorValue } from './narrative-foundation';
-import { buildContextWithinBudget, safeContextExcerpt, type ContextEntry } from './prompts/ja/context-budget';
+import { buildContextWithinBudget, safeContextExcerpt, type ContextBudgetResult, type ContextEntry } from './prompts/ja/context-budget';
 
 export const INSPECTOR_CONTEXT_BUILDER_VERSION = '4b2-v1';
 export const INSPECTOR_CONTEXT_HARD_CAP = 14_000;
@@ -88,6 +89,14 @@ export class InspectorContextBudgetError extends Error {}
 
 function hash(value: string) { return createHash('sha256').update(value).digest('hex'); }
 function iso(value?: Date | string | null) { return value ? new Date(value).toISOString() : null; }
+function surroundingEntry(before: string, after: string, legacy = false): ContextEntry | null {
+  if (!before && !after) return null;
+  return {
+    id: 'surrounding-text', tier: 1, relevance: 140,
+    full: `${legacy ? '【前後の本文：暫定文字window】' : '【前後の参考文脈】'}\n前：${before || 'なし'}\n後：${after || 'なし'}`,
+    compact: `${legacy ? '【前後の本文】' : '【前後の参考文脈】'}\n前：${safeContextExcerpt(before, 350, true) || 'なし'}\n後：${safeContextExcerpt(after, 350) || 'なし'}`,
+  };
+}
 function validateRange(content: string, range?: InspectorRange) {
   const requested = range || { start: 0, end: content.length };
   if (!Number.isInteger(requested.start) || !Number.isInteger(requested.end) || requested.start < 0 || requested.end < requested.start || requested.end > content.length) {
@@ -146,8 +155,15 @@ export function buildInspectorContext(source: InspectorSources, options: Inspect
   if (maxCharacters > INSPECTOR_CONTEXT_HARD_CAP || maxCharacters < 2_000) throw new InspectorContextInputError('Inspector Context上限が不正です');
   const range = validateRange(source.chapter.content, options.range);
   const excerpt = source.chapter.content.slice(range.inspected.start, range.inspected.end);
-  const before = source.chapter.content.slice(Math.max(0, range.inspected.start - SURROUNDING_WINDOW), range.inspected.start);
-  const after = source.chapter.content.slice(range.inspected.end, Math.min(source.chapter.content.length, range.inspected.end + SURROUNDING_WINDOW));
+  const legacyBefore = source.chapter.content.slice(Math.max(0, range.inspected.start - SURROUNDING_WINDOW), range.inspected.start);
+  const legacyAfter = source.chapter.content.slice(range.inspected.end, Math.min(source.chapter.content.length, range.inspected.end + SURROUNDING_WINDOW));
+  const textStructure = buildInspectorTextStructure({
+    content: source.chapter.content,
+    requestedRange: { startOffset: range.requested.start, endOffset: range.requested.end },
+    inspectedRange: { startOffset: range.inspected.start, endOffset: range.inspected.end },
+  }, { maxBefore: SURROUNDING_WINDOW, maxAfter: SURROUNDING_WINDOW });
+  const before = textStructure.surroundingBefore;
+  const after = textStructure.surroundingAfter;
   const roles = resolveNarrativeRoles({ project: source.project, chapter: source.chapter, characters: source.characters, narrators: source.narrators, cast: source.cast });
   const rules = resolveProjectNarrativeRules(source.narrativeRules);
   const relevantCharacterIds = new Set([roles.pov?.id, roles.narrator?.linkedCharacterId, ...source.cast.map(entry => entry.characterId)].filter((id): id is string => Boolean(id)));
@@ -178,7 +194,9 @@ export function buildInspectorContext(source: InspectorSources, options: Inspect
     full: `【Project Narrative Rule】\nID：${rule.id}\n名称：${rule.title}\n分類：${rule.category}\n種別：${rule.mode}\n優先度：${rule.priority}\n由来：${rule.source}\nmachineKey：${rule.machineKey || 'なし'}\n上書き：${rule.overridable ? '可' : '不可'}\n本文：${safeContextExcerpt(rule.description, 1800)}`,
     compact: `【Project Narrative Rule】${rule.title}（${rule.mode}／優先度${rule.priority}）\n${safeContextExcerpt(rule.description, 700)}`,
     minimum: `【Project Narrative Rule】${rule.title}（${rule.mode}）\n${safeContextExcerpt(rule.description, 220)}` });
-  if (before || after) entries.push({ id: 'surrounding-text', tier: 1, relevance: 140, full: `【前後の本文：暫定文字window】\n前：${before || 'なし'}\n後：${after || 'なし'}`, compact: `【前後の本文】\n前：${safeContextExcerpt(before, 350, true) || 'なし'}\n後：${safeContextExcerpt(after, 350) || 'なし'}` });
+  const surroundingIndex = entries.length;
+  const structuralSurrounding = surroundingEntry(before, after);
+  if (structuralSurrounding) entries.push(structuralSurrounding);
   if (roles.narrator) entries.push({ id: `narrator:${roles.narrator.id}`, tier: 0, required: true, full: `【Narrator Author-side Profile】\nID：${roles.narrator.id}\n作者用名：${roles.narrator.name}\n説明：${roles.narrator.description || '未設定'}\nNarrator voice：${roles.narrator.voiceNotes || '未設定'}\nlinked Character：${roles.narrator.linkedCharacterId || 'なし'}\nidentityFact：${roles.narrator.identityFactId || 'なし'}\nidentity disclosure：${roles.narrator.identityDisclosureMode}\nKnowledge source：${narratorKnowledgeSource.type}`,
     compact: `【Narrator】${roles.narrator.name}\nvoice：${safeContextExcerpt(roles.narrator.voiceNotes || '未設定', 500)}\nidentity：${roles.narrator.identityDisclosureMode}／Knowledge source：${narratorKnowledgeSource.type}`,
     minimum: `【Narrator】${roles.narrator.name}／identity：${roles.narrator.identityDisclosureMode}／Knowledge：${narratorKnowledgeSource.type}` });
@@ -207,26 +225,45 @@ export function buildInspectorContext(source: InspectorSources, options: Inspect
   if (minimumRequiredLength > maxCharacters) throw new InspectorContextBudgetError(`Required Inspector Contextが上限を超えています（${minimumRequiredLength}/${maxCharacters}）`);
   const budget = buildContextWithinBudget(entries, maxCharacters);
   if (budget.included.some(item => item.representation === 'truncated')) throw new InspectorContextBudgetError('Required semantic blockを安全に保持できません');
-  const includedIds = new Set(budget.included.map(item => item.id));
-  const omittedCategories = [...new Set(budget.omitted.map(id => id.split(':')[0]))];
+  const legacyEntries = entries.filter(entry => entry.id !== 'surrounding-text');
+  const legacySurrounding = surroundingEntry(legacyBefore, legacyAfter, true);
+  if (legacySurrounding) legacyEntries.splice(surroundingIndex, 0, legacySurrounding);
+  const legacyBudget = buildContextWithinBudget(legacyEntries, maxCharacters);
   const contentHash = hash(source.chapter.content);
-  const manifest = {
-    builderVersion: INSPECTOR_CONTEXT_BUILDER_VERSION, projectId: source.project.id, chapterId: source.chapter.id,
-    chapterUpdatedAt: iso(source.chapter.updatedAt), contentHash,
-    requestedRange: range.requested, inspectedRange: range.inspected,
-    perspectiveSource: source.project.narrativePerspective ? 'project' : 'unspecified',
-    narratorSource: source.chapter.narratorId ? 'chapter' : source.project.defaultNarratorId ? 'project' : 'unspecified',
-    povSource: source.chapter.povCharacterId ? 'chapter' : source.project.defaultPovCharacterId ? 'project' : 'unspecified',
-    narrativeRules: rules.map(rule => ({ id: rule.id, updatedAt: iso(source.narrativeRules.find(value => value.id === rule.id)?.updatedAt), included: includedIds.has(`rule:${rule.id}`) })),
-    storyFacts: storyFacts.map(fact => ({ id: fact.id, updatedAt: iso(fact.updatedAt), readerState: readerKnowledge.find(value => value.factId === fact.id)?.phase, included: includedIds.has(`fact:${fact.id}`) })),
-    characterKnowledge: source.characterKnowledge.filter(event => storyFacts.some(fact => fact.id === event.factId) && relevantCharacterIds.has(event.characterId)).map(event => ({ id: event.id, updatedAt: iso(event.updatedAt) })),
-    characterIds: relevantCharacters.map(character => character.id), relationshipIds: relationships.map(relation => relation.id),
-    narrator: roles.narrator ? { id: roles.narrator.id, source: source.chapter.narratorId ? 'chapter' : 'project', linkedCharacterId: roles.narrator.linkedCharacterId || null, identityFactId: roles.narrator.identityFactId || null, identityReaderState: identityReaderState?.phase || null } : null,
-    pov: roles.pov ? { id: roles.pov.id, source: source.chapter.povCharacterId ? 'chapter' : 'project' } : null,
-    omittedCategories,
-    truncation: { inspectedText: range.truncated, requestedCharacters: range.requested.end - range.requested.start, includedCharacters: excerpt.length, contextCharacters: budget.text.length, hardCap: maxCharacters },
-    adapters: { surroundingText: 'temporary-character-window-v1', semanticSpans: 'not-provided' },
+  const buildManifest = (selectedBudget: ContextBudgetResult, legacy: boolean) => {
+    const includedIds = new Set(selectedBudget.included.map(item => item.id));
+    return {
+      builderVersion: INSPECTOR_CONTEXT_BUILDER_VERSION, projectId: source.project.id, chapterId: source.chapter.id,
+      chapterUpdatedAt: iso(source.chapter.updatedAt), contentHash,
+      requestedRange: range.requested, inspectedRange: range.inspected,
+      perspectiveSource: source.project.narrativePerspective ? 'project' : 'unspecified',
+      narratorSource: source.chapter.narratorId ? 'chapter' : source.project.defaultNarratorId ? 'project' : 'unspecified',
+      povSource: source.chapter.povCharacterId ? 'chapter' : source.project.defaultPovCharacterId ? 'project' : 'unspecified',
+      narrativeRules: rules.map(rule => ({ id: rule.id, updatedAt: iso(source.narrativeRules.find(value => value.id === rule.id)?.updatedAt), included: includedIds.has(`rule:${rule.id}`) })),
+      storyFacts: storyFacts.map(fact => ({ id: fact.id, updatedAt: iso(fact.updatedAt), readerState: readerKnowledge.find(value => value.factId === fact.id)?.phase, included: includedIds.has(`fact:${fact.id}`) })),
+      characterKnowledge: source.characterKnowledge.filter(event => storyFacts.some(fact => fact.id === event.factId) && relevantCharacterIds.has(event.characterId)).map(event => ({ id: event.id, updatedAt: iso(event.updatedAt) })),
+      characterIds: relevantCharacters.map(character => character.id), relationshipIds: relationships.map(relation => relation.id),
+      narrator: roles.narrator ? { id: roles.narrator.id, source: source.chapter.narratorId ? 'chapter' : 'project', linkedCharacterId: roles.narrator.linkedCharacterId || null, identityFactId: roles.narrator.identityFactId || null, identityReaderState: identityReaderState?.phase || null } : null,
+      pov: roles.pov ? { id: roles.pov.id, source: source.chapter.povCharacterId ? 'chapter' : 'project' } : null,
+      omittedCategories: [...new Set(selectedBudget.omitted.map(id => id.split(':')[0]))],
+      truncation: { inspectedText: range.truncated, requestedCharacters: range.requested.end - range.requested.start, includedCharacters: excerpt.length, contextCharacters: selectedBudget.text.length, hardCap: maxCharacters },
+      adapters: { surroundingText: legacy ? 'temporary-character-window-v1' : textStructure.adapterVersion, semanticSpans: 'not-provided' },
+      ...(!legacy && { textStructure: {
+        parserVersion: textStructure.parserVersion,
+        adapterVersion: textStructure.adapterVersion,
+        expansionMode: textStructure.expansionMode,
+        fallbackReason: textStructure.fallbackReason,
+        diagnosticCodes: textStructure.diagnosticCodes,
+        beforeRange: textStructure.beforeRange,
+        afterRange: textStructure.afterRange,
+        overlappingSentenceCount: textStructure.overlappingSentenceIds.length,
+        overlappingParagraphCount: textStructure.overlappingParagraphIds.length,
+        sectionCount: textStructure.sectionIds.length,
+      } }),
+    };
   };
+  const manifest = buildManifest(budget, false);
+  const legacyManifest = buildManifest(legacyBudget, true);
   return {
     text: budget.text,
     inspectedText: { requestedRange: range.requested, startOffset: range.inspected.start, endOffset: range.inspected.end, excerpt, contentHash, truncated: range.truncated, surroundingBefore: before, surroundingAfter: after },
@@ -234,7 +271,10 @@ export function buildInspectorContext(source: InspectorSources, options: Inspect
     ruleResolution: { precedence: ['project_narrative_rule', 'explicit_pov_narrator_settings', 'knowledge_boundary', 'general_convention'] as const, projectRules: rules, generalConventionIncluded: false },
     rules, knowledge: { authorTruth: storyFacts, reader: readerKnowledge, characters: characterKnowledge, narratorKnowledgeSource },
     voices: { characters: relevantCharacters, relationships, narratorVoiceNotes: roles.narrator?.voiceNotes || '', povNarrationVoiceNotes: roles.pov?.narrationVoiceNotes || '' },
-    budget,
+    budget, textStructure,
     manifest,
+    // Compatibility bridge: actual structural context is provenance, not a reason
+    // to invalidate author decisions or Learning sessions after adapter rollout.
+    legacyFreshnessPayload: { manifest: legacyManifest, semanticContext: legacyBudget.text },
   };
 }

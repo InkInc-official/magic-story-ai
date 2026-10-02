@@ -24,7 +24,7 @@ function issueForPrompt(issue: { category: string; issueType: string; excerpt: s
 
 async function currentLearningContext(projectId: string, chapterId: string) {
   const context = await loadAndBuildInspectorContext(projectId, chapterId);
-  return { context, contentHash: context.inspectedText.contentHash, contextFingerprint: buildContextFingerprint({ manifest: context.manifest, semanticContext: context.text }) };
+  return { context, contentHash: context.inspectedText.contentHash, contextFingerprint: buildContextFingerprint(context.legacyFreshnessPayload) };
 }
 
 function publicSession<T extends { evidenceRefsSnapshot: string }>(session: T) {

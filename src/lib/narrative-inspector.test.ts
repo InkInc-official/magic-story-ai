@@ -92,6 +92,15 @@ test('hallucinated excerpt・offset・evidence・category・issueTypeを拒否�
   invalidValues.forEach(value => assert.throws(() => validateNarrativeInspectorOutput({ schemaVersion: 1, issues: [value] }, context), NarrativeInspectorError));
 });
 
+test('前後の参考文脈だけに存在するexcerptをIssue evidenceとして拒否する', () => {
+  const value = source('前文。検査対象。後文。');
+  const start = value.chapter.content.indexOf('検査対象');
+  const context = buildInspectorContext(value, { range: { start, end: start + '検査対象。'.length } });
+  assert.match(context.text, /前後の参考文脈/u);
+  const surroundingOnly = { category: 'viewpoint', issueType: 'other_character_inner_state', excerpt: '前文。', startOffset: 0, endOffset: 3, explanation: '参考文脈だけの指摘', suggestedDirection: '確認', severity: 'check', evidenceRefs: ['pov:a'] };
+  assert.throws(() => validateNarrativeInspectorOutput({ schemaVersion: 1, issues: [surroundingOnly] }, context), NarrativeInspectorError);
+});
+
 test('Issue上限とduplicateを拒否する', () => {
   const context = buildInspectorContext(source()); const valid = issue(context);
   assert.throws(() => validateNarrativeInspectorOutput({ schemaVersion: 1, issues: Array.from({ length: INSPECTOR_MAX_ISSUES + 1 }, () => valid) }, context), NarrativeInspectorError);

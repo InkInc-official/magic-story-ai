@@ -68,6 +68,14 @@ test('作者判断はIssue・本文・excerpt・context完全一致時だけfres
   assert.equal(decisionIsFresh(decision, target, { ...current, contextFingerprint: 'changed' }), false);
 });
 
+test('全作者判断種別はAdapter rolloutだけではfreshnessを失わない', () => {
+  for (const decisionValue of ['accepted_issue', 'allowed_exception', 'not_an_issue']) {
+    const decision = { decision: decisionValue, issueFingerprint: 'fp', decidedAgainstContentHash: 'content', decidedAgainstExcerpt: 'excerpt', contextFingerprint: 'legacy-compatible' };
+    const target = { fingerprint: 'fp', contentHash: 'content', excerpt: 'excerpt', contextFingerprint: 'legacy-compatible' };
+    assert.equal(decisionIsFresh(decision, target, { contentHash: 'content', contextFingerprint: 'legacy-compatible' }), true);
+  }
+});
+
 test('successful runはpending作成後にatomic commitしcompleted結果を返す', async () => {
   const events: string[] = [];
   const result = await executeInspectionRun({

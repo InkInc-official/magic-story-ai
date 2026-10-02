@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { buildInspectorContext, INSPECTOR_CONTEXT_HARD_CAP, InspectorContextBudgetError, InspectorContextInputError, resolveInspectorCharacterTimeline, resolveReaderKnowledgeAtChapter, type InspectorSources, type InspectorStoryFact } from './inspector-context.js';
+import { buildContextFingerprint, decisionIsFresh } from './narrative-inspector-persistence.js';
+import { learningSessionIsFresh } from './narrative-learning.js';
 
 const chapters = {
   previous: { id: 'c1', projectId: 'p1', order: 1, title: '前章' },
@@ -120,6 +122,78 @@ test('巨大本文と多数optional Knowledgeでもhard cap内でrequiredを維�
   assert.equal(result.manifest.truncation.inspectedText, true);
   assert.match(result.text, /検査対象本文/); assert.match(result.text, /叙述役割/); assert.match(result.text, /Authoritative Knowledge Boundary/); assert.match(result.text, /正体を伏せる/);
   assert.ok(result.manifest.omittedCategories.length > 0);
+});
+
+test('Structural surroundingを使い、検査対象rangeと14k capを維持する', () => {
+  const value = source();
+  value.chapter.content = '前の文。中央の文。後の文。';
+  const result = buildInspectorContext(value, { range: { start: 5, end: 9 } });
+  assert.deepEqual(result.inspectedText.requestedRange, { start: 5, end: 9 });
+  assert.deepEqual([result.inspectedText.startOffset, result.inspectedText.endOffset, result.inspectedText.excerpt], [5, 9, value.chapter.content.slice(5, 9)]);
+  assert.match(result.text, /【前後の参考文脈】/u);
+  assert.doesNotMatch(result.text, /暫定文字window/u);
+  assert.ok(result.text.length <= INSPECTOR_CONTEXT_HARD_CAP);
+  const textStructure = result.manifest.textStructure;
+  if (!textStructure) assert.fail('textStructure provenance is required');
+  assert.equal(textStructure.parserVersion, '5b5-v1');
+  assert.equal(textStructure.adapterVersion, 'inspector-structure-adapter-v1');
+});
+
+test('section境界を越えて通常文脈を混ぜず、区切り選択時だけ両側を参考文脈にする', () => {
+  const value = source();
+  value.chapter.content = '第一節の文。\n***\n第二節の文。';
+  const firstSection = buildInspectorContext(value, { range: { start: 0, end: 6 } });
+  assert.equal(firstSection.inspectedText.surroundingAfter.includes('第二節'), false);
+
+  const separatorStart = value.chapter.content.indexOf('***');
+  const separator = buildInspectorContext(value, { range: { start: separatorStart, end: separatorStart + 3 } });
+  assert.match(separator.inspectedText.surroundingBefore, /第一節/u);
+  assert.match(separator.inspectedText.surroundingAfter, /第二節/u);
+});
+
+test('巨大文と不正な括弧を安全に解析し、Inspector contextの上限を守る', () => {
+  const giant = source();
+  giant.chapter.content = `「${'巨大な文'.repeat(3000)}`;
+  const result = buildInspectorContext(giant, { range: { start: 10, end: 30 } });
+  assert.ok(result.text.length <= INSPECTOR_CONTEXT_HARD_CAP);
+  const textStructure = result.manifest.textStructure;
+  if (!textStructure) assert.fail('textStructure provenance is required');
+  assert.ok(textStructure.diagnosticCodes.length > 0 || textStructure.fallbackReason !== null);
+});
+
+test('rollout前のlegacy fingerprintを正確に維持し、semantic変更は検知する', () => {
+  const value: InspectorSources = {
+    project: { id: 'p1', narrativePerspective: 'first_person', defaultPovCharacterId: 'c1' },
+    chapter: { id: 'ch1', projectId: 'p1', order: 0, title: '章', content: '前の文。中央の文。後の文。', povCharacterId: 'c1', narratorId: null, updatedAt: null },
+    characters: [{ id: 'c1', projectId: 'p1', name: '人物', firstPerson: '私', narrationVoiceNotes: '静かに語る' }],
+    narrators: [], cast: [], narrativeRules: [], storyFacts: [], characterKnowledge: [], relationships: [],
+  };
+  const fingerprint = (target: InspectorSources) => buildContextFingerprint(buildInspectorContext(target, { range: { start: 5, end: 9 } }).legacyFreshnessPayload);
+  const beforeAdapterFingerprint = '54a95970fbd581da2e3f9bf28ebf632ec69a20ffcae498c613fe6503bd2f3ad9';
+  assert.equal(fingerprint(value), beforeAdapterFingerprint);
+  const current = { contentHash: buildInspectorContext(value).inspectedText.contentHash, contextFingerprint: fingerprint(value) };
+  assert.equal(decisionIsFresh(
+    { issueFingerprint: 'issue', decidedAgainstContentHash: current.contentHash, decidedAgainstExcerpt: '本文', contextFingerprint: beforeAdapterFingerprint },
+    { fingerprint: 'issue', contentHash: current.contentHash, excerpt: '本文', contextFingerprint: current.contextFingerprint },
+    current,
+  ), true);
+  assert.equal(learningSessionIsFresh(
+    { startingIssueFingerprint: 'issue', startingContentHash: current.contentHash, startingContextFingerprint: beforeAdapterFingerprint },
+    { issueFingerprint: 'issue', ...current },
+  ), true);
+  assert.notEqual(fingerprint({ ...value, chapter: { ...value.chapter, content: `${value.chapter.content}変更。` } }), beforeAdapterFingerprint);
+  const povChanged = structuredClone(value); povChanged.characters.push({ id: 'c2', projectId: 'p1', name: '別人物' }); povChanged.chapter.povCharacterId = 'c2';
+  assert.notEqual(fingerprint(povChanged), beforeAdapterFingerprint);
+  const ruleChanged = structuredClone(value); ruleChanged.narrativeRules.push({ id: 'r1', projectId: 'p1', title: '規則', description: '必須条件', category: 'viewpoint', mode: 'require', priority: 10, source: 'author', active: true, overridable: false });
+  assert.notEqual(fingerprint(ruleChanged), beforeAdapterFingerprint);
+});
+
+test('manifestは構造provenanceだけを持ち、作者用秘密本文を複製しない', () => {
+  const result = buildInspectorContext(source());
+  const textStructure = result.manifest.textStructure;
+  if (!textStructure) assert.fail('textStructure provenance is required');
+  assert.deepEqual(Object.keys(textStructure).sort(), ['adapterVersion', 'afterRange', 'beforeRange', 'diagnosticCodes', 'expansionMode', 'fallbackReason', 'overlappingParagraphCount', 'overlappingSentenceCount', 'parserVersion', 'sectionCount'].sort());
+  assert.doesNotMatch(JSON.stringify(result.manifest), /観測者は太郎の幽霊|作者用：幽霊の太郎|自分はまだ生きている/u);
 });
 
 test('不正rangeとProject境界違反を拒否する', () => {
