@@ -44,11 +44,49 @@ export interface TextDiagnostic extends SourceRange {
   message: string;
 }
 
+export interface SymbolPairDefinition {
+  id: string;
+  openSymbol: string;
+  closeSymbol: string;
+}
+
+export type PairedSymbolRegionStatus = 'closed' | 'unclosed' | 'mismatched';
+
+export interface PairedSymbolRegion extends SourceRange {
+  id: string;
+  kind: 'paired_symbol_region';
+  pairId: string;
+  openSymbol: string;
+  closeSymbol: string;
+  openRange: SourceRange;
+  closeRange: SourceRange | null;
+  contentRange: SourceRange;
+  depth: number;
+  parentRegionId: string | null;
+  status: PairedSymbolRegionStatus;
+}
+
+export interface SymbolPairUsage {
+  pairId: string;
+  openSymbol: string;
+  closeSymbol: string;
+  occurrenceCount: number;
+  firstOccurrenceOffset: Utf16Offset;
+  regionIds: string[];
+}
+
+export interface JapaneseTextParserOptions {
+  pairedSymbols?: readonly SymbolPairDefinition[];
+  maxSymbolNestingDepth?: number;
+}
+
 export interface JapaneseTextSourceDocument {
   parserVersion: string;
   source: UnicodeMetrics & {
     lineEndingStyle: LineEndingStyle;
   };
   lines: SourceLine[];
+  symbolRegions: PairedSymbolRegion[];
+  symbolUsage: SymbolPairUsage[];
   diagnostics: TextDiagnostic[];
 }

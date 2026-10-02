@@ -12,6 +12,8 @@ test('empty source is valid and has no phantom line', () => {
   assert.match(result.source.graphemeSegmentation, /^(intl-segmenter|fallback-code-point-clusters)$/);
   assert.equal(result.source.lineEndingStyle, 'none');
   assert.deepEqual(result.lines, []);
+  assert.deepEqual(result.symbolRegions, []);
+  assert.deepEqual(result.symbolUsage, []);
   assert.deepEqual(result.diagnostics, []);
 });
 
