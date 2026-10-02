@@ -38,3 +38,9 @@ test('validates structured stages and rejects hallucinated provenance', () => {
   assert.equal(parseExplorationCandidates(stage2, new Set(['c1:0'])).length, 1);
   assert.throws(() => parseExplorationCandidates(stage2, new Set(['other'])));
 });
+
+test('rejects oversized exploration output', () => {
+  assert.throws(() => parseExplorationObservations(JSON.stringify({ schemaVersion: 1, observations: Array.from({ length: 51 }, () => ({ sourceChapterId: 'c1', excerpt: '鍵', elementSummary: '鍵', reasonInteresting: '理由' })) }), 'c1'));
+  assert.throws(() => parseExplorationObservations(JSON.stringify({ schemaVersion: 1, observations: [{ sourceChapterId: 'c1', excerpt: 'x'.repeat(1201), elementSummary: '鍵', reasonInteresting: '理由' }] }), 'c1'));
+  assert.throws(() => parseExplorationCandidates(JSON.stringify({ schemaVersion: 1, candidates: [{ observationKey: 'key', possibleUses: Array.from({ length: 21 }, () => '用途'), currentStoryRelation: '関係', authorIntentRelation: '意図', risks: [], relevance: 'high' }] }), new Set(['key'])));
+});

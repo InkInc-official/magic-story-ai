@@ -13,8 +13,8 @@ export interface ExplorationInput { projectId: string; anchorChapterId: string; 
 export interface ObservationDraft { observationKey: string; sourceChapterId: string; excerpt: string; elementSummary: string; reasonInteresting: string }
 export interface CandidateDraft { observationKey: string; possibleUses: string[]; currentStoryRelation: string; authorIntentRelation: string; risks: string[]; relevance: 'high' | 'medium' | 'low' }
 
-const nonEmpty = (value: unknown): value is string => typeof value === 'string' && value.trim().length > 0;
-const strings = (value: unknown): value is string[] => Array.isArray(value) && value.every(nonEmpty);
+const nonEmpty = (value: unknown, max = 4000): value is string => typeof value === 'string' && value.trim().length > 0 && value.length <= max;
+const strings = (value: unknown, maxItems = 20, maxString = 1000): value is string[] => Array.isArray(value) && value.length <= maxItems && value.every(item => nonEmpty(item, maxString));
 
 export function selectExplorationChapters(chapters: ExplorationChapter[], anchorOrder: number, input: Pick<ExplorationInput, 'rangeMode' | 'recentCount' | 'startChapterId' | 'endChapterId'>): ExplorationChapter[] {
   const eligible = chapters.filter(chapter => chapter.order <= anchorOrder && chapter.content.trim()).sort((a, b) => a.order - b.order);
@@ -47,23 +47,23 @@ export function splitChapterForExploration(chapter: ExplorationChapter, maxChara
 
 export function parseExplorationObservations(raw: string, allowedChapterId: string): Omit<ObservationDraft, 'observationKey'>[] {
   const value = extractJsonObject(raw) as Record<string, unknown>;
-  if (value.schemaVersion !== 1 || !Array.isArray(value.observations)) throw new Error('Malformed exploration observations');
+  if (value.schemaVersion !== 1 || !Array.isArray(value.observations) || value.observations.length > 50) throw new Error('Malformed exploration observations');
   return value.observations.map((item, index) => {
     if (!item || typeof item !== 'object') throw new Error(`Malformed observation ${index}`);
     const row = item as Record<string, unknown>;
-    if (row.sourceChapterId !== allowedChapterId || !nonEmpty(row.excerpt) || !nonEmpty(row.elementSummary) || !nonEmpty(row.reasonInteresting)) throw new Error(`Malformed observation ${index}`);
+    if (row.sourceChapterId !== allowedChapterId || !nonEmpty(row.excerpt, 1200) || !nonEmpty(row.elementSummary, 500) || !nonEmpty(row.reasonInteresting, 1200)) throw new Error(`Malformed observation ${index}`);
     return { sourceChapterId: row.sourceChapterId, excerpt: row.excerpt.trim(), elementSummary: row.elementSummary.trim(), reasonInteresting: row.reasonInteresting.trim() };
   });
 }
 
 export function parseExplorationCandidates(raw: string, keys: Set<string>): CandidateDraft[] {
   const value = extractJsonObject(raw) as Record<string, unknown>;
-  if (value.schemaVersion !== 1 || !Array.isArray(value.candidates)) throw new Error('Malformed exploration candidates');
+  if (value.schemaVersion !== 1 || !Array.isArray(value.candidates) || value.candidates.length > keys.size || value.candidates.length > 200) throw new Error('Malformed exploration candidates');
   const seen = new Set<string>();
   return value.candidates.map((item, index) => {
     if (!item || typeof item !== 'object') throw new Error(`Malformed candidate ${index}`);
     const row = item as Record<string, unknown>;
-    if (!nonEmpty(row.observationKey) || !keys.has(row.observationKey) || !strings(row.possibleUses) || !nonEmpty(row.currentStoryRelation) || !nonEmpty(row.authorIntentRelation) || !strings(row.risks) || !['high', 'medium', 'low'].includes(String(row.relevance))) throw new Error(`Malformed candidate ${index}`);
+    if (!nonEmpty(row.observationKey, 200) || !keys.has(row.observationKey) || !strings(row.possibleUses) || !nonEmpty(row.currentStoryRelation, 2000) || !nonEmpty(row.authorIntentRelation, 2000) || !strings(row.risks) || !['high', 'medium', 'low'].includes(String(row.relevance))) throw new Error(`Malformed candidate ${index}`);
     if (seen.has(row.observationKey)) throw new Error(`Duplicate candidate ${row.observationKey}`);
     seen.add(row.observationKey);
     return row as unknown as CandidateDraft;

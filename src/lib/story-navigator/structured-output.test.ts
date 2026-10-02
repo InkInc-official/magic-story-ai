@@ -15,6 +15,11 @@ describe('Story Navigator structured output', () => {
   test('extracts fenced JSON', () => assert.equal(extractStoryNavigatorOutput(`\`\`\`json\n${JSON.stringify(output(2))}\n\`\`\``).routes.length, 2));
   test('extracts JSON surrounded by prose', () => assert.equal(extractStoryNavigatorOutput(`前置き\n${JSON.stringify(output(3))}\n以上`).routes.length, 3));
   test('rejects invalid JSON', () => assert.throws(() => extractStoryNavigatorOutput('{broken')));
+  test('rejects oversized LLM strings and arrays', () => {
+    assert.throws(() => validateStoryNavigatorOutput({ ...output(2), currentPosition: { summary: 'x'.repeat(4001), planDeviation: [] } }));
+    assert.throws(() => validateStoryNavigatorOutput({ ...output(2), currentPosition: { summary: '現在地', planDeviation: Array.from({ length: 21 }, () => 'x') } }));
+    assert.throws(() => validateStoryNavigatorOutput({ ...output(2), routes: [{ ...route(0), risks: Array.from({ length: 21 }, () => 'x') }, route(1)] }));
+  });
   test('validates decision statuses', () => {
     for (const value of ['undecided', 'held', 'accepted', 'rejected']) assert.equal(isStoryNavigatorDecisionStatus(value), true);
     assert.equal(isStoryNavigatorDecisionStatus('canon'), false);

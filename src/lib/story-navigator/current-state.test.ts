@@ -70,6 +70,18 @@ describe('Navigator anchor-end temporal semantics', () => {
     const baselineOnly = resolveNavigatorKnowledge(value.characterKnowledge.slice(0, 1), value.storyFacts, value.characters, 3);
     assert.equal(baselineOnly.current[0].event.id, 'baseline');
   });
+
+  test('uses current Chapter.order after reorder instead of stored chapter ids', () => {
+    const value = source();
+    const reorderedFact = { ...value.storyFacts[2], revealedChapter: { id: 'c4', order: 2 } };
+    assert.equal(classifyNavigatorFact(reorderedFact, 3).readerState, 'reader-known');
+    const reorderedEvents = value.characterKnowledge.map(event => event.id === 'future-event'
+      ? { ...event, effectiveChapter: { id: 'c4', order: 3 } }
+      : event.id === 'anchor-event' ? { ...event, effectiveChapter: { id: 'c3', order: 4 } } : event);
+    const resolved = resolveNavigatorKnowledge(reorderedEvents, value.storyFacts, value.characters, 3);
+    assert.equal(resolved.current.find(item => item.fact.id === 'hidden')?.event.id, 'future-event');
+    assert.ok(resolved.future.some(item => item.event.id === 'anchor-event'));
+  });
 });
 
 describe('Navigator information separation and genre guidance', () => {
@@ -113,6 +125,17 @@ test('Navigator budget preserves required entries, degrades optional entries, an
   assert.ok(result.manifest.plotIds.includes('plot1'));
   assert.equal('content' in result.manifest, false);
   assert.doesNotMatch(JSON.stringify(result.manifest), /actual-content/);
+});
+
+test('huge author inputs stay bounded while required boundaries remain', () => {
+  const value = source('required'); value.project.authorIntent = '作者意図'.repeat(10_000);
+  const result = buildNavigatorContext(value, '今回の作者指示'.repeat(10_000));
+  assert.ok(result.context.length <= STORY_NAVIGATOR_CONTEXT_HARD_CAP);
+  assert.match(result.context, /今回の作者指示（最優先）/);
+  assert.match(result.context, /作者意図（AI提案より上位）/);
+  assert.match(result.context, /Authoritative Knowledge Boundary/);
+  assert.match(result.context, /ジャンル指針：必須/);
+  assert.ok(result.context.indexOf('今回の作者指示（最優先）') < result.context.indexOf('ジャンル指針：必須'));
 });
 
 test('derivation exposes no Proposed canon data in this phase', () => {

@@ -7,7 +7,7 @@ export async function POST(request: NextRequest) {
     if (typeof body.projectId !== 'string' || !body.projectId || typeof body.anchorChapterId !== 'string' || !body.anchorChapterId) {
       return NextResponse.json({ error: 'projectId and anchorChapterId are required' }, { status: 400 });
     }
-    if (body.request !== undefined && typeof body.request !== 'string') return NextResponse.json({ error: 'request must be a string' }, { status: 400 });
+    if (body.request !== undefined && (typeof body.request !== 'string' || body.request.length > 5000)) return NextResponse.json({ error: 'request must be a string of at most 5000 characters' }, { status: 400 });
     const run = await generateStoryNavigatorRun({ projectId: body.projectId, anchorChapterId: body.anchorChapterId, request: body.request as string | undefined });
     return NextResponse.json(run, { status: 201 });
   } catch (error) {

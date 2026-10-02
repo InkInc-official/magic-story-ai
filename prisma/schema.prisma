@@ -349,7 +349,7 @@ model StoryNavigatorRun {
   completedAt           DateTime?
 
   project       Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  anchorChapter Chapter @relation(fields: [anchorChapterId], references: [id], onDelete: Cascade)
+  anchorChapter Chapter @relation(fields: [anchorChapterId], references: [id], onDelete: Restrict)
   proposals     StoryNavigatorProposal[]
 
   @@index([projectId, createdAt])
@@ -401,7 +401,7 @@ model StoryNavigatorExplorationRun {
   completedAt     DateTime?
 
   project       Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  anchorChapter Chapter @relation("ExplorationAnchor", fields: [anchorChapterId], references: [id], onDelete: Cascade)
+  anchorChapter Chapter @relation("ExplorationAnchor", fields: [anchorChapterId], references: [id], onDelete: Restrict)
   observations StoryNavigatorObservation[]
 
   @@index([projectId, createdAt])
@@ -431,7 +431,7 @@ model StoryNavigatorObservation {
 
   run           StoryNavigatorExplorationRun @relation(fields: [runId], references: [id], onDelete: Cascade)
   project       Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  sourceChapter Chapter @relation("ObservationSource", fields: [sourceChapterId], references: [id], onDelete: Cascade)
+  sourceChapter Chapter @relation("ObservationSource", fields: [sourceChapterId], references: [id], onDelete: Restrict)
   promotionActions StoryNavigatorPromotionAction[]
 
   @@index([runId, decisionStatus])
@@ -461,8 +461,8 @@ model StoryNavigatorPromotionAction {
   appliedAt           DateTime?
 
   project           Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  sourceProposal    StoryNavigatorProposal? @relation(fields: [sourceProposalId], references: [id], onDelete: Cascade)
-  sourceObservation StoryNavigatorObservation? @relation(fields: [sourceObservationId], references: [id], onDelete: Cascade)
+  sourceProposal    StoryNavigatorProposal? @relation(fields: [sourceProposalId], references: [id], onDelete: Restrict)
+  sourceObservation StoryNavigatorObservation? @relation(fields: [sourceObservationId], references: [id], onDelete: Restrict)
 
   @@index([projectId, status])
   @@index([sourceProposalId])

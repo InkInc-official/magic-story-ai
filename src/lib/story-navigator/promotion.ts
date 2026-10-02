@@ -12,23 +12,28 @@ export function observationSnapshot(source: Record<string, unknown>) {
   return JSON.stringify({ type: 'navigator_observation', id: source.id, runId: source.runId, sourceChapterId: source.sourceChapterId, sourceExcerpt: source.sourceExcerpt, elementSummary: source.elementSummary, decisionStatus: source.decisionStatus, updatedAt: source.updatedAt, contextFingerprint: fingerprint({ run: source.run, sourceChapter: source.sourceChapter }) });
 }
 
-async function readTargetSnapshot(database: Pick<typeof db, 'project' | 'plot' | 'foreshadowing'>, projectId: string) {
-  const [project, plots, foreshadowings] = await Promise.all([
+async function readTargetSnapshot(database: Pick<typeof db, 'project' | 'plot' | 'foreshadowing' | 'storyFact' | 'characterKnowledge'>, projectId: string) {
+  const [project, plots, foreshadowings, storyFacts, characterKnowledge] = await Promise.all([
     database.project.findUniqueOrThrow({ where: { id: projectId }, select: { updatedAt: true } }),
     database.plot.findMany({ where: { projectId }, select: { id: true, updatedAt: true }, orderBy: { id: 'asc' } }),
     database.foreshadowing.findMany({ where: { projectId }, select: { id: true, chapterId: true, content: true, expectedResolveChapter: true, status: true, importance: true }, orderBy: { id: 'asc' } }),
+    database.storyFact.findMany({ where: { projectId }, select: { id: true, updatedAt: true }, orderBy: { id: 'asc' } }),
+    database.characterKnowledge.findMany({ where: { fact: { projectId } }, select: { id: true, updatedAt: true }, orderBy: { id: 'asc' } }),
   ]);
-  return JSON.stringify({ project, plots, foreshadowings });
+  return JSON.stringify({ project, plots, foreshadowings, storyFacts, characterKnowledge });
 }
 
-async function targetSnapshotIsCurrent(database: Pick<typeof db, 'project' | 'plot' | 'foreshadowing'>, projectId: string, snapshot: string) {
-  const prior = JSON.parse(snapshot) as { project: { updatedAt: string }; plots: Array<{ id: string; updatedAt: string }>; foreshadowings: Array<Record<string, unknown> & { id: string }> };
-  const [project, plots, foreshadowings] = await Promise.all([
+async function targetSnapshotIsCurrent(database: Pick<typeof db, 'project' | 'plot' | 'foreshadowing' | 'storyFact' | 'characterKnowledge'>, projectId: string, snapshot: string) {
+  const prior = JSON.parse(snapshot) as { project: { updatedAt: string }; plots: Array<{ id: string; updatedAt: string }>; foreshadowings: Array<Record<string, unknown> & { id: string }>; storyFacts: Array<{ id: string; updatedAt: string }>; characterKnowledge: Array<{ id: string; updatedAt: string }> };
+  if (!Array.isArray(prior.storyFacts) || !Array.isArray(prior.characterKnowledge)) return false;
+  const [project, plots, foreshadowings, storyFacts, characterKnowledge] = await Promise.all([
     database.project.findUnique({ where: { id: projectId }, select: { updatedAt: true } }),
     database.plot.findMany({ where: { projectId, id: { in: prior.plots.map(item => item.id) } }, select: { id: true, updatedAt: true }, orderBy: { id: 'asc' } }),
     database.foreshadowing.findMany({ where: { projectId, id: { in: prior.foreshadowings.map(item => item.id) } }, select: { id: true, chapterId: true, content: true, expectedResolveChapter: true, status: true, importance: true }, orderBy: { id: 'asc' } }),
+    database.storyFact.findMany({ where: { projectId }, select: { id: true, updatedAt: true }, orderBy: { id: 'asc' } }),
+    database.characterKnowledge.findMany({ where: { fact: { projectId } }, select: { id: true, updatedAt: true }, orderBy: { id: 'asc' } }),
   ]);
-  return JSON.stringify({ project, plots, foreshadowings }) === snapshot;
+  return JSON.stringify({ project, plots, foreshadowings, storyFacts, characterKnowledge }) === snapshot;
 }
 
 export async function createPromotionDraft(input: { projectId: string; sourceType: PromotionSourceType; sourceId: string }, dependencies: { database?: typeof db; complete?: typeof createChatCompletion } = {}) {

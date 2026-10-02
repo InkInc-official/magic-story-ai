@@ -21,8 +21,8 @@ export interface StoryNavigatorStructuredOutput {
   routes: StoryNavigatorRouteOutput[];
 }
 
-const isString = (value: unknown): value is string => typeof value === 'string' && value.trim().length > 0;
-const isStringArray = (value: unknown): value is string[] => Array.isArray(value) && value.every(isString);
+const isString = (value: unknown, max = 4000): value is string => typeof value === 'string' && value.trim().length > 0 && value.length <= max;
+const isStringArray = (value: unknown, maxItems = 20, maxString = 1000): value is string[] => Array.isArray(value) && value.length <= maxItems && value.every(item => isString(item, maxString));
 
 export function isStoryNavigatorDecisionStatus(value: unknown): value is StoryNavigatorDecisionStatus {
   return typeof value === 'string' && STORY_NAVIGATOR_DECISION_STATUSES.includes(value as StoryNavigatorDecisionStatus);
@@ -45,7 +45,8 @@ export function validateStoryNavigatorOutput(value: unknown): StoryNavigatorStru
     if (!raw || typeof raw !== 'object') throw new Error(`Malformed route at index ${index}`);
     const route = raw as Record<string, unknown>;
     for (const key of ['routeKey', 'title', 'summary', 'whyPossible', 'authorIntentRelation'] as const) {
-      if (!isString(route[key])) throw new Error(`Malformed ${key} at route ${index}`);
+      const max = key === 'routeKey' ? 40 : key === 'title' ? 200 : 4000;
+      if (!isString(route[key], max)) throw new Error(`Malformed ${key} at route ${index}`);
     }
     if (keys.has(route.routeKey as string)) throw new Error('Duplicate routeKey');
     keys.add(route.routeKey as string);

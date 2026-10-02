@@ -26,6 +26,21 @@ function source(overrides: Partial<ChapterGenerationSource> = {}): ChapterGenera
 }
 
 describe('buildChapterGenerationContext integration', () => {
+  test('ignores Navigator candidates and promotion states until an applied entity exists as normal plan data', () => {
+    const input = source({
+      title: 'APPLIED_PLOT_TOKEN', outline: '短い章案', latestOutline: '', worldSettings: [], scenes: [], foreshadowings: [], storyStates: [], storyNodes: [], storyEdges: [],
+      plots: [{ name: 'APPLIED_PLOT_TOKEN', description: '正式に反映された計画', status: 'planned', priority: 100 }],
+    }) as ChapterGenerationSource & { storyNavigatorProposals: unknown[]; storyNavigatorObservations: unknown[]; storyNavigatorPromotionActions: unknown[] };
+    input.storyNavigatorProposals = [{ summary: 'UNAPPLIED_PROPOSAL_TOKEN', decisionStatus: 'accepted' }];
+    input.storyNavigatorObservations = [{ elementSummary: 'UNAPPLIED_OBSERVATION_TOKEN', decisionStatus: 'accepted' }];
+    input.storyNavigatorPromotionActions = [{ proposedPayload: 'UNAPPLIED_PROMOTION_TOKEN', status: 'approved' }];
+    const context = buildChapterGenerationContext(input);
+    assert.ok(context.includes('APPLIED_PLOT_TOKEN'));
+    assert.ok(!context.includes('UNAPPLIED_PROPOSAL_TOKEN'));
+    assert.ok(!context.includes('UNAPPLIED_OBSERVATION_TOKEN'));
+    assert.ok(!context.includes('UNAPPLIED_PROMOTION_TOKEN'));
+  });
+
   test('protects chapter intent, POV, voice, cast and continuity under heavy optional context', () => {
     const context = buildChapterGenerationContext(source());
     assert.ok(context.length <= 18_000);

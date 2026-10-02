@@ -27,14 +27,17 @@ export function validatePromotionDraft(value: unknown, chapterIds: ReadonlySet<s
     if (!reason) throw new PromotionError(`Action ${index + 1}のreasonが必要です`);
     if (item.targetType === 'plot') {
       const name = text(payload.name, 200); if (!name) throw new PromotionError('Plot名が必要です');
-      const plotType = PLOT_TYPES.includes(payload.plotType as typeof PLOT_TYPES[number]) ? payload.plotType as typeof PLOT_TYPES[number] : 'main';
-      const tags = Array.isArray(payload.tags) ? payload.tags.map(tag => text(tag, 100)).filter(Boolean).slice(0, 20) : [];
+      if (!PLOT_TYPES.includes(payload.plotType as typeof PLOT_TYPES[number]) || payload.status !== 'planned' || !Number.isInteger(payload.priority) || !Number.isInteger(payload.order)) throw new PromotionError('Plot payloadのenumまたは数値が不正です');
+      if (!Array.isArray(payload.tags) || payload.tags.length > 20 || !payload.tags.every(tag => typeof tag === 'string' && tag.trim() && tag.length <= 100)) throw new PromotionError('Plot tagsが不正です');
+      const plotType = payload.plotType as typeof PLOT_TYPES[number];
+      const tags = payload.tags.map(tag => text(tag, 100));
       return { targetType: 'plot', operation: 'create', reason, payload: { name, description: text(payload.description), plotType, priority: Math.max(0, Math.min(100, integer(payload.priority))), status: 'planned', tags, order: Math.max(0, integer(payload.order)) } };
     }
     const chapterId = text(payload.chapterId, 200); const content = text(payload.content);
     if (!chapterId || !chapterIds.has(chapterId)) throw new PromotionError('伏線の章がこのProjectに存在しません');
     if (!content) throw new PromotionError('伏線内容が必要です');
-    const importance = IMPORTANCE.includes(payload.importance as typeof IMPORTANCE[number]) ? payload.importance as typeof IMPORTANCE[number] : 'medium';
+    if (payload.status !== 'planted' || !IMPORTANCE.includes(payload.importance as typeof IMPORTANCE[number]) || !Number.isInteger(payload.expectedResolveChapter)) throw new PromotionError('伏線payloadのenumまたは数値が不正です');
+    const importance = payload.importance as typeof IMPORTANCE[number];
     return { targetType: 'foreshadowing', operation: 'create', reason, payload: { chapterId, content, expectedResolveChapter: Math.max(0, integer(payload.expectedResolveChapter)), status: 'planted', importance } };
   });
 }
