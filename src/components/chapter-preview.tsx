@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Eye, Type, AlignLeft, Minus, Plus, BookOpen, MousePointerClick } from 'lucide-react';
 import { useState } from 'react';
 import { displayLabel, EMOTION_ARC_LABELS, EMOTION_LABELS } from '@/lib/i18n';
+import type { CurrentChapterMetrics } from '@/lib/current-chapter-metrics';
 
 interface ChapterPreviewProps {
   title: string;
@@ -15,7 +16,8 @@ interface ChapterPreviewProps {
   summary?: string;
   emotionTarget?: string;
   emotionArc?: string;
-  wordCount: number;
+  metrics: CurrentChapterMetrics;
+  targetWordCount?: number | null;
   hasChapter?: boolean;
 }
 
@@ -75,7 +77,8 @@ export function ChapterPreview({
   summary,
   emotionTarget,
   emotionArc,
-  wordCount,
+  metrics,
+  targetWordCount,
   hasChapter = true,
 }: ChapterPreviewProps) {
   const [fontLevel, setFontLevel] = useState(1); // 0=小, 1=中, 2=大
@@ -187,7 +190,7 @@ export function ChapterPreview({
             <div className="flex flex-wrap items-center gap-2 mb-4">
               <Badge variant="outline" className="text-[10px]">
                 <BookOpen size={10} className="mr-1" />
-                {wordCount} 字
+                本文文字数 {metrics.bodyGraphemes.toLocaleString('ja-JP')}{targetWordCount ? ` / ${targetWordCount.toLocaleString('ja-JP')}字` : '字'}
               </Badge>
               {emotionTarget && (
                 <Badge variant="outline" className={`text-[10px] ${emotionStyle}`}>
@@ -245,8 +248,8 @@ export function ChapterPreview({
       {/* Bottom Bar */}
       <div className="px-3 py-1.5 border-t border-border/50 bg-card/30 shrink-0">
         <div className="flex items-center justify-between text-[10px] text-muted-foreground">
-          <span>{content.length} 文字</span>
-          <span>段落：{content.split(/\n+/).filter(p => p.trim()).length}</span>
+          <span title="改行・空行・有効なセクション区切りを除く本文表記の文字数">本文文字数：{metrics.bodyGraphemes.toLocaleString('ja-JP')}字</span>
+          <span>文数：{metrics.sentenceCount.toLocaleString('ja-JP')}／段落数：{metrics.paragraphCount.toLocaleString('ja-JP')}</span>
         </div>
       </div>
     </div>

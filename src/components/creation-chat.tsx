@@ -14,6 +14,7 @@ import { AdversarialReviewPanel } from '@/components/adversarial-review';
 import { ChapterPreview } from '@/components/chapter-preview';
 import { APP_LOCALE, displayLabel, TOOL_LABELS } from '@/lib/i18n';
 import { formatSemanticLabel } from '@/lib/prompts/ja';
+import { useJapaneseTextAnalysis } from '@/hooks/use-japanese-text-analysis';
 import {
   Send, Loader2, Trash2, StopCircle, Sparkles,
   ChevronDown, ChevronRight, Wrench, Eye, Shield, Swords,
@@ -164,6 +165,7 @@ function SidePanel({ type, onClose, projectId }: {
 }) {
   const { activeChapterId } = useAppStore();
   const [chapter, setChapter] = useState<{ id: string; title: string; outlineContent: string; content: string; summary: string; emotionTarget: string; emotionArc: string; purpose?: string; povCharacterId?: string | null; endingNotes?: string } | null>(null);
+  const { metrics: previewMetrics } = useJapaneseTextAnalysis(type === 'preview' ? chapter?.content || '' : '');
 
   useEffect(() => {
     if (activeChapterId && type !== 'none') {
@@ -208,7 +210,7 @@ function SidePanel({ type, onClose, projectId }: {
             summary={chapter?.summary || ''}
             emotionTarget={chapter?.emotionTarget || ''}
             emotionArc={chapter?.emotionArc || ''}
-            wordCount={chapter?.content?.length || 0}
+            metrics={previewMetrics}
             hasChapter={!!chapter}
           />
         )}

@@ -15,7 +15,9 @@ import { AdversarialReviewPanel } from '@/components/adversarial-review';
 import { ChapterPreview } from '@/components/chapter-preview';
 import { NarrativeInspectorPanel } from '@/components/narrative-inspector-panel';
 import { hasUnsavedInspectorChanges } from '@/lib/narrative-inspector';
-import { EMOTION_ARC_LABELS, EMOTION_LABELS, HOOK_LABELS } from '@/lib/i18n';
+import { APP_LOCALE, EMOTION_ARC_LABELS, EMOTION_LABELS, HOOK_LABELS } from '@/lib/i18n';
+import { useJapaneseTextAnalysis } from '@/hooks/use-japanese-text-analysis';
+import { resolveCurrentChapterTarget } from '@/lib/current-chapter-metrics';
 import {
   buildChapterFullUserMessage,
   buildChapterSummaryUserMessage,
@@ -100,6 +102,7 @@ export function ChapterEditor({ projectId }: ChapterEditorProps) {
   const [chapterCast, setChapterCast] = useState<ChapterCastEntry[]>([]);
   const [castCharacterId, setCastCharacterId] = useState('');
   const [projectDefaultPovCharacterId, setProjectDefaultPovCharacterId] = useState('');
+  const [projectDefaultChapterTarget, setProjectDefaultChapterTarget] = useState<number | null>(null);
   const [projectNarrators, setProjectNarrators] = useState<NarratorOption[]>([]);
   const [isCreating, setIsCreating] = useState(false);
   const [newTitle, setNewTitle] = useState('');
@@ -108,6 +111,8 @@ export function ChapterEditor({ projectId }: ChapterEditorProps) {
   const [showEmotion, setShowEmotion] = useState(false);
   const [sidePanel, setSidePanel] = useState<'none' | 'preview' | 'antiAi' | 'adversarial' | 'inspector'>('preview');
   const [generatingPhase, setGeneratingPhase] = useState<'none' | 'summary' | 'full'>('none');
+  const { metrics: currentMetrics } = useJapaneseTextAnalysis(editContent);
+  const currentTargetWordCount = resolveCurrentChapterTarget(editTargetWordCount, projectDefaultChapterTarget);
   const { setActiveAgent, setActiveChapterId } = useAppStore();
   const abortRef = useRef<AbortController | null>(null);
   const contentRef = useRef<HTMLTextAreaElement | null>(null);
@@ -195,8 +200,10 @@ export function ChapterEditor({ projectId }: ChapterEditorProps) {
       }
       if (characterRes.ok) setProjectCharacters((await characterRes.json()).characters || []);
       if (projectRes.ok) {
-        const projects = await projectRes.json() as Array<{ id: string; defaultPovCharacterId?: string | null }>;
-        setProjectDefaultPovCharacterId(projects.find(project => project.id === projectId)?.defaultPovCharacterId || '');
+        const projects = await projectRes.json() as Array<{ id: string; defaultPovCharacterId?: string | null; defaultChapterTarget?: number | null }>;
+        const project = projects.find(item => item.id === projectId);
+        setProjectDefaultPovCharacterId(project?.defaultPovCharacterId || '');
+        setProjectDefaultChapterTarget(project?.defaultChapterTarget ?? null);
       }
       if (narratorRes.ok) setProjectNarrators(await narratorRes.json());
     } catch (e) {
@@ -582,7 +589,11 @@ export function ChapterEditor({ projectId }: ChapterEditorProps) {
                         <option key={s.value} value={s.value}>{s.label}</option>
                       ))}
                     </select>
-                    <Badge variant="outline" className="text-xs shrink-0">{editContent.length} 字</Badge>
+                    <Badge variant="outline" className="text-xs shrink-0" title="改行・空行・有効なセクション区切りを除く本文表記の文字数">
+                      本文文字数 {currentMetrics.bodyGraphemes.toLocaleString(APP_LOCALE)}{currentTargetWordCount ? ` / ${currentTargetWordCount.toLocaleString(APP_LOCALE)}字` : '字'}
+                    </Badge>
+                    <Badge variant="outline" className="text-xs shrink-0">文数 {currentMetrics.sentenceCount.toLocaleString(APP_LOCALE)}</Badge>
+                    <Badge variant="outline" className="text-xs shrink-0">段落数 {currentMetrics.paragraphCount.toLocaleString(APP_LOCALE)}</Badge>
                   </div>
                   <div className="flex items-center gap-1">
                     <Button
@@ -837,7 +848,8 @@ export function ChapterEditor({ projectId }: ChapterEditorProps) {
                   summary={editSummary}
                   emotionTarget={editEmotionTarget}
                   emotionArc={editEmotionArc}
-                  wordCount={editContent.length}
+                  metrics={currentMetrics}
+                  targetWordCount={currentTargetWordCount}
                   hasChapter={!!selectedChapter}
                 />
               )}
