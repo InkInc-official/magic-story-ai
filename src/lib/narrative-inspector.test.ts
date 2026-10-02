@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { buildInspectorContext, type InspectorSources } from './inspector-context.js';
-import { INSPECTOR_MAX_ISSUES, NarrativeInspectorError, extractNarrativeInspectorOutput, validateNarrativeInspectorOutput } from './narrative-inspector.js';
+import { hasUnsavedInspectorChanges, INSPECTOR_MAX_ISSUES, NarrativeInspectorError, extractNarrativeInspectorOutput, validateNarrativeInspectorOutput } from './narrative-inspector.js';
 import { inspectBuiltContext } from './narrative-inspector-runner.js';
 import { buildNarrativeInspectorUserPrompt, NARRATIVE_INSPECTOR_SYSTEM_PROMPT } from './prompts/ja/narrative-inspector.js';
 
@@ -113,6 +113,14 @@ test('concealed identityの本文を通常説明からredactする', async () =>
   const raw = { category: 'knowledge', issueType: 'reader_hidden_leak', excerpt, startOffset: 0, endOffset: excerpt.length, explanation: '観測者は太郎の幽霊であるため確認する。', suggestedDirection: '作者用：幽霊の太郎の正体を伏せる。', severity: 'check', evidenceRefs: ['fact:identity'] };
   const result = await inspectBuiltContext(context, async () => JSON.stringify({ schemaVersion: 1, issues: [raw] }));
   assert.doesNotMatch(result.issues[0].explanation, /太郎の幽霊/); assert.match(result.issues[0].explanation, /秘匿中の作者設定/);
+});
+
+test('保存済み本文・title・POV・Narratorとの差をdirtyとして検出する', () => {
+  const saved = { content: '保存本文', title: '章', povCharacterId: 'a', narratorId: 'n' };
+  assert.equal(hasUnsavedInspectorChanges(saved, { ...saved }), false);
+  for (const draft of [{ ...saved, content: '未保存本文' }, { ...saved, title: '変更' }, { ...saved, povCharacterId: 'b' }, { ...saved, narratorId: null }]) {
+    assert.equal(hasUnsavedInspectorChanges(saved, draft), true);
+  }
 });
 
 test('Voice Issueを受理するが文字列からdeterministicに生成しない', async () => {

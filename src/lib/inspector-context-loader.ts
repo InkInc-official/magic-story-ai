@@ -13,17 +13,17 @@ export async function loadInspectorSources(projectId: string, chapterId: string)
 
   const [project, characters, narrators, cast, narrativeRules, storyFacts, characterKnowledge, relationships] = await Promise.all([
     db.project.findUnique({ where: { id: projectId }, select: { id: true, narrativePerspective: true, defaultPovCharacterId: true, defaultNarratorId: true } }),
-    db.character.findMany({ where: { projectId }, select: { id: true, projectId: true, name: true, firstPerson: true, defaultSecondPerson: true, speechRegister: true, speechStyleNotes: true, narrationVoiceNotes: true, updatedAt: true } }),
-    db.narratorProfile.findMany({ where: { projectId }, include: { linkedCharacter: { select: { id: true, name: true } }, identityFact: { select: { id: true, content: true, readerInitiallyKnows: true } } } }),
-    db.chapterCharacter.findMany({ where: { chapterId }, select: { chapterId: true, characterId: true, participation: true, notes: true, order: true } }),
+    db.character.findMany({ where: { projectId }, select: { id: true, projectId: true, name: true, firstPerson: true, defaultSecondPerson: true, speechRegister: true, speechStyleNotes: true, narrationVoiceNotes: true, updatedAt: true }, orderBy: { id: 'asc' } }),
+    db.narratorProfile.findMany({ where: { projectId }, include: { linkedCharacter: { select: { id: true, name: true } }, identityFact: { select: { id: true, content: true, readerInitiallyKnows: true } } }, orderBy: { id: 'asc' } }),
+    db.chapterCharacter.findMany({ where: { chapterId }, select: { chapterId: true, characterId: true, participation: true, notes: true, order: true }, orderBy: [{ order: 'asc' }, { characterId: 'asc' }] }),
     db.narrativeRule.findMany({ where: { projectId }, orderBy: [{ priority: 'desc' }, { createdAt: 'asc' }] }),
-    db.storyFact.findMany({ where: { projectId }, include: { plannedRevealChapter: { select: chapterRefSelect }, revealedChapter: { select: chapterRefSelect } } }),
+    db.storyFact.findMany({ where: { projectId }, include: { plannedRevealChapter: { select: chapterRefSelect }, revealedChapter: { select: chapterRefSelect } }, orderBy: { id: 'asc' } }),
     db.characterKnowledge.findMany({
       where: { fact: { projectId } },
       include: { effectiveChapter: { select: chapterRefSelect } },
-      orderBy: [{ characterId: 'asc' }, { createdAt: 'asc' }],
+      orderBy: [{ characterId: 'asc' }, { createdAt: 'asc' }, { id: 'asc' }],
     }),
-    db.characterRelationship.findMany({ where: { projectId } }),
+    db.characterRelationship.findMany({ where: { projectId }, orderBy: { id: 'asc' } }),
   ]);
   if (!project) throw new InspectorContextInputError('Projectが見つかりません');
 

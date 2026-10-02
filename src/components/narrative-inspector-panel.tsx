@@ -31,7 +31,7 @@ const CATEGORY_LABELS = { viewpoint: '視点', knowledge: '知識', voice: '声'
 const DECISION_LABELS = { accepted_issue: '問題として認定', allowed_exception: '今回は許可', not_an_issue: '誤検出' } as const;
 const evidenceLabel = (ref: string) => ref.startsWith('rule:') ? '作品固有ルール' : ref.startsWith('fact:') ? '作者設定（詳細は自動展開しません）' : ref.startsWith('knowledge:') ? '人物認識履歴' : ref.startsWith('relationship:') ? '相手別話法' : ref.startsWith('character:') ? '人物音声設定' : ref.startsWith('narrator:') ? '語り手設定' : ref.startsWith('pov:') ? '視点人物設定' : '視点方式';
 
-export function NarrativeInspectorPanel({ projectId, chapterId, onSelectRange }: { projectId: string; chapterId: string; onSelectRange?: (start: number, end: number) => void }) {
+export function NarrativeInspectorPanel({ projectId, chapterId, hasUnsavedChanges = false, onSelectRange }: { projectId: string; chapterId: string; hasUnsavedChanges?: boolean; onSelectRange?: (start: number, end: number) => void }) {
   const [issues, setIssues] = useState<InspectorIssue[]>([]);
   const [filter, setFilter] = useState<'all' | InspectorIssue['category']>('all');
   const [statusFilter, setStatusFilter] = useState<'current' | 'resolved'>('current');
@@ -56,6 +56,7 @@ export function NarrativeInspectorPanel({ projectId, chapterId, onSelectRange }:
   useEffect(() => { setLearningSession(null); }, [chapterId]);
 
   const inspect = async () => {
+    if (hasUnsavedChanges) { setError('未保存の本文または視点・語り手設定があります。保存してから検査してください。'); return; }
     setLoading(true); setError('');
     try {
       const response = await fetch('/api/narrative-inspector', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ projectId, chapterId }) });
@@ -66,6 +67,7 @@ export function NarrativeInspectorPanel({ projectId, chapterId, onSelectRange }:
     finally { setLoading(false); }
   };
   const decide = async (issue: InspectorIssue, decision: keyof typeof DECISION_LABELS) => {
+    if (hasUnsavedChanges) { setError('未保存の変更を保存してから作者判断を記録してください。'); return; }
     setLoading(true); setError('');
     try {
       const response = await fetch(`/api/narrative-inspector/issues/${issue.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ projectId, decision, authorNote: notes[issue.id] || '' }) });
@@ -75,6 +77,7 @@ export function NarrativeInspectorPanel({ projectId, chapterId, onSelectRange }:
     } catch (caught) { setError(caught instanceof Error ? caught.message : '作者判断の保存に失敗しました'); setLoading(false); }
   };
   const startLearning = async (issue: InspectorIssue) => {
+    if (hasUnsavedChanges) { setError('未保存の変更を保存してから学習モードを開始してください。'); return; }
     setLearningLoading(true); setError('');
     try {
       const response = await fetch(`/api/narrative-inspector/issues/${issue.id}/learning`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ projectId }) });
@@ -86,6 +89,7 @@ export function NarrativeInspectorPanel({ projectId, chapterId, onSelectRange }:
   };
   const requestHint = async () => {
     if (!learningSession) return;
+    if (hasUnsavedChanges) { setError('未保存の変更があります。保存後に学習を続けてください。'); return; }
     setLearningLoading(true); setError('');
     try {
       const response = await fetch(`/api/narrative-inspector/learning/${learningSession.id}/hint`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ projectId }) });
@@ -97,6 +101,7 @@ export function NarrativeInspectorPanel({ projectId, chapterId, onSelectRange }:
   };
   const reinspectLearning = async () => {
     if (!learningSession) return;
+    if (hasUnsavedChanges) { setError('未保存の本文を保存してから再検査してください。'); return; }
     await inspect();
     try {
       const response = await fetch(`/api/narrative-inspector/issues/${learningSession.issueId}/learning?projectId=${encodeURIComponent(projectId)}`);
@@ -109,12 +114,13 @@ export function NarrativeInspectorPanel({ projectId, chapterId, onSelectRange }:
   return <div className="flex h-full flex-col">
     <div className="flex items-center justify-between border-b border-border/50 px-3 py-2">
       <div><div className="flex items-center gap-2"><ScanSearch size={16} className="text-violet-400" /><span className="text-sm font-medium">叙述検査</span></div><p className="mt-0.5 text-[10px] text-muted-foreground">保存済み本文の視点・知識・声・作品ルールを確認します</p></div>
-      <Button size="sm" onClick={() => void inspect()} disabled={loading}>{loading ? <Loader2 size={13} className="mr-1 animate-spin" /> : <ScanSearch size={13} className="mr-1" />}検査</Button>
+      <Button size="sm" onClick={() => void inspect()} disabled={loading || hasUnsavedChanges}>{loading ? <Loader2 size={13} className="mr-1 animate-spin" /> : <ScanSearch size={13} className="mr-1" />}検査</Button>
     </div>
     <div className="flex flex-wrap gap-1 border-b border-border/50 p-2">{(['all', 'viewpoint', 'knowledge', 'voice', 'narrative_rule'] as const).map(value => <Button key={value} size="sm" variant={filter === value ? 'secondary' : 'ghost'} className="h-7 text-xs" onClick={() => setFilter(value)}>{value === 'all' ? 'すべて' : CATEGORY_LABELS[value]}</Button>)}</div>
     <div className="flex gap-1 border-b border-border/50 px-2 py-1">{(['current', 'resolved'] as const).map(value => <Button key={value} size="sm" variant={statusFilter === value ? 'secondary' : 'ghost'} className="h-7 text-xs" onClick={() => setStatusFilter(value)}>{value === 'current' ? '現在のIssue' : '解決済み'}</Button>)}</div>
     <ScrollArea className="flex-1"><div className="space-y-3 p-3">
       {error && <Card className="border-destructive/30 bg-destructive/5"><CardContent className="p-3 text-xs text-destructive">{error}</CardContent></Card>}
+      {hasUnsavedChanges && <Card className="border-amber-500/30 bg-amber-500/5"><CardContent className="p-3 text-xs text-amber-600">画面の本文または視点・語り手設定に未保存の変更があります。InspectorとLearning再検査は保存済み本文を対象にするため、先に章を保存してください。</CardContent></Card>}
       {learningSession && <Card className="border-violet-400/40 bg-violet-400/5"><CardContent className="space-y-3 p-3">
         <div className="flex items-center justify-between"><div className="flex items-center gap-2"><GraduationCap size={16} className="text-violet-400" /><span className="text-sm font-medium">学習モード</span></div><Badge variant="outline">{learningSession.status === 'active' ? '学習中' : learningSession.status === 'completed' ? '再検査で解決' : learningSession.status === 'stale' ? '再確認が必要' : '終了'}</Badge></div>
         <blockquote className="border-l-2 border-violet-400/40 pl-2 text-xs">{learningSession.issueExcerptSnapshot || '章全体のIssue'}</blockquote>
@@ -124,10 +130,10 @@ export function NarrativeInspectorPanel({ projectId, chapterId, onSelectRange }:
         {learningSession.status === 'stale' && <p className="rounded bg-amber-500/10 p-2 text-[10px] text-amber-600">本文または設定が変更されています。再検査して新しいIssueから学習を開始してください。</p>}
         {learningSession.status === 'completed' && <p className="rounded bg-emerald-500/10 p-2 text-[10px] text-emerald-600">この指摘は再検査で検出されなくなりました。</p>}
         {learningSession.status === 'active' && <p className="text-[10px] text-muted-foreground">本文はChapter Editorで自分で修正してから再検査してください。</p>}
-        <div className="flex flex-wrap gap-1">{learningSession.status === 'active' && learningSession.currentHintLevel < 2 && <Button size="sm" variant="outline" disabled={learningLoading} onClick={() => void requestHint()}>{learningLoading ? <Loader2 size={12} className="mr-1 animate-spin" /> : <Lightbulb size={12} className="mr-1" />}ヒントを見る</Button>}{learningSession.status === 'active' && <Button size="sm" variant="outline" disabled={loading || learningLoading} onClick={() => void reinspectLearning()}><ScanSearch size={12} className="mr-1" />再検査</Button>}<Button size="sm" variant="ghost" onClick={() => setLearningSession(null)}>閉じる</Button></div>
+        <div className="flex flex-wrap gap-1">{learningSession.status === 'active' && learningSession.currentHintLevel < 2 && <Button size="sm" variant="outline" disabled={learningLoading || hasUnsavedChanges} onClick={() => void requestHint()}>{learningLoading ? <Loader2 size={12} className="mr-1 animate-spin" /> : <Lightbulb size={12} className="mr-1" />}ヒントを見る</Button>}{learningSession.status === 'active' && <Button size="sm" variant="outline" disabled={loading || learningLoading || hasUnsavedChanges} onClick={() => void reinspectLearning()}><ScanSearch size={12} className="mr-1" />再検査</Button>}<Button size="sm" variant="ghost" onClick={() => setLearningSession(null)}>閉じる</Button></div>
       </CardContent></Card>}
       {!loading && !error && issues.length === 0 && <div className="py-10 text-center text-muted-foreground"><CheckCircle2 size={28} className="mx-auto mb-2 opacity-40" /><p className="text-xs">「検査」を押すと確認候補を表示します</p><p className="mt-1 text-[10px]">結果は採点ではなく、作者が判断するための候補です。</p></div>}
-      {visible.map((issue, index) => <Card key={`${issue.id}:${index}`} onClick={() => issue.locationKind === 'excerpt' && onSelectRange?.(issue.startOffset, issue.endOffset)} className="border-border/60 transition-colors hover:border-violet-400/40"><CardContent className="space-y-2 p-3">
+      {visible.map((issue, index) => <Card key={`${issue.id}:${index}`} onClick={() => !hasUnsavedChanges && issue.locationKind === 'excerpt' && onSelectRange?.(issue.startOffset, issue.endOffset)} className="border-border/60 transition-colors hover:border-violet-400/40"><CardContent className="space-y-2 p-3">
         <div className="flex flex-wrap items-center gap-1"><Badge variant="outline">{CATEGORY_LABELS[issue.category]}</Badge><Badge variant="outline">{ISSUE_LABELS[issue.issueType] || issue.issueType}</Badge><Badge variant={issue.severity === 'problem' ? 'destructive' : 'secondary'}>{SEVERITY_LABELS[issue.severity]}</Badge></div>
         <div className="grid grid-cols-2 gap-1 text-[10px] text-muted-foreground"><span>AI判定：{SEVERITY_LABELS[issue.severity]}</span><span>状態：{issue.status === 'resolved' ? '解決済み' : issue.status === 'open' ? '現在も検出' : issue.status}</span><span>初回：{new Date(issue.firstDetectedAt).toLocaleString('ja-JP')}</span><span>最終：{new Date(issue.lastDetectedAt).toLocaleString('ja-JP')}</span></div>
         <p className="text-xs">作者判断：{issue.latestDecision ? DECISION_LABELS[issue.latestDecision.decision] : '未判断'}</p>
@@ -139,8 +145,8 @@ export function NarrativeInspectorPanel({ projectId, chapterId, onSelectRange }:
         {issue.latestDecision?.authorNote && <p className="text-[10px] text-muted-foreground">作者メモ：{issue.latestDecision.authorNote}</p>}
         <div className="space-y-1" onClick={event => event.stopPropagation()}>
           <Textarea value={notes[issue.id] || ''} onChange={event => setNotes(current => ({ ...current, [issue.id]: event.target.value }))} placeholder="作者メモ（任意）" className="min-h-14 text-xs" maxLength={4000} />
-          <div className="flex flex-wrap gap-1">{(Object.keys(DECISION_LABELS) as Array<keyof typeof DECISION_LABELS>).map(decision => <Button key={decision} type="button" size="sm" variant="outline" className="h-7 text-[10px]" disabled={loading} onClick={() => void decide(issue, decision)}>{DECISION_LABELS[decision]}</Button>)}</div>
-          {issue.status === 'open' && <Button type="button" size="sm" variant="outline" className="h-7 text-[10px]" disabled={learningLoading} onClick={() => void startLearning(issue)}><GraduationCap size={11} className="mr-1" />学習モード</Button>}
+          <div className="flex flex-wrap gap-1">{(Object.keys(DECISION_LABELS) as Array<keyof typeof DECISION_LABELS>).map(decision => <Button key={decision} type="button" size="sm" variant="outline" className="h-7 text-[10px]" disabled={loading || hasUnsavedChanges} onClick={() => void decide(issue, decision)}>{DECISION_LABELS[decision]}</Button>)}</div>
+          {issue.status === 'open' && <Button type="button" size="sm" variant="outline" className="h-7 text-[10px]" disabled={learningLoading || hasUnsavedChanges} onClick={() => void startLearning(issue)}><GraduationCap size={11} className="mr-1" />学習モード</Button>}
           {issue.latestDecision && ['allowed_exception', 'not_an_issue'].includes(issue.latestDecision.decision) && <p className="text-[10px] text-muted-foreground">作者判断済みのため学習を強く推奨しませんが、必要なら開始できます。</p>}
         </div>
       </CardContent></Card>)}

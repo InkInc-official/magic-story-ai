@@ -41,6 +41,16 @@ export class NarrativeInspectorError extends Error {
   constructor(public code: 'ai_failure' | 'empty_response' | 'invalid_json' | 'invalid_schema', message: string) { super(message); }
 }
 
+export function hasUnsavedInspectorChanges(
+  saved: { content: string; title: string; povCharacterId?: string | null; narratorId?: string | null },
+  draft: { content: string; title: string; povCharacterId?: string | null; narratorId?: string | null },
+) {
+  return saved.content !== draft.content
+    || saved.title !== draft.title
+    || (saved.povCharacterId || '') !== (draft.povCharacterId || '')
+    || (saved.narratorId || '') !== (draft.narratorId || '');
+}
+
 const ISSUE_TYPE_CATEGORY: Record<InspectorIssueType, InspectorCategory> = {
   pov_shift: 'viewpoint', other_character_inner_state: 'viewpoint', narrator_pov_confusion: 'viewpoint', perspective_mismatch: 'viewpoint',
   unknown_fact_assertion: 'knowledge', reader_hidden_leak: 'knowledge', future_knowledge: 'knowledge', belief_truth_conflict: 'knowledge', knowledge_timing_unclear: 'knowledge',
@@ -153,6 +163,7 @@ export function sanitizeInspectorResult(result: NarrativeInspectorResult, contex
 export function sanitizeInspectorText(text: string, context: BuiltInspectorContext): string {
   const concealedNarrator = context.roles.narrator?.identityDisclosureMode === 'concealed' ? context.roles.narrator : null;
   const identityFact = concealedNarrator?.identityFactId ? context.knowledge.authorTruth.find(fact => fact.id === concealedNarrator.identityFactId) : null;
-  const secrets = [concealedNarrator?.name, identityFact?.content].filter((value): value is string => Boolean(value && value.length >= 2));
+  const readerHiddenFacts = context.knowledge.authorTruth.filter(fact => context.knowledge.reader.find(state => state.factId === fact.id)?.phase !== 'known_before').map(fact => fact.content);
+  const secrets = [...new Set([concealedNarrator?.name, identityFact?.content, ...readerHiddenFacts].filter((value): value is string => Boolean(value && value.length >= 2)))];
   return secrets.reduce((result, secret) => result.split(secret).join('［秘匿中の作者設定］'), text);
 }

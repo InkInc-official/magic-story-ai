@@ -14,6 +14,7 @@ import { AntiAIPanel } from '@/components/anti-ai-panel';
 import { AdversarialReviewPanel } from '@/components/adversarial-review';
 import { ChapterPreview } from '@/components/chapter-preview';
 import { NarrativeInspectorPanel } from '@/components/narrative-inspector-panel';
+import { hasUnsavedInspectorChanges } from '@/lib/narrative-inspector';
 import { EMOTION_ARC_LABELS, EMOTION_LABELS, HOOK_LABELS } from '@/lib/i18n';
 import {
   buildChapterFullUserMessage,
@@ -447,6 +448,9 @@ export function ChapterEditor({ projectId }: ChapterEditorProps) {
   const getStatusInfo = (status: string) => STATUS_OPTIONS.find(s => s.value === status) || STATUS_OPTIONS[0];
 
   const selectedChapter = chapters.find(c => c.id === selectedId);
+  const inspectorDirty = Boolean(selectedChapter && hasUnsavedInspectorChanges(selectedChapter, {
+    content: editContent, title: editTitle, povCharacterId: editPovCharacterId, narratorId: editNarratorId,
+  }));
 
   const totalWords = chapters.reduce((sum, c) => sum + c.wordCount, 0);
   const completedCount = chapters.filter(c => c.status === 'completed').length;
@@ -869,7 +873,7 @@ export function ChapterEditor({ projectId }: ChapterEditorProps) {
                 </div>
               )}
               {sidePanel === 'inspector' && selectedChapter && (
-                <NarrativeInspectorPanel projectId={projectId} chapterId={selectedChapter.id} onSelectRange={(start, end) => {
+                <NarrativeInspectorPanel key={`${projectId}:${selectedChapter.id}`} projectId={projectId} chapterId={selectedChapter.id} hasUnsavedChanges={inspectorDirty} onSelectRange={(start, end) => {
                   contentRef.current?.focus();
                   contentRef.current?.setSelectionRange(start, end);
                 }} />

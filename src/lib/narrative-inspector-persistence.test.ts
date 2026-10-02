@@ -20,6 +20,8 @@ test('offset移動ではfingerprintが変わらず、excerpt・issueType・evide
   assert.notEqual(first, buildIssueFingerprint('p1', 'c1', issue({ excerpt: '「僕は行く」' })));
   assert.notEqual(first, buildIssueFingerprint('p1', 'c1', issue({ issueType: 'speech_style_mismatch' })));
   assert.notEqual(first, buildIssueFingerprint('p1', 'c1', issue({ evidenceRefs: ['relationship:r1'] })));
+  assert.notEqual(buildIssueFingerprint('p1', 'c1', issue({ excerpt: 'Ａ' })), buildIssueFingerprint('p1', 'c1', issue({ excerpt: 'A' })));
+  assert.notEqual(buildIssueFingerprint('p1', 'c1', issue({ excerpt: '言葉 A' })), buildIssueFingerprint('p1', 'c1', issue({ excerpt: '言葉\nA' })));
   const repeated = '朝。彼は言った。「俺は行く」昼。彼は言った。「俺は行く」夜。';
   const firstStart = repeated.indexOf('「俺は行く」'); const secondStart = repeated.lastIndexOf('「俺は行く」');
   const firstOccurrence = issue({ startOffset: firstStart, endOffset: firstStart + '「俺は行く」'.length });

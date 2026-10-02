@@ -38,7 +38,10 @@ function digest(value: unknown) {
 }
 
 function normalizedExcerpt(value: string) {
-  return value.normalize('NFKC').replace(/\s+/g, ' ').trim();
+  // Preserve compatibility characters and whitespace because false merges are
+  // more dangerous than duplicate Issues. NFC only removes canonically
+  // equivalent Unicode representation differences.
+  return value.normalize('NFC');
 }
 
 export function buildIssueFingerprint(

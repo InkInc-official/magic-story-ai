@@ -61,7 +61,12 @@ test('Learning promptは段階別要求と禁止事項を持ち、Hintを先行�
 });
 
 test('concealed Narrator名とidentity Fact本文をQuestion/Hint表示から除去する', () => {
-  const context = buildInspectorContext(contextSource());
-  const sanitized = sanitizeInspectorText('作者用：幽霊の太郎について、観測者は太郎の幽霊である設定を考えます。', context);
-  assert.doesNotMatch(sanitized, /太郎の幽霊/); assert.match(sanitized, /秘匿中の作者設定/);
+  const value = contextSource();
+  value.storyFacts.push({ id: 'father', projectId: 'p1', content: '父親は殺されていない', importance: 'high', readerInitiallyKnows: false });
+  value.characterKnowledge.push({ id: 'belief', factId: 'father', characterId: 'a', status: 'believes_false', beliefNotes: '父親は殺された' });
+  value.chapter.content += ' 父親は殺されていない。';
+  const context = buildInspectorContext(value);
+  const sanitized = sanitizeInspectorText('作者用：幽霊の太郎について、観測者は太郎の幽霊である。父親は殺されていない。', context);
+  assert.doesNotMatch(sanitized, /太郎の幽霊|父親は殺されていない/); assert.match(sanitized, /秘匿中の作者設定/);
+  assert.match(NARRATIVE_LEARNING_SYSTEM_PROMPT, /Reader-hiddenなAuthor Truthを答えとして明かさず/);
 });

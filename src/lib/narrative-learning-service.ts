@@ -116,12 +116,20 @@ export async function requestLearningHint(sessionId: string, projectId: string, 
     if (error instanceof NarrativeLearningError) throw error;
     throw new NarrativeLearningError('ai_failure', error instanceof Error ? error.message : 'ヒント生成に失敗しました');
   }
-  const updated = await db.$transaction(async transaction => {
-    await transaction.narrativeLearningStep.create({ data: {
-      sessionId: session.id, level, type: level === 1 ? 'hint1' : 'hint2', content,
-      promptVersion: NARRATIVE_LEARNING_PROMPT_VERSION, contentHash: current.contentHash, contextFingerprint: current.contextFingerprint,
-    } });
-    return transaction.narrativeLearningSession.update({ where: { id: session.id }, data: { currentHintLevel: level }, include: { steps: { orderBy: { level: 'asc' } } } });
-  });
-  return publicSession(updated);
+  try {
+    const updated = await db.$transaction(async transaction => {
+      await transaction.narrativeLearningStep.create({ data: {
+        sessionId: session.id, level, type: level === 1 ? 'hint1' : 'hint2', content,
+        promptVersion: NARRATIVE_LEARNING_PROMPT_VERSION, contentHash: current.contentHash, contextFingerprint: current.contextFingerprint,
+      } });
+      return transaction.narrativeLearningSession.update({ where: { id: session.id }, data: { currentHintLevel: level }, include: { steps: { orderBy: { level: 'asc' } } } });
+    });
+    return publicSession(updated);
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+      const concurrent = await db.narrativeLearningSession.findFirst({ where: { id: session.id, projectId }, include: { steps: { orderBy: { level: 'asc' } } } });
+      if (concurrent && concurrent.currentHintLevel >= level) return publicSession(concurrent);
+    }
+    throw error;
+  }
 }
