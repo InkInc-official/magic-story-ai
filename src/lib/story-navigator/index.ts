@@ -2,6 +2,19 @@ export { classifyNavigatorFact, deriveNavigatorCurrentState, loadNavigatorSource
 export { buildNavigatorContext, buildStoryNavigatorContext } from './context';
 export { generateStoryNavigatorRun, type GenerateStoryNavigatorInput } from './service';
 export {
+  EXPLORATION_BATCH_HARD_CAP,
+  EXPLORATION_PROMPT_VERSION,
+  dedupeObservations,
+  assertObservationProvenance,
+  parseExplorationCandidates,
+  parseExplorationObservations,
+  generateExplorationRun,
+  selectExplorationChapters,
+  splitChapterForExploration,
+  type ExplorationInput,
+  type ExplorationRangeMode,
+} from './exploration';
+export {
   STORY_NAVIGATOR_DECISION_STATUSES,
   STORY_NAVIGATOR_OUTPUT_SCHEMA_VERSION,
   extractStoryNavigatorOutput,

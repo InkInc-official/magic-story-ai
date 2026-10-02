@@ -20,6 +20,8 @@ interface NavigatorRun {
   id: string; request: string; status: string; error: string; createdAt: string; currentPositionSummary: string; planDeviation: string;
   anchorChapter: { id: string; order: number; title: string }; proposals: Proposal[];
 }
+interface Observation { id: string; sourceChapterOrder: number; sourceChapterTitle: string; sourceExcerpt: string; elementSummary: string; reasonInteresting: string; possibleUses: string; currentStoryRelation: string; authorIntentRelation: string; risks: string; relevance: string; decisionStatus: StoryNavigatorDecisionStatus }
+interface ExplorationRun { id: string; status: string; error: string; createdAt: string; processedBatches: number; totalBatches: number; anchorChapter: { order: number; title: string }; observations: Observation[] }
 
 function arrayValue(value: string): string[] {
   try { const parsed = JSON.parse(value); return Array.isArray(parsed) ? parsed.filter(item => typeof item === 'string') : []; } catch { return []; }
@@ -39,8 +41,16 @@ export function StoryNavigator({ projectId }: { projectId: string }) {
   const [selectedRunId, setSelectedRunId] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState('');
+  const [explorations, setExplorations] = useState<ExplorationRun[]>([]);
+  const [selectedExplorationId, setSelectedExplorationId] = useState('');
+  const [rangeMode, setRangeMode] = useState<'all' | 'recent' | 'range'>('recent');
+  const [recentCount, setRecentCount] = useState(5);
+  const [startChapterId, setStartChapterId] = useState('');
+  const [endChapterId, setEndChapterId] = useState('');
+  const [isExploring, setIsExploring] = useState(false);
 
   const selectedRun = useMemo(() => runs.find(run => run.id === selectedRunId) || runs[0], [runs, selectedRunId]);
+  const selectedExploration = useMemo(() => explorations.find(run => run.id === selectedExplorationId) || explorations[0], [explorations, selectedExplorationId]);
 
   const loadRuns = useCallback(async (preferredId?: string) => {
     const response = await fetch(`/api/story-navigator/runs?projectId=${projectId}`);
@@ -48,6 +58,12 @@ export function StoryNavigator({ projectId }: { projectId: string }) {
     const data = await response.json() as NavigatorRun[];
     setRuns(data);
     setSelectedRunId(preferredId || data[0]?.id || '');
+  }, [projectId]);
+  const loadExplorations = useCallback(async (preferredId?: string) => {
+    const response = await fetch(`/api/story-navigator/explorations?projectId=${projectId}`);
+    if (!response.ok) return;
+    const data = await response.json() as ExplorationRun[];
+    setExplorations(data); setSelectedExplorationId(preferredId || data[0]?.id || '');
   }, [projectId]);
 
   useEffect(() => {
@@ -59,9 +75,9 @@ export function StoryNavigator({ projectId }: { projectId: string }) {
         setChapters([...data].sort((a, b) => a.order - b.order));
         setAnchorChapterId(selectDefaultNavigatorAnchor(sorted));
       }),
-      loadRuns(),
+      loadRuns(), loadExplorations(),
     ]);
-  }, [projectId, loadRuns]);
+  }, [projectId, loadRuns, loadExplorations]);
 
   const generate = async () => {
     if (!anchorChapterId) return;
@@ -78,6 +94,19 @@ export function StoryNavigator({ projectId }: { projectId: string }) {
   const decide = async (proposalId: string, decisionStatus: StoryNavigatorDecisionStatus) => {
     const response = await fetch('/api/story-navigator/proposals', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ projectId, proposalId, decisionStatus }) });
     if (response.ok && selectedRun) await loadRuns(selectedRun.id);
+  };
+  const explore = async () => {
+    if (!anchorChapterId) return;
+    setIsExploring(true); setError('');
+    try {
+      const response = await fetch('/api/story-navigator/explorations', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ projectId, anchorChapterId, rangeMode, recentCount, startChapterId, endChapterId }) });
+      const data = await response.json(); if (!response.ok) throw new Error(data.error || '探索に失敗しました');
+      await loadExplorations(data.id);
+    } catch (cause) { setError(cause instanceof Error ? cause.message : '探索に失敗しました'); } finally { setIsExploring(false); }
+  };
+  const decideObservation = async (observationId: string, decisionStatus: StoryNavigatorDecisionStatus) => {
+    const response = await fetch('/api/story-navigator/observations', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ projectId, observationId, decisionStatus }) });
+    if (response.ok && selectedExploration) await loadExplorations(selectedExploration.id);
   };
 
   return <div className="max-w-5xl mx-auto space-y-5">
@@ -96,5 +125,9 @@ export function StoryNavigator({ projectId }: { projectId: string }) {
       <div className="flex items-center gap-2 text-xs text-amber-500"><ShieldAlert size={14} />以下はAI提案であり、採用してもまだ正史には反映されません。</div>
       <div className="grid gap-4">{selectedRun.proposals.map(proposal => <Card key={proposal.id} className="border-violet-500/20"><CardHeader><div className="flex items-start justify-between gap-3"><CardTitle className="text-base">{proposal.routeKey}. {proposal.title}</CardTitle><Badge variant="outline">{displayLabel(NAVIGATOR_DECISION_STATUS_LABELS, proposal.decisionStatus)}</Badge></div><p className="text-[11px] text-muted-foreground">AI提案・正史ではありません</p></CardHeader><CardContent className="space-y-3"><p className="text-sm whitespace-pre-wrap">{proposal.summary}</p><div><h4 className="text-xs font-medium text-muted-foreground">なぜ成立するか</h4><p className="text-sm whitespace-pre-wrap">{proposal.whyPossible}</p></div><div><h4 className="text-xs font-medium text-muted-foreground">作者意図との関係</h4><p className="text-sm whitespace-pre-wrap">{proposal.authorIntentRelation}</p></div><List title="必要な準備" value={proposal.preparation} /><List title="影響する要素" value={proposal.affectedEntities} /><List title="利点" value={proposal.benefits} /><List title="リスク" value={proposal.risks} /><List title="今すぐ配置できる要素" value={proposal.immediateOptions} /><div className="flex flex-wrap gap-2 pt-2"><Button size="sm" variant="outline" onClick={() => decide(proposal.id, 'accepted')}>採用</Button><Button size="sm" variant="outline" onClick={() => decide(proposal.id, 'held')}>保留</Button><Button size="sm" variant="outline" onClick={() => decide(proposal.id, 'rejected')}>却下</Button>{proposal.decisionStatus !== 'undecided' && <Button size="sm" variant="ghost" onClick={() => decide(proposal.id, 'undecided')}>未決定へ戻す</Button>}</div></CardContent></Card>)}</div>
     </>}
+    <div className="pt-4 border-t"><h3 className="text-base font-bold">過去要素探索</h3><p className="text-xs text-muted-foreground">過去の描写から、今後活用できる可能性を探します。発見結果は伏線でも正史でもありません。</p></div>
+    <Card><CardContent className="pt-6 space-y-4"><div><label className="text-xs text-muted-foreground">探索範囲</label><select value={rangeMode} onChange={event => setRangeMode(event.target.value as typeof rangeMode)} className="w-full h-9 px-3 bg-secondary border border-input rounded-md text-sm"><option value="all">anchorまでの全過去章</option><option value="recent">最近N章</option><option value="range">開始章〜終了章</option></select></div>{rangeMode === 'recent' && <div><label className="text-xs text-muted-foreground">章数</label><input type="number" min={1} max={50} value={recentCount} onChange={event => setRecentCount(Number(event.target.value))} className="w-full h-9 px-3 bg-secondary border border-input rounded-md text-sm" /></div>}{rangeMode === 'range' && <div className="grid grid-cols-2 gap-3"><select value={startChapterId} onChange={event => setStartChapterId(event.target.value)} className="h-9 px-3 bg-secondary border border-input rounded-md text-sm"><option value="">開始章</option>{chapters.map(chapter => <option key={chapter.id} value={chapter.id}>第{chapter.order + 1}章</option>)}</select><select value={endChapterId} onChange={event => setEndChapterId(event.target.value)} className="h-9 px-3 bg-secondary border border-input rounded-md text-sm"><option value="">終了章</option>{chapters.map(chapter => <option key={chapter.id} value={chapter.id}>第{chapter.order + 1}章</option>)}</select></div>}<Button onClick={explore} disabled={isExploring || !anchorChapterId || (rangeMode === 'range' && (!startChapterId || !endChapterId))}>{isExploring && <Loader2 size={15} className="mr-2 animate-spin" />}過去要素を探す</Button></CardContent></Card>
+    {explorations.length > 0 && <select value={selectedExploration?.id || ''} onChange={event => setSelectedExplorationId(event.target.value)} className="w-full h-9 px-3 bg-secondary border border-input rounded-md text-sm">{explorations.map(run => <option key={run.id} value={run.id}>{new Date(run.createdAt).toLocaleString('ja-JP')}／第{run.anchorChapter.order + 1}章／{run.status}</option>)}</select>}
+    {selectedExploration && <div className="space-y-3"><p className="text-xs text-muted-foreground">走査batch: {selectedExploration.processedBatches}/{selectedExploration.totalBatches}</p>{selectedExploration.status === 'failed' && <p className="text-sm text-destructive">探索は完了していません：{selectedExploration.error}</p>}{selectedExploration.observations.map(observation => <Card key={observation.id}><CardHeader><div className="flex justify-between gap-2"><CardTitle className="text-sm">活用候補：{observation.elementSummary}</CardTitle><Badge variant="outline">{displayLabel(NAVIGATOR_DECISION_STATUS_LABELS, observation.decisionStatus)}</Badge></div><p className="text-[11px] text-muted-foreground">第{observation.sourceChapterOrder + 1}章「{observation.sourceChapterTitle}」からの実在する本文抜粋</p></CardHeader><CardContent className="space-y-3"><blockquote className="border-l-2 pl-3 text-sm text-muted-foreground">{observation.sourceExcerpt}</blockquote><p className="text-sm">{observation.reasonInteresting}</p><List title="活用できる可能性" value={observation.possibleUses} /><div><h4 className="text-xs text-muted-foreground">現在の物語との関係</h4><p className="text-sm">{observation.currentStoryRelation}</p></div><div><h4 className="text-xs text-muted-foreground">作者意図との関係</h4><p className="text-sm">{observation.authorIntentRelation}</p></div><List title="リスク" value={observation.risks} /><p className="text-xs text-amber-500">採用しても、まだ正史には反映されません。</p><div className="flex gap-2"><Button size="sm" variant="outline" onClick={() => decideObservation(observation.id, 'accepted')}>採用</Button><Button size="sm" variant="outline" onClick={() => decideObservation(observation.id, 'held')}>保留</Button><Button size="sm" variant="outline" onClick={() => decideObservation(observation.id, 'rejected')}>却下</Button>{observation.decisionStatus !== 'undecided' && <Button size="sm" variant="ghost" onClick={() => decideObservation(observation.id, 'undecided')}>未決定へ戻す</Button>}</div></CardContent></Card>)}</div>}
   </div>;
 }
