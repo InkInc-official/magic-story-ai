@@ -65,6 +65,77 @@ export interface StructuralTextMetrics {
   sections: SectionTextMetrics[];
 }
 
+/** A deterministic surface suffix, not a grammatical or morphological label. */
+export interface EndingPatternDefinition {
+  id: string;
+  suffix: string;
+}
+
+export interface SentenceEndingResult {
+  sentenceId: string;
+  sentenceIndex: number;
+  sectionId: string;
+  exactSurfaceEnding: string | null;
+  exactSurfaceRange: SourceRange | null;
+  terminalText: string | null;
+  terminalRange: SourceRange | null;
+  patternId: string | null;
+  pattern: string | null;
+}
+
+export interface EndingDistributionEntry {
+  value: string;
+  count: number;
+  firstSentenceIndex: number;
+  sentenceIds: string[];
+}
+
+export interface EndingStreak {
+  patternId: string;
+  pattern: string;
+  sectionId: string;
+  startSentenceIndex: number;
+  endSentenceIndex: number;
+  count: number;
+  sentenceIds: string[];
+}
+
+export interface EndingWindowConcentration {
+  patternId: string;
+  pattern: string;
+  sectionId: string;
+  startSentenceIndex: number;
+  endSentenceIndex: number;
+  occurrenceCount: number;
+  windowSize: number;
+  ratio: number;
+  sentenceIds: string[];
+}
+
+export interface SectionEndingAnalysis {
+  sectionId: string;
+  index: number;
+  sentenceCount: number;
+  unmatchedPatternCount: number;
+  exactEndingDistribution: EndingDistributionEntry[];
+  patternDistribution: EndingDistributionEntry[];
+  streaks: EndingStreak[];
+}
+
+export interface SentenceEndingAnalysis {
+  exactSurfaceMaximumGraphemes: number;
+  minimumStreakLength: number;
+  concentrationWindowSize: number;
+  concentrationMinimumOccurrences: number;
+  sentences: SentenceEndingResult[];
+  unmatchedPatternCount: number;
+  exactEndingDistribution: EndingDistributionEntry[];
+  patternDistribution: EndingDistributionEntry[];
+  streaks: EndingStreak[];
+  concentrations: EndingWindowConcentration[];
+  sections: SectionEndingAnalysis[];
+}
+
 export interface SourceLine extends SourceRange {
   index: number;
   contentRange: SourceRange;
@@ -119,6 +190,12 @@ export interface JapaneseTextParserOptions {
   pairedSymbols?: readonly SymbolPairDefinition[];
   maxSymbolNestingDepth?: number;
   sectionBreaks?: readonly SectionBreakDefinition[];
+  /** Additional surface suffixes. They do not imply grammatical categories. */
+  endingPatterns?: readonly EndingPatternDefinition[];
+  exactSurfaceMaximumGraphemes?: number;
+  minimumEndingStreakLength?: number;
+  endingConcentrationWindowSize?: number;
+  endingConcentrationMinimumOccurrences?: number;
 }
 
 export interface SectionBreakDefinition {
@@ -180,5 +257,6 @@ export interface JapaneseTextSourceDocument {
   paragraphs: TextParagraph[];
   sentences: StructuralSentence[];
   metrics: StructuralTextMetrics;
+  endingAnalysis: SentenceEndingAnalysis;
   diagnostics: TextDiagnostic[];
 }
