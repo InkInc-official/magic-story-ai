@@ -55,6 +55,8 @@ model Project {
   storyNavigatorPromotionActions StoryNavigatorPromotionAction[]
   narratorProfiles     NarratorProfile[] @relation("ProjectNarrators")
   narrativeRules       NarrativeRule[]
+  narrativeInspectionRuns NarrativeInspectionRun[]
+  narrativeIssues      NarrativeIssue[]
   defaultPovCharacter Character? @relation("ProjectDefaultPov", fields: [defaultPovCharacterId], references: [id], onDelete: SetNull)
   defaultNarrator NarratorProfile? @relation("ProjectDefaultNarrator", fields: [defaultNarratorId], references: [id], onDelete: SetNull)
 
@@ -290,6 +292,8 @@ model Chapter {
   storyNavigatorRuns StoryNavigatorRun[]
   storyNavigatorExplorationAnchors StoryNavigatorExplorationRun[] @relation("ExplorationAnchor")
   storyNavigatorObservationSources StoryNavigatorObservation[] @relation("ObservationSource")
+  narrativeInspectionRuns NarrativeInspectionRun[]
+  narrativeIssues NarrativeIssue[]
 
   @@index([povCharacterId])
   @@index([narratorId])
@@ -382,6 +386,90 @@ model CharacterKnowledge {
   @@index([factId])
   @@index([characterId])
   @@index([effectiveChapterId])
+  @@schema("magic_story")
+}
+
+model NarrativeInspectionRun {
+  id                   String   @id @default(cuid())
+  projectId            String
+  chapterId            String
+  requestedStartOffset Int
+  requestedEndOffset   Int
+  inspectedStartOffset Int?
+  inspectedEndOffset   Int?
+  contentHash          String   @default("")
+  contextManifest      String   @default("")
+  contextFingerprint   String   @default("")
+  inspectorVersion     String
+  status               String   @default("pending")
+  error                String   @default("")
+  createdAt            DateTime @default(now())
+  completedAt          DateTime?
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  chapter Chapter @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  firstDetectedIssues NarrativeIssue[] @relation("IssueFirstDetectedRun")
+  lastSeenIssues NarrativeIssue[] @relation("IssueLastSeenRun")
+
+  @@index([projectId, chapterId, createdAt])
+  @@index([chapterId, status])
+  @@schema("magic_story")
+}
+
+model NarrativeIssue {
+  id                 String   @id @default(cuid())
+  projectId          String
+  chapterId          String
+  firstDetectedRunId String
+  lastSeenRunId      String
+  fingerprint        String
+  category           String
+  issueType          String
+  severity           String
+  locationKind       String
+  startOffset        Int
+  endOffset          Int
+  excerpt            String
+  explanation        String
+  suggestedDirection String
+  evidenceRefs       String   @default("[]")
+  adjustments        String   @default("[]")
+  status             String   @default("open")
+  contentHash        String
+  contextFingerprint String
+  inspectorVersion   String
+  firstDetectedAt    DateTime @default(now())
+  lastDetectedAt     DateTime @default(now())
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  chapter Chapter @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  firstDetectedRun NarrativeInspectionRun @relation("IssueFirstDetectedRun", fields: [firstDetectedRunId], references: [id], onDelete: Cascade)
+  lastSeenRun NarrativeInspectionRun @relation("IssueLastSeenRun", fields: [lastSeenRunId], references: [id], onDelete: Cascade)
+  decisions NarrativeIssueDecision[]
+
+  @@unique([projectId, chapterId, fingerprint])
+  @@index([chapterId, status, lastDetectedAt])
+  @@index([firstDetectedRunId])
+  @@index([lastSeenRunId])
+  @@schema("magic_story")
+}
+
+model NarrativeIssueDecision {
+  id                       String   @id @default(cuid())
+  issueId                  String
+  decision                 String
+  authorNote               String   @default("")
+  issueFingerprint         String
+  decidedAgainstContentHash String
+  decidedAgainstExcerpt    String
+  contextFingerprint       String
+  createdAt                DateTime @default(now())
+
+  issue NarrativeIssue @relation(fields: [issueId], references: [id], onDelete: Cascade)
+
+  @@index([issueId, createdAt])
   @@schema("magic_story")
 }
 

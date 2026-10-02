@@ -1,7 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { InspectorContextBudgetError, InspectorContextInputError } from '@/lib/inspector-context';
 import { NarrativeInspectorError } from '@/lib/narrative-inspector';
-import { runNarrativeInspector } from '@/lib/narrative-inspector-service';
+import { listNarrativeIssues, runNarrativeInspector } from '@/lib/narrative-inspector-service';
+
+export async function GET(request: NextRequest) {
+  try {
+    const projectId = request.nextUrl.searchParams.get('projectId');
+    const chapterId = request.nextUrl.searchParams.get('chapterId');
+    if (!projectId || !chapterId) return NextResponse.json({ error: 'projectId and chapterId are required' }, { status: 400 });
+    return NextResponse.json(await listNarrativeIssues(projectId, chapterId));
+  } catch (error) {
+    if (error instanceof InspectorContextInputError) return NextResponse.json({ error: error.message, code: 'invalid_context' }, { status: 400 });
+    if (error instanceof InspectorContextBudgetError) return NextResponse.json({ error: error.message, code: 'context_too_large' }, { status: 422 });
+    console.error('Narrative inspector history error:', error);
+    return NextResponse.json({ error: '叙述検査履歴の取得に失敗しました', code: 'internal_error' }, { status: 500 });
+  }
+}
 
 export async function POST(request: NextRequest) {
   try {
