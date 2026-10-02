@@ -51,6 +51,7 @@ model Project {
   storyNavigatorRuns  StoryNavigatorRun[]
   storyNavigatorExplorationRuns StoryNavigatorExplorationRun[]
   storyNavigatorObservations StoryNavigatorObservation[]
+  storyNavigatorPromotionActions StoryNavigatorPromotionAction[]
   defaultPovCharacter Character? @relation("ProjectDefaultPov", fields: [defaultPovCharacterId], references: [id], onDelete: SetNull)
 
   @@index([defaultPovCharacterId])
@@ -375,6 +376,7 @@ model StoryNavigatorProposal {
   decidedAt            DateTime?
 
   run StoryNavigatorRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  promotionActions StoryNavigatorPromotionAction[]
 
   @@unique([runId, routeKey])
   @@index([runId, decisionStatus])
@@ -430,9 +432,42 @@ model StoryNavigatorObservation {
   run           StoryNavigatorExplorationRun @relation(fields: [runId], references: [id], onDelete: Cascade)
   project       Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
   sourceChapter Chapter @relation("ObservationSource", fields: [sourceChapterId], references: [id], onDelete: Cascade)
+  promotionActions StoryNavigatorPromotionAction[]
 
   @@index([runId, decisionStatus])
   @@index([projectId, sourceChapterId])
+  @@schema("magic_story")
+}
+
+model StoryNavigatorPromotionAction {
+  id                  String   @id @default(cuid())
+  projectId           String
+  sourceType          String
+  sourceProposalId    String?
+  sourceObservationId String?
+  targetType          String
+  targetExistingId    String?
+  operation           String   @default("create")
+  proposedPayload     String
+  reason              String   @default("")
+  status              String   @default("draft")
+  sourceSnapshot      String
+  sourceUpdatedAt     DateTime
+  targetSnapshot      String   @default("")
+  createdEntityId     String?
+  error               String   @default("")
+  createdAt           DateTime @default(now())
+  reviewedAt          DateTime?
+  appliedAt           DateTime?
+
+  project           Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  sourceProposal    StoryNavigatorProposal? @relation(fields: [sourceProposalId], references: [id], onDelete: Cascade)
+  sourceObservation StoryNavigatorObservation? @relation(fields: [sourceObservationId], references: [id], onDelete: Cascade)
+
+  @@index([projectId, status])
+  @@index([sourceProposalId])
+  @@index([sourceObservationId])
+  @@index([createdEntityId])
   @@schema("magic_story")
 }
 

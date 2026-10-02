@@ -156,6 +156,11 @@ export const PLOT_TYPE_LABELS: LabelMap = {
   scene: 'シーン', event: 'イベント',
 };
 
+export const NAVIGATOR_PROMOTION_STATUS_LABELS: LabelMap = {
+  draft: '確認待ち', approved: '承認済み', applying: '反映中', applied: '反映済み',
+  rejected: '反映しない', stale: '要再作成', failed: '失敗',
+};
+
 export const WORLD_SETTING_TYPE_LABELS: LabelMap = {
   background: '背景設定', power: '能力体系', location: '地理・環境',
   society: '社会構造', history: '歴史・文化', rules: '世界のルール', other: 'その他',
