@@ -25,6 +25,46 @@ export interface UnicodeMetrics {
   graphemeSegmentation: GraphemeSegmentation;
 }
 
+export interface PairedRegionCountByStatus {
+  closed: number;
+  unclosed: number;
+  mismatched: number;
+}
+
+export interface SectionTextMetrics {
+  sectionId: string;
+  index: number;
+  bodyGraphemes: number;
+  paragraphCount: number;
+  sentenceCount: number;
+  pairedRegionGraphemes: number;
+  closedPairedRegionGraphemes: number;
+  structuralPairedRegionRatio: number | null;
+  sentenceGraphemes: number;
+  averageSentenceGraphemes: number | null;
+}
+
+export interface StructuralTextMetrics {
+  source: UnicodeMetrics;
+  bodyGraphemes: number;
+  formattingGraphemes: number;
+  whitespaceGraphemes: number;
+  lineBreakCount: number;
+  lineBreakGraphemes: number;
+  sectionCount: number;
+  nonEmptySectionCount: number;
+  paragraphCount: number;
+  sentenceCount: number;
+  pairedRegionCount: number;
+  pairedRegionCountByStatus: PairedRegionCountByStatus;
+  pairedRegionGraphemes: number;
+  closedPairedRegionGraphemes: number;
+  structuralPairedRegionRatio: number | null;
+  sentenceGraphemes: number;
+  averageSentenceGraphemes: number | null;
+  sections: SectionTextMetrics[];
+}
+
 export interface SourceLine extends SourceRange {
   index: number;
   contentRange: SourceRange;
@@ -139,5 +179,6 @@ export interface JapaneseTextSourceDocument {
   sections: TextSection[];
   paragraphs: TextParagraph[];
   sentences: StructuralSentence[];
+  metrics: StructuralTextMetrics;
   diagnostics: TextDiagnostic[];
 }

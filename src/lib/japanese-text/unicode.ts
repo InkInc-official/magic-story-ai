@@ -67,11 +67,11 @@ export function getGraphemeSegmentation(): GraphemeSegmentation {
   return createSegmenter() ? 'intl-segmenter' : 'fallback-code-point-clusters';
 }
 
-export function measureUnicode(text: string): UnicodeMetrics {
+export function measureUnicode(text: string, graphemeRanges?: readonly GraphemeSegment[]): UnicodeMetrics {
   return {
     utf16CodeUnits: text.length,
     codePoints: countCodePoints(text),
-    graphemes: countGraphemes(text),
+    graphemes: graphemeRanges?.length ?? countGraphemes(text),
     graphemeSegmentation: getGraphemeSegmentation(),
   };
 }
