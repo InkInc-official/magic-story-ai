@@ -48,6 +48,7 @@ model Project {
   scenes              Scene[]
   plots               Plot[]
   assetLinks          ProjectAssetLink[]
+  storyNavigatorRuns  StoryNavigatorRun[]
   defaultPovCharacter Character? @relation("ProjectDefaultPov", fields: [defaultPovCharacterId], references: [id], onDelete: SetNull)
 
   @@index([defaultPovCharacterId])
@@ -229,6 +230,7 @@ model Chapter {
   plannedStoryFacts StoryFact[] @relation("PlannedFactReveal")
   revealedStoryFacts StoryFact[] @relation("ActualFactReveal")
   knowledgeChanges CharacterKnowledge[]
+  storyNavigatorRuns StoryNavigatorRun[]
 
   @@index([povCharacterId])
   @@schema("magic_story")
@@ -319,6 +321,59 @@ model CharacterKnowledge {
   @@index([factId])
   @@index([characterId])
   @@index([effectiveChapterId])
+  @@schema("magic_story")
+}
+
+model StoryNavigatorRun {
+  id                    String   @id @default(cuid())
+  projectId             String
+  anchorChapterId       String
+  request               String   @default("")
+  promptVersion         String
+  contextBuilderVersion String
+  sourceManifest        String
+  authorIntentSnapshot  String   @default("")
+  genreGuidanceModeSnapshot String @default("reference")
+  genreGuidanceNotesSnapshot String @default("")
+  currentPositionSummary String  @default("")
+  planDeviation         String   @default("[]")
+  rawResponse           String   @default("")
+  status                String   @default("pending")
+  error                  String   @default("")
+  createdAt             DateTime @default(now())
+  completedAt           DateTime?
+
+  project       Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  anchorChapter Chapter @relation(fields: [anchorChapterId], references: [id], onDelete: Cascade)
+  proposals     StoryNavigatorProposal[]
+
+  @@index([projectId, createdAt])
+  @@index([anchorChapterId])
+  @@schema("magic_story")
+}
+
+model StoryNavigatorProposal {
+  id                   String   @id @default(cuid())
+  runId                String
+  routeKey             String
+  title                String
+  summary              String
+  whyPossible          String
+  authorIntentRelation String
+  preparation          String   @default("[]")
+  affectedEntities     String   @default("[]")
+  benefits             String   @default("[]")
+  risks                String   @default("[]")
+  immediateOptions     String   @default("[]")
+  decisionStatus       String   @default("undecided")
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  decidedAt            DateTime?
+
+  run StoryNavigatorRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@unique([runId, routeKey])
+  @@index([runId, decisionStatus])
   @@schema("magic_story")
 }
 

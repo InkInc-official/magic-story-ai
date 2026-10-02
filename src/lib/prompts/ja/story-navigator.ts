@@ -19,3 +19,35 @@ export const STORY_NAVIGATOR_SYSTEM_PROMPT = `あなたは日本語小説制作�
 - 作者の今回の指示、章設定、作者意図・作品設定、有効なジャンル指針、日本語小説共通デフォルトの順に優先する。
 
 ${JAPANESE_NOVEL_CORE_PRINCIPLES}`;
+
+export const STORY_NAVIGATOR_PROMPT_VERSION = '3b3-v1';
+
+export function buildStoryNavigatorUserPrompt(context: string): string {
+  return `${context}
+
+【出力指示】
+現在地の解釈と、原則3案（内容に応じて2〜5案）の異なる未来候補を作る。言い換えだけの案を並べない。
+JSON以外の前置き、Markdown、解説を付けず、次の構造だけを出力する。
+{
+  "schemaVersion": 1,
+  "currentPosition": {
+    "summary": "anchor章終了直後の現在地についてのAI解釈",
+    "planDeviation": ["当初計画との主なズレ。なければ空配列"]
+  },
+  "routes": [
+    {
+      "routeKey": "A",
+      "title": "方向性を識別できる短い名前",
+      "summary": "この先の展開概要",
+      "whyPossible": "現在のActualとCanonicalから成立する根拠",
+      "authorIntentRelation": "作者意図との関係",
+      "preparation": ["必要な準備"],
+      "affectedEntities": ["影響する人物・設定・筋"],
+      "benefits": ["利点"],
+      "risks": ["リスク"],
+      "immediateOptions": ["次章などで今すぐ配置できる要素"]
+    }
+  ]
+}
+すべての候補は非正史であり、採用されるまで正式設定ではない。`;
+}

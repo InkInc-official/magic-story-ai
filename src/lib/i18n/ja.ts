@@ -14,6 +14,7 @@ export const ja = {
     outline: 'プロット',
     chapters: '執筆',
     tracking: '追跡',
+    navigator: '物語ナビゲーター',
     settings: '設定',
   },
   common: {
@@ -73,6 +74,13 @@ export const NARRATIVE_PERSPECTIVE_LABELS: LabelMap = {
 export const CHAPTER_LENGTH_POLICY_LABELS: LabelMap = {
   guide: '目安（自然な終了を優先）',
   strict: 'できるだけ厳密',
+};
+
+export const NAVIGATOR_DECISION_STATUS_LABELS: LabelMap = {
+  undecided: '未決定',
+  held: '保留',
+  accepted: '採用済み・正史未反映',
+  rejected: '却下',
 };
 
 export const GENRE_GUIDANCE_MODE_LABELS: LabelMap = {

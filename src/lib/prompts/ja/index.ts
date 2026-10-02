@@ -44,4 +44,4 @@ export {
   type ContextEntry,
   type ContextTier,
 } from './context-budget';
-export { STORY_NAVIGATOR_SYSTEM_PROMPT } from './story-navigator';
+export { STORY_NAVIGATOR_PROMPT_VERSION, STORY_NAVIGATOR_SYSTEM_PROMPT, buildStoryNavigatorUserPrompt } from './story-navigator';
