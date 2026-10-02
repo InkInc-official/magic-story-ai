@@ -22,10 +22,18 @@ export const BUILTIN_SECTION_BREAKS: readonly SectionBreakDefinition[] = Object.
 
 export interface StructuralParseResult {
   breaks: SectionBreakCandidate[];
+  effectiveBreaks: SectionBreakCandidate[];
   sections: TextSection[];
   paragraphs: TextParagraph[];
   sentences: StructuralSentence[];
   diagnostics: TextDiagnostic[];
+}
+
+function selectEffectiveBreaks(breaks: readonly SectionBreakCandidate[], regions: readonly PairedSymbolRegion[]): SectionBreakCandidate[] {
+  const closedRegions = regions.filter(region => region.status === 'closed' && region.closeRange);
+  return breaks.filter(sectionBreak => !closedRegions.some(region =>
+    region.openRange.endOffset <= sectionBreak.markerRange.startOffset
+    && sectionBreak.markerRange.endOffset <= region.closeRange!.startOffset));
 }
 
 function trimWhitespaceRange(text: string, range: SourceRange): SourceRange {
@@ -281,8 +289,9 @@ function parseSentences(text: string, sections: readonly TextSection[], paragrap
 export function parseStructuralText(text: string, lines: readonly SourceLine[], regions: readonly PairedSymbolRegion[], options: JapaneseTextParserOptions = {}): StructuralParseResult {
   const resolved = resolveSectionDefinitions(options.sectionBreaks ?? BUILTIN_SECTION_BREAKS);
   const breaks = findSectionBreaks(text, lines, resolved.definitions);
-  const sections = buildSections(text, breaks);
-  const paragraphs = buildParagraphs(lines, breaks, sections);
+  const effectiveBreaks = selectEffectiveBreaks(breaks, regions);
+  const sections = buildSections(text, effectiveBreaks);
+  const paragraphs = buildParagraphs(lines, effectiveBreaks, sections);
   const sentences = parseSentences(text, sections, paragraphs, regions);
-  return { breaks, sections, paragraphs, sentences, diagnostics: resolved.diagnostics };
+  return { breaks, effectiveBreaks, sections, paragraphs, sentences, diagnostics: resolved.diagnostics };
 }

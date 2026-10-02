@@ -134,6 +134,8 @@ export interface JapaneseTextSourceDocument {
   symbolRegions: PairedSymbolRegion[];
   symbolUsage: SymbolPairUsage[];
   sectionBreaks: SectionBreakCandidate[];
+  /** Candidate nodes adopted as actual Section boundaries. */
+  effectiveSectionBreaks: SectionBreakCandidate[];
   sections: TextSection[];
   paragraphs: TextParagraph[];
   sentences: StructuralSentence[];

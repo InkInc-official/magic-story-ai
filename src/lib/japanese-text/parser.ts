@@ -5,7 +5,7 @@ import { parseStructuralText } from './structural-parser';
 import type { JapaneseTextParserOptions, JapaneseTextSourceDocument } from './types';
 import { measureUnicode } from './unicode';
 
-export const JAPANESE_TEXT_PARSER_VERSION = '5b3-v1';
+export const JAPANESE_TEXT_PARSER_VERSION = '5b3-v2';
 
 export function analyzeJapaneseTextSource(text: string, options: JapaneseTextParserOptions = {}): JapaneseTextSourceDocument {
   const lines = scanSourceLines(text);
@@ -19,6 +19,7 @@ export function analyzeJapaneseTextSource(text: string, options: JapaneseTextPar
     symbolRegions: symbols.regions,
     symbolUsage: symbols.usage,
     sectionBreaks: structure.breaks,
+    effectiveSectionBreaks: structure.effectiveBreaks,
     sections: structure.sections,
     paragraphs: structure.paragraphs,
     sentences: structure.sentences,
