@@ -165,7 +165,7 @@ function SidePanel({ type, onClose, projectId }: {
 }) {
   const { activeChapterId } = useAppStore();
   const [chapter, setChapter] = useState<{ id: string; title: string; outlineContent: string; content: string; summary: string; emotionTarget: string; emotionArc: string; purpose?: string; povCharacterId?: string | null; endingNotes?: string } | null>(null);
-  const { metrics: previewMetrics } = useJapaneseTextAnalysis(type === 'preview' ? chapter?.content || '' : '');
+  const { analysis: previewAnalysis, isDeferred: previewAnalysisIsDeferred } = useJapaneseTextAnalysis(type === 'preview' ? chapter?.content || '' : '');
 
   useEffect(() => {
     if (activeChapterId && type !== 'none') {
@@ -210,7 +210,8 @@ function SidePanel({ type, onClose, projectId }: {
             summary={chapter?.summary || ''}
             emotionTarget={chapter?.emotionTarget || ''}
             emotionArc={chapter?.emotionArc || ''}
-            metrics={previewMetrics}
+            analysis={previewAnalysis}
+            analysisIsDeferred={previewAnalysisIsDeferred}
             hasChapter={!!chapter}
           />
         )}

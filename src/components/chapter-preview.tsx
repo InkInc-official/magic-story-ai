@@ -8,7 +8,8 @@ import { Button } from '@/components/ui/button';
 import { Eye, Type, AlignLeft, Minus, Plus, BookOpen, MousePointerClick } from 'lucide-react';
 import { useState } from 'react';
 import { displayLabel, EMOTION_ARC_LABELS, EMOTION_LABELS } from '@/lib/i18n';
-import type { CurrentChapterMetrics } from '@/lib/current-chapter-metrics';
+import type { JapaneseTextSourceDocument } from '@/lib/japanese-text';
+import { renderChapterPreviewHTML } from '@/lib/chapter-preview-rendering';
 
 interface ChapterPreviewProps {
   title: string;
@@ -16,40 +17,10 @@ interface ChapterPreviewProps {
   summary?: string;
   emotionTarget?: string;
   emotionArc?: string;
-  metrics: CurrentChapterMetrics;
+  analysis: JapaneseTextSourceDocument;
+  analysisIsDeferred?: boolean;
   targetWordCount?: number | null;
   hasChapter?: boolean;
-}
-
-/** 将纯文本转为带段落/对话高亮的 HTML */
-function renderContentToHTML(raw: string): string {
-  if (!raw.trim()) return '';
-
-  const paragraphs = raw.split(/\n+/).filter(p => p.trim());
-
-  return paragraphs.map(p => {
-    const trimmed = p.trim();
-    // 对话行（以中文引号开头）
-    if (/^[「""《]/.test(trimmed)) {
-      return `<p class="chapter-dialogue">${escapeHTML(trimmed)}</p>`;
-    }
-    // 心理描写（以括号包裹）
-    if (/^[（(]/.test(trimmed)) {
-      return `<p class="chapter-inner-thought">${escapeHTML(trimmed)}</p>`;
-    }
-    // 短段落（可能是场景切换标记）
-    if (trimmed.length <= 8 && /[*~\-—=]/.test(trimmed)) {
-      return `<p class="chapter-divider">${escapeHTML(trimmed)}</p>`;
-    }
-    return `<p class="chapter-paragraph">${escapeHTML(trimmed)}</p>`;
-  }).join('');
-}
-
-function escapeHTML(str: string): string {
-  return str
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
 }
 
 const FONT_SIZES = [
@@ -77,14 +48,19 @@ export function ChapterPreview({
   summary,
   emotionTarget,
   emotionArc,
-  metrics,
+  analysis,
+  analysisIsDeferred = false,
   targetWordCount,
   hasChapter = true,
 }: ChapterPreviewProps) {
   const [fontLevel, setFontLevel] = useState(1); // 0=小, 1=中, 2=大
   const [showMeta, setShowMeta] = useState(true);
 
-  const contentHTML = useMemo(() => renderContentToHTML(content), [content]);
+  const metrics = analysis.metrics;
+  const contentHTML = useMemo(
+    () => renderChapterPreviewHTML(content, analysisIsDeferred ? [] : analysis.effectiveSectionBreaks),
+    [content, analysis.effectiveSectionBreaks, analysisIsDeferred],
+  );
   const font = FONT_SIZES[fontLevel];
 
   const emotionStyle = emotionTarget ? EMOTION_COLORS[emotionTarget] || 'text-primary bg-primary/10' : '';

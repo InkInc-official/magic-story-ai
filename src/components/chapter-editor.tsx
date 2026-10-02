@@ -13,6 +13,7 @@ import { BookOpen, Plus, Trash2, Save, Sparkles, ChevronRight, ChevronDown, Shie
 import { AntiAIPanel } from '@/components/anti-ai-panel';
 import { AdversarialReviewPanel } from '@/components/adversarial-review';
 import { ChapterPreview } from '@/components/chapter-preview';
+import { JapaneseTextAnalyticsPanel } from '@/components/japanese-text-analytics-panel';
 import { NarrativeInspectorPanel } from '@/components/narrative-inspector-panel';
 import { hasUnsavedInspectorChanges } from '@/lib/narrative-inspector';
 import { APP_LOCALE, EMOTION_ARC_LABELS, EMOTION_LABELS, HOOK_LABELS } from '@/lib/i18n';
@@ -111,7 +112,7 @@ export function ChapterEditor({ projectId }: ChapterEditorProps) {
   const [showEmotion, setShowEmotion] = useState(false);
   const [sidePanel, setSidePanel] = useState<'none' | 'preview' | 'antiAi' | 'adversarial' | 'inspector'>('preview');
   const [generatingPhase, setGeneratingPhase] = useState<'none' | 'summary' | 'full'>('none');
-  const { metrics: currentMetrics } = useJapaneseTextAnalysis(editContent);
+  const { analysis: currentAnalysis, metrics: currentMetrics, isDeferred: currentAnalysisIsDeferred } = useJapaneseTextAnalysis(editContent);
   const currentTargetWordCount = resolveCurrentChapterTarget(editTargetWordCount, projectDefaultChapterTarget);
   const { setActiveAgent, setActiveChapterId } = useAppStore();
   const abortRef = useRef<AbortController | null>(null);
@@ -826,6 +827,7 @@ export function ChapterEditor({ projectId }: ChapterEditorProps) {
                   rows={18}
                   className="text-sm leading-relaxed resize-none min-h-[350px]"
                 />
+                <JapaneseTextAnalyticsPanel analysis={currentAnalysis} />
               </CardContent>
             </Card>
           ) : (
@@ -848,7 +850,8 @@ export function ChapterEditor({ projectId }: ChapterEditorProps) {
                   summary={editSummary}
                   emotionTarget={editEmotionTarget}
                   emotionArc={editEmotionArc}
-                  metrics={currentMetrics}
+                  analysis={currentAnalysis}
+                  analysisIsDeferred={currentAnalysisIsDeferred}
                   targetWordCount={currentTargetWordCount}
                   hasChapter={!!selectedChapter}
                 />
