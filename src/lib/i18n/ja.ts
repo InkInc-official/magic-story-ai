@@ -71,6 +71,20 @@ export const NARRATIVE_PERSPECTIVE_LABELS: LabelMap = {
   custom: 'その他・自由指定',
 };
 
+export const NARRATOR_DISCLOSURE_MODE_LABELS: LabelMap = {
+  normal: '通常',
+  concealed: '正体を秘匿',
+};
+
+export const NARRATIVE_RULE_CATEGORY_LABELS: LabelMap = {
+  viewpoint: '視点', knowledge: '知識', voice: '語り・人物の声', disclosure: '情報開示',
+  structure: '構造', prose: '文章表現', custom: 'その他',
+};
+
+export const NARRATIVE_RULE_MODE_LABELS: LabelMap = {
+  require: '必須', forbid: '禁止', allow: '許可', guidance: '指針',
+};
+
 export const CHAPTER_LENGTH_POLICY_LABELS: LabelMap = {
   guide: '目安（自然な終了を優先）',
   strict: 'できるだけ厳密',

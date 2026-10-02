@@ -21,6 +21,7 @@ model Project {
   coverImage  String   @default("")
   narrativePerspective String?
   defaultPovCharacterId String?
+  defaultNarratorId String?
   povNotes String @default("")
   writingStyleNotes String @default("")
   defaultChapterTarget Int?
@@ -52,9 +53,13 @@ model Project {
   storyNavigatorExplorationRuns StoryNavigatorExplorationRun[]
   storyNavigatorObservations StoryNavigatorObservation[]
   storyNavigatorPromotionActions StoryNavigatorPromotionAction[]
+  narratorProfiles     NarratorProfile[] @relation("ProjectNarrators")
+  narrativeRules       NarrativeRule[]
   defaultPovCharacter Character? @relation("ProjectDefaultPov", fields: [defaultPovCharacterId], references: [id], onDelete: SetNull)
+  defaultNarrator NarratorProfile? @relation("ProjectDefaultNarrator", fields: [defaultNarratorId], references: [id], onDelete: SetNull)
 
   @@index([defaultPovCharacterId])
+  @@index([defaultNarratorId])
   @@schema("magic_story")
 }
 
@@ -109,6 +114,7 @@ model Character {
   povChapters Chapter[] @relation("ChapterPov")
   chapterCharacters ChapterCharacter[]
   knowledgeEvents CharacterKnowledge[]
+  narratorProfiles NarratorProfile[] @relation("NarratorLinkedCharacter")
 
   @@schema("magic_story")
 }
@@ -128,6 +134,52 @@ model CharacterRelationship {
   fromCharacter Character @relation("FromCharacter", fields: [fromCharacterId], references: [id], onDelete: Cascade)
   toCharacter   Character @relation("ToCharacter", fields: [toCharacterId], references: [id], onDelete: Cascade)
 
+  @@schema("magic_story")
+}
+
+model NarratorProfile {
+  id                     String   @id @default(cuid())
+  projectId              String
+  name                   String
+  description            String   @default("")
+  voiceNotes             String   @default("")
+  linkedCharacterId      String?
+  identityFactId         String?
+  identityDisclosureMode String   @default("normal")
+  notes                  String   @default("")
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  project         Project    @relation("ProjectNarrators", fields: [projectId], references: [id], onDelete: Cascade)
+  linkedCharacter Character?  @relation("NarratorLinkedCharacter", fields: [linkedCharacterId], references: [id], onDelete: SetNull)
+  identityFact    StoryFact?  @relation("NarratorIdentityFact", fields: [identityFactId], references: [id], onDelete: SetNull)
+  defaultForProjects Project[] @relation("ProjectDefaultNarrator")
+  chapters        Chapter[]   @relation("ChapterNarrator")
+
+  @@index([projectId])
+  @@index([linkedCharacterId])
+  @@index([identityFactId])
+  @@schema("magic_story")
+}
+
+model NarrativeRule {
+  id          String   @id @default(cuid())
+  projectId   String
+  title       String
+  description String
+  category    String
+  mode        String
+  priority    Int      @default(0)
+  source      String   @default("author")
+  machineKey  String?
+  active      Boolean  @default(true)
+  overridable Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId, active, priority])
   @@schema("magic_story")
 }
 
@@ -221,6 +273,7 @@ model Chapter {
   hookStart      String  @default("")
   hookEnd        String  @default("")
   povCharacterId String?
+  narratorId      String?
   purpose         String @default("")
   targetWordCount Int?
   endingNotes     String @default("")
@@ -229,6 +282,7 @@ model Chapter {
   storyStates StoryState[]
   foreshadowings Foreshadowing[]
   povCharacter Character? @relation("ChapterPov", fields: [povCharacterId], references: [id], onDelete: SetNull)
+  narrator NarratorProfile? @relation("ChapterNarrator", fields: [narratorId], references: [id], onDelete: SetNull)
   chapterCharacters ChapterCharacter[]
   plannedStoryFacts StoryFact[] @relation("PlannedFactReveal")
   revealedStoryFacts StoryFact[] @relation("ActualFactReveal")
@@ -238,6 +292,7 @@ model Chapter {
   storyNavigatorObservationSources StoryNavigatorObservation[] @relation("ObservationSource")
 
   @@index([povCharacterId])
+  @@index([narratorId])
   @@schema("magic_story")
 }
 
@@ -301,6 +356,7 @@ model StoryFact {
   plannedRevealChapter Chapter? @relation("PlannedFactReveal", fields: [plannedRevealChapterId], references: [id], onDelete: SetNull)
   revealedChapter      Chapter? @relation("ActualFactReveal", fields: [revealedChapterId], references: [id], onDelete: SetNull)
   characterKnowledge   CharacterKnowledge[]
+  narratorIdentities   NarratorProfile[] @relation("NarratorIdentityFact")
 
   @@index([projectId])
   @@index([plannedRevealChapterId])

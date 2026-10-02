@@ -91,6 +91,11 @@ export async function PUT(request: NextRequest) {
       const character = await db.character.findFirst({ where: { id: defaultPovCharacterId, projectId: id }, select: { id: true } });
       if (!character) return NextResponse.json({ error: '基本視点人物は同じプロジェクトの人物を指定してください' }, { status: 400 });
     }
+    const defaultNarratorId = body.defaultNarratorId === '' ? null : body.defaultNarratorId;
+    if (defaultNarratorId) {
+      const narrator = await db.narratorProfile.findFirst({ where: { id: defaultNarratorId, projectId: id }, select: { id: true } });
+      if (!narrator) return NextResponse.json({ error: '基本の語り手は同じプロジェクトから指定してください' }, { status: 400 });
+    }
 
     const project = await db.project.update({
       where: { id },
@@ -100,6 +105,7 @@ export async function PUT(request: NextRequest) {
         ...(description !== undefined && { description }),
         ...(body.narrativePerspective !== undefined && { narrativePerspective: body.narrativePerspective || null }),
         ...(body.defaultPovCharacterId !== undefined && { defaultPovCharacterId }),
+        ...(body.defaultNarratorId !== undefined && { defaultNarratorId }),
         ...(body.povNotes !== undefined && { povNotes: body.povNotes }),
         ...(body.writingStyleNotes !== undefined && { writingStyleNotes: body.writingStyleNotes }),
         ...(body.defaultChapterTarget !== undefined && { defaultChapterTarget: target }),

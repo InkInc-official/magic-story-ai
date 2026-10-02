@@ -41,6 +41,11 @@ export async function POST(request: NextRequest) {
       const character = await db.character.findFirst({ where: { id: povCharacterId, projectId }, select: { id: true } });
       if (!character) return NextResponse.json({ error: '視点人物は同じプロジェクトの人物を指定してください' }, { status: 400 });
     }
+    const narratorId = body.narratorId === '' ? null : body.narratorId;
+    if (narratorId) {
+      const narrator = await db.narratorProfile.findFirst({ where: { id: narratorId, projectId }, select: { id: true } });
+      if (!narrator) return NextResponse.json({ error: '語り手は同じプロジェクトから指定してください' }, { status: 400 });
+    }
 
     const wordCount = content ? content.length : 0;
 
@@ -59,6 +64,7 @@ export async function POST(request: NextRequest) {
         hookStart: body.hookStart || '',
         hookEnd: body.hookEnd || '',
         povCharacterId,
+        narratorId,
         purpose: body.purpose || '',
         targetWordCount: targetWordCount ?? null,
         endingNotes: body.endingNotes || '',
@@ -92,6 +98,11 @@ export async function PUT(request: NextRequest) {
       const character = await db.character.findFirst({ where: { id: povCharacterId, projectId: existing.projectId }, select: { id: true } });
       if (!character) return NextResponse.json({ error: '視点人物は同じプロジェクトの人物を指定してください' }, { status: 400 });
     }
+    const narratorId = body.narratorId === '' ? null : body.narratorId;
+    if (narratorId) {
+      const narrator = await db.narratorProfile.findFirst({ where: { id: narratorId, projectId: existing.projectId }, select: { id: true } });
+      if (!narrator) return NextResponse.json({ error: '語り手は同じプロジェクトから指定してください' }, { status: 400 });
+    }
 
     const chapter = await db.chapter.update({
       where: { id },
@@ -107,6 +118,7 @@ export async function PUT(request: NextRequest) {
         ...(hookStart !== undefined && { hookStart }),
         ...(hookEnd !== undefined && { hookEnd }),
         ...(body.povCharacterId !== undefined && { povCharacterId }),
+        ...(body.narratorId !== undefined && { narratorId }),
         ...(body.purpose !== undefined && { purpose: body.purpose }),
         ...(body.targetWordCount !== undefined && { targetWordCount }),
         ...(body.endingNotes !== undefined && { endingNotes: body.endingNotes }),

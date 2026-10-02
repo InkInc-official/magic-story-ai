@@ -8,6 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Settings, Save, Download, Info, ChevronDown, ChevronRight } from 'lucide-react';
 import { CHAPTER_LENGTH_POLICY_LABELS, displayLabel, GENRE_GUIDANCE_MODE_LABELS, GENRE_LABELS, NARRATIVE_PERSPECTIVE_LABELS } from '@/lib/i18n';
+import { NarrativeSettings } from '@/components/narrative-settings';
 
 const GENRE_OPTIONS = [
   ['玄幻系统修仙', '⚔️'], ['都市重生', '🔄'], ['脑洞网文', '💡'],
@@ -23,6 +24,7 @@ export interface ProjectSettings {
   description: string;
   narrativePerspective?: string | null;
   defaultPovCharacterId?: string | null;
+  defaultNarratorId?: string | null;
   povNotes?: string;
   writingStyleNotes?: string;
   defaultChapterTarget?: number | null;
@@ -196,6 +198,13 @@ export function SettingsPanel({ project, onUpdate }: SettingsPanelProps) {
             <div><label className="block text-xs text-muted-foreground mb-1">表記・組版メモ</label><Textarea value={formattingNotes} onChange={e => setFormattingNotes(e.target.value)} rows={3} placeholder="会話括弧、字下げ、空行など。未設定時は日本語標準を使用" /></div>
           </div>}
           <Button size="sm" onClick={handleSave} disabled={isSaving}><Save size={14} className="mr-1" />{isSaving ? '保存中...' : '小説生成設定を保存'}</Button>
+        </CardContent>
+      </Card>
+
+      <Card className="bg-card/50 border-border/50">
+        <CardHeader><CardTitle className="text-sm font-medium">叙述設定</CardTitle></CardHeader>
+        <CardContent>
+          <NarrativeSettings projectId={project.id} defaultNarratorId={project.defaultNarratorId} characters={characters} onProjectUpdate={onUpdate} />
         </CardContent>
       </Card>
 

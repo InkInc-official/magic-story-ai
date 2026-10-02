@@ -34,6 +34,7 @@ interface Chapter {
   hookStart: string;
   hookEnd: string;
   povCharacterId: string | null;
+  narratorId: string | null;
   purpose: string;
   targetWordCount: number | null;
   endingNotes: string;
@@ -51,6 +52,8 @@ interface ChapterCastEntry {
   order: number;
   character: ChapterGenerationSource['characters'][number];
 }
+
+interface NarratorOption { id: string; name: string; identityDisclosureMode: string }
 
 const STATUS_OPTIONS = [
   { value: 'draft', label: '下書き', color: 'text-muted-foreground' },
@@ -87,6 +90,7 @@ export function ChapterEditor({ projectId }: ChapterEditorProps) {
   const [editHookStart, setEditHookStart] = useState('');
   const [editHookEnd, setEditHookEnd] = useState('');
   const [editPovCharacterId, setEditPovCharacterId] = useState('');
+  const [editNarratorId, setEditNarratorId] = useState('');
   const [editPurpose, setEditPurpose] = useState('');
   const [editTargetWordCount, setEditTargetWordCount] = useState('');
   const [editEndingNotes, setEditEndingNotes] = useState('');
@@ -94,6 +98,7 @@ export function ChapterEditor({ projectId }: ChapterEditorProps) {
   const [chapterCast, setChapterCast] = useState<ChapterCastEntry[]>([]);
   const [castCharacterId, setCastCharacterId] = useState('');
   const [projectDefaultPovCharacterId, setProjectDefaultPovCharacterId] = useState('');
+  const [projectNarrators, setProjectNarrators] = useState<NarratorOption[]>([]);
   const [isCreating, setIsCreating] = useState(false);
   const [newTitle, setNewTitle] = useState('');
   const [isSaving, setIsSaving] = useState(false);
@@ -180,7 +185,7 @@ export function ChapterEditor({ projectId }: ChapterEditorProps) {
 
   const fetchChapters = useCallback(async () => {
     try {
-      const [res, characterRes, projectRes] = await Promise.all([fetch(`/api/chapters?projectId=${projectId}`), fetch(`/api/characters?projectId=${projectId}`), fetch('/api/projects')]);
+      const [res, characterRes, projectRes, narratorRes] = await Promise.all([fetch(`/api/chapters?projectId=${projectId}`), fetch(`/api/characters?projectId=${projectId}`), fetch('/api/projects'), fetch(`/api/narrators?projectId=${projectId}`)]);
       if (res.ok) {
         const data = await res.json();
         setChapters(data);
@@ -190,6 +195,7 @@ export function ChapterEditor({ projectId }: ChapterEditorProps) {
         const projects = await projectRes.json() as Array<{ id: string; defaultPovCharacterId?: string | null }>;
         setProjectDefaultPovCharacterId(projects.find(project => project.id === projectId)?.defaultPovCharacterId || '');
       }
+      if (narratorRes.ok) setProjectNarrators(await narratorRes.json());
     } catch (e) {
       console.error('Failed to fetch chapters:', e);
     }
@@ -212,6 +218,7 @@ export function ChapterEditor({ projectId }: ChapterEditorProps) {
     setEditHookStart(chapter.hookStart || '');
     setEditHookEnd(chapter.hookEnd || '');
     setEditPovCharacterId(chapter.povCharacterId || '');
+    setEditNarratorId(chapter.narratorId || '');
     setEditPurpose(chapter.purpose || '');
     setEditTargetWordCount(chapter.targetWordCount?.toString() || '');
     setEditEndingNotes(chapter.endingNotes || '');
@@ -284,6 +291,7 @@ export function ChapterEditor({ projectId }: ChapterEditorProps) {
           hookStart: editHookStart,
           hookEnd: editHookEnd,
           povCharacterId: editPovCharacterId,
+          narratorId: editNarratorId,
           purpose: editPurpose,
           targetWordCount: editTargetWordCount,
           endingNotes: editEndingNotes,
@@ -665,6 +673,7 @@ export function ChapterEditor({ projectId }: ChapterEditorProps) {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-3 bg-secondary/20 rounded-lg">
                   <div><label className="block text-[10px] text-muted-foreground mb-1">視点人物</label><select value={editPovCharacterId} onChange={e => setEditPovCharacterId(e.target.value)} className="w-full h-8 px-2 bg-secondary border border-input rounded text-xs"><option value="">プロジェクト設定／文脈を使用</option>{projectCharacters.map(character => <option key={character.id} value={character.id}>{character.name}</option>)}</select></div>
+                  <div><label className="block text-[10px] text-muted-foreground mb-1">語り手</label><select value={editNarratorId} onChange={e => setEditNarratorId(e.target.value)} className="w-full h-8 px-2 bg-secondary border border-input rounded text-xs"><option value="">プロジェクト設定／未指定</option>{projectNarrators.map(narrator => <option key={narrator.id} value={narrator.id}>{narrator.name}{narrator.identityDisclosureMode === 'concealed' ? '（正体を秘匿）' : ''}</option>)}</select></div>
                   <div><label className="block text-[10px] text-muted-foreground mb-1">目標文字数</label><Input type="number" min={1} value={editTargetWordCount} onChange={e => setEditTargetWordCount(e.target.value)} className="h-8 text-xs" placeholder="プロジェクト設定を使用" /></div>
                   <div className="md:col-span-2"><label className="block text-[10px] text-muted-foreground mb-1">章の目的</label><Textarea value={editPurpose} onChange={e => setEditPurpose(e.target.value)} rows={2} className="text-xs resize-none" placeholder="この章で達成したいこと、中心となる変化" /></div>
                   <div className="md:col-span-2"><label className="block text-[10px] text-muted-foreground mb-1">章末メモ</label><Textarea value={editEndingNotes} onChange={e => setEditEndingNotes(e.target.value)} rows={2} className="text-xs resize-none" placeholder="余韻、発見、静かな終了など。未設定時は章末フックまたは内容から判断" /></div>
