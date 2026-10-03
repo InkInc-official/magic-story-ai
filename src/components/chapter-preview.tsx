@@ -10,6 +10,7 @@ import { useState } from 'react';
 import { displayLabel, EMOTION_ARC_LABELS, EMOTION_LABELS } from '@/lib/i18n';
 import type { JapaneseTextSourceDocument } from '@/lib/japanese-text';
 import { renderChapterPreviewHTML } from '@/lib/chapter-preview-rendering';
+import type { PreviewSymbolSemanticRange } from '@/lib/symbol-dictionary';
 
 interface ChapterPreviewProps {
   title: string;
@@ -21,6 +22,7 @@ interface ChapterPreviewProps {
   analysisIsDeferred?: boolean;
   targetWordCount?: number | null;
   hasChapter?: boolean;
+  symbolSemantics?: readonly PreviewSymbolSemanticRange[];
 }
 
 const FONT_SIZES = [
@@ -52,14 +54,15 @@ export function ChapterPreview({
   analysisIsDeferred = false,
   targetWordCount,
   hasChapter = true,
+  symbolSemantics = [],
 }: ChapterPreviewProps) {
   const [fontLevel, setFontLevel] = useState(1); // 0=小, 1=中, 2=大
   const [showMeta, setShowMeta] = useState(true);
 
   const metrics = analysis.metrics;
   const contentHTML = useMemo(
-    () => renderChapterPreviewHTML(content, analysisIsDeferred ? [] : analysis.effectiveSectionBreaks),
-    [content, analysis.effectiveSectionBreaks, analysisIsDeferred],
+    () => renderChapterPreviewHTML(content, analysisIsDeferred ? [] : analysis.effectiveSectionBreaks, symbolSemantics),
+    [content, analysis.effectiveSectionBreaks, analysisIsDeferred, symbolSemantics],
   );
   const font = FONT_SIZES[fontLevel];
 

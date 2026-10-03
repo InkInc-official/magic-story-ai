@@ -28,6 +28,7 @@ test('default・override優先・nested・malformedを表示分類する', () =>
   assert.deepEqual(result.items.map(value => [value.depth, value.status, value.usageRule?.id]), [[0, 'confirmed_override', 'special'], [1, 'confirmed_default', 'inner-r']]);
   assert.equal(result.metrics.confirmedOccurrenceCount, 2);
   assert.equal(result.metrics.dialogueGraphemes, 4);
+  assert.deepEqual(result.previewSemantics.map(value => [value.depth, value.source]), [[0, 'override'], [1, 'default']]);
   assert.equal(browse('「閉じない', { definitions: [base], usageRules: [rule()] }).items[0].status, 'invalid_structure');
 });
 
@@ -57,6 +58,15 @@ test('ambiguousと削除済みOverrideを孤立した要再確認項目として
   assert.equal(result.items.find(value => value.override?.id === 'ambiguous')?.reanchorState, 'ambiguous');
   assert.equal(result.items.find(value => value.override?.id === 'removed')?.reanchorState, 'not_found');
   assert.equal(result.items.find(value => value.override?.id === 'removed')?.orphanedOverride, true);
+});
+
+test('孤立stale OverrideがあるDefinitionはPreviewでdefaultへsilent fallbackしない', () => {
+  const original = `${'A'.repeat(64)}「同じ」${'B'.repeat(64)}`; const startOffset = original.indexOf('「');
+  const base = definition({ defaultUsageRuleId: 'r' });
+  const override = buildSymbolOccurrenceAnchor({ id: 'ambiguous', projectId, chapterId, content: original, definition: base, usageRuleId: 'r', status: 'confirmed', range: { startOffset, endOffset: startOffset + 4 } });
+  const result = browse(`追加${original}区切り${original}`, { definitions: [base], usageRules: [rule()], overrides: [override] });
+  assert.ok(result.previewSemantics.length >= 2);
+  assert.ok(result.previewSemantics.every(value => value.style === 'normal' && value.source === 'suppression'));
 });
 
 test('inactive built-in semanticsは構造を残しinactive customは構造を消す', () => {

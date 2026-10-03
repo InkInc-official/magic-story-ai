@@ -2,6 +2,7 @@ import { getGraphemeRanges, type SourceRange } from '../japanese-text';
 import { matchSymbolOccurrence } from './occurrence-anchor';
 import { resolveSymbolOccurrences } from './resolver';
 import { computeSymbolSemanticMetrics, type SymbolSemanticMetrics } from './semantic-metrics';
+import { buildPreviewSymbolSemantics, suppressPreviewDefaultsForStaleDefinitions, type PreviewSymbolSemanticRange } from './preview-semantics';
 import type { ResolveSymbolOccurrencesInput, ResolvedSymbolOccurrence, SymbolOccurrenceOverride } from './types';
 
 export type OccurrenceReanchorState = 'reanchorable' | 'ambiguous' | 'not_found' | null;
@@ -32,6 +33,7 @@ export interface SymbolOccurrenceBrowserResult {
   items: SymbolOccurrenceBrowserItem[];
   counts: { total: number; unresolved: number; review: number; confirmed: number };
   metrics: SymbolSemanticMetrics;
+  previewSemantics: PreviewSymbolSemanticRange[];
 }
 
 function safeContext(content: string, range: SourceRange, graphemes: ReturnType<typeof getGraphemeRanges>, radius = 48) {
@@ -99,5 +101,12 @@ export function buildSymbolOccurrenceBrowser(input: ResolveSymbolOccurrencesInpu
     occurrences: resolved.occurrences,
     orphanedStaleOccurrenceCount: items.filter(item => item.orphanedOverride && item.status === 'stale_override').length,
   });
-  return { parserVersion: resolved.parserVersion, parseCount: resolved.parseCount, items, counts, metrics };
+  const orphanedStaleDefinitionIds = new Set(items
+    .filter(item => item.orphanedOverride && item.status === 'stale_override' && item.definition)
+    .map(item => item.definition!.id));
+  const previewSemantics = suppressPreviewDefaultsForStaleDefinitions(
+    buildPreviewSymbolSemantics(resolved.occurrences),
+    orphanedStaleDefinitionIds,
+  );
+  return { parserVersion: resolved.parserVersion, parseCount: resolved.parseCount, items, counts, metrics, previewSemantics };
 }

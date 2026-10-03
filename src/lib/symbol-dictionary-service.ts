@@ -222,11 +222,13 @@ export async function analyzeChapterSymbolOccurrences(projectId: string, chapter
   ]);
   if (!chapter) throw new SymbolDictionaryServiceError('cross_project', 'Chapterは同じProjectから指定してください。');
   const domainDefinitions = definitions.map(definitionDomain);
+  const domainUsageRules = definitions.flatMap(value => value.usageRules).map(usageDomain);
   const result = buildSymbolOccurrenceBrowser({ projectId, chapterId, content: chapter.content, definitions: domainDefinitions,
-    usageRules: definitions.flatMap(value => value.usageRules).map(usageDomain),
+    usageRules: domainUsageRules,
     overrides: overrides.map(value => ({ ...value, status: value.status as SymbolOccurrenceOverrideStatus })) });
   const persistedDefinitions = new Map(definitions.map(value => [value.id, value]));
   return { chapter: { id: chapter.id, title: chapter.title, order: chapter.order }, definitions, ...result,
+    previewDefaults: { definitions: domainDefinitions, usageRules: domainUsageRules },
     items: result.items.map(item => ({ ...item, definition: item.definition ? persistedDefinitions.get(item.definition.id) || null : null })) };
 }
 

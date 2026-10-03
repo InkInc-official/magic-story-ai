@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -20,6 +20,11 @@ import { APP_LOCALE, EMOTION_ARC_LABELS, EMOTION_LABELS, HOOK_LABELS } from '@/l
 import { useJapaneseTextAnalysis } from '@/hooks/use-japanese-text-analysis';
 import { resolveCurrentChapterTarget } from '@/lib/current-chapter-metrics';
 import { semanticMetricsUseOlderSavedContent, type SymbolSemanticMetrics } from '@/lib/symbol-dictionary/semantic-metrics';
+import {
+  resolvePreviewDefaultSemantics,
+  type PreviewSymbolDefaults,
+  type PreviewSymbolSemanticRange,
+} from '@/lib/symbol-dictionary/preview-semantics';
 import {
   buildChapterFullUserMessage,
   buildChapterSummaryUserMessage,
@@ -117,6 +122,9 @@ export function ChapterEditor({ projectId }: ChapterEditorProps) {
   const [symbolMetricsLoading, setSymbolMetricsLoading] = useState(false);
   const [symbolMetricsError, setSymbolMetricsError] = useState('');
   const [symbolMetricsRefresh, setSymbolMetricsRefresh] = useState(0);
+  const [savedPreviewSemantics, setSavedPreviewSemantics] = useState<PreviewSymbolSemanticRange[]>([]);
+  const [previewSymbolDefaults, setPreviewSymbolDefaults] = useState<PreviewSymbolDefaults | null>(null);
+  const [previewSemanticChapterId, setPreviewSemanticChapterId] = useState('');
   const { analysis: currentAnalysis, metrics: currentMetrics, isDeferred: currentAnalysisIsDeferred } = useJapaneseTextAnalysis(editContent);
   const currentTargetWordCount = resolveCurrentChapterTarget(editTargetWordCount, projectDefaultChapterTarget);
   const { setActiveAgent, setActiveChapterId } = useAppStore();
@@ -230,7 +238,7 @@ export function ChapterEditor({ projectId }: ChapterEditorProps) {
   }, [fetchChapters]);
 
   useEffect(() => {
-    if (!selectedId) { setSymbolMetrics(null); setSymbolMetricsError(''); setSymbolMetricsLoading(false); return; }
+    if (!selectedId) { setSymbolMetrics(null); setSavedPreviewSemantics([]); setPreviewSymbolDefaults(null); setPreviewSemanticChapterId(''); setSymbolMetricsError(''); setSymbolMetricsLoading(false); return; }
     const controller = new AbortController();
     const token = ++symbolMetricsRequestToken.current;
     setSymbolMetricsLoading(true); setSymbolMetricsError('');
@@ -240,10 +248,10 @@ export function ChapterEditor({ projectId }: ChapterEditorProps) {
           const value = await response.json().catch(() => ({})) as { error?: string };
           throw new Error(value.error || '作品表記の分析を取得できませんでした。');
         }
-        return response.json() as Promise<{ metrics: SymbolSemanticMetrics }>;
+        return response.json() as Promise<{ metrics: SymbolSemanticMetrics; previewSemantics: PreviewSymbolSemanticRange[]; previewDefaults: PreviewSymbolDefaults }>;
       })
-      .then(value => { if (token === symbolMetricsRequestToken.current) setSymbolMetrics(value.metrics); })
-      .catch(error => { if (!controller.signal.aborted && token === symbolMetricsRequestToken.current) { setSymbolMetrics(null); setSymbolMetricsError(error instanceof Error ? error.message : '作品表記の分析を取得できませんでした。'); } })
+      .then(value => { if (token === symbolMetricsRequestToken.current) { setSymbolMetrics(value.metrics); setSavedPreviewSemantics(value.previewSemantics); setPreviewSymbolDefaults(value.previewDefaults); setPreviewSemanticChapterId(selectedId); } })
+      .catch(error => { if (!controller.signal.aborted && token === symbolMetricsRequestToken.current) { setSymbolMetrics(null); setSavedPreviewSemantics([]); setPreviewSymbolDefaults(null); setPreviewSemanticChapterId(''); setSymbolMetricsError(error instanceof Error ? error.message : '作品表記の分析を取得できませんでした。'); } })
       .finally(() => { if (!controller.signal.aborted && token === symbolMetricsRequestToken.current) setSymbolMetricsLoading(false); });
     return () => controller.abort();
   }, [projectId, selectedId, symbolMetricsRefresh]);
@@ -501,6 +509,11 @@ export function ChapterEditor({ projectId }: ChapterEditorProps) {
     content: editContent, title: editTitle, povCharacterId: editPovCharacterId, narratorId: editNarratorId,
   }));
   const symbolMetricsDirty = Boolean(selectedChapter && semanticMetricsUseOlderSavedContent(selectedChapter.content, editContent));
+  const previewSymbolSemantics = useMemo(() => {
+    if (!selectedChapter || previewSemanticChapterId !== selectedChapter.id || !previewSymbolDefaults) return [];
+    if (!symbolMetricsDirty) return savedPreviewSemantics;
+    return resolvePreviewDefaultSemantics({ projectId, chapterId: selectedChapter.id, content: editContent, defaults: previewSymbolDefaults });
+  }, [editContent, previewSemanticChapterId, previewSymbolDefaults, projectId, savedPreviewSemantics, selectedChapter, symbolMetricsDirty]);
 
   const totalWords = chapters.reduce((sum, c) => sum + c.wordCount, 0);
   const completedCount = chapters.filter(c => c.status === 'completed').length;
@@ -896,6 +909,7 @@ export function ChapterEditor({ projectId }: ChapterEditorProps) {
                   analysisIsDeferred={currentAnalysisIsDeferred}
                   targetWordCount={currentTargetWordCount}
                   hasChapter={!!selectedChapter}
+                  symbolSemantics={previewSymbolSemantics}
                 />
               )}
               {sidePanel === 'antiAi' && selectedChapter && (

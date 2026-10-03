@@ -6,3 +6,4 @@ export * from './resolver';
 export * from './persistence-validation';
 export * from './occurrence-browser';
 export * from './semantic-metrics';
+export * from './preview-semantics';

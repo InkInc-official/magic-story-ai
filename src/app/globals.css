@@ -217,6 +217,24 @@
   line-height: inherit;
 }
 
+.chapter-preview-body .chapter-semantic-dialogue {
+  color: oklch(0.85 0.03 190);
+  font-style: normal;
+  opacity: 1;
+}
+
+.chapter-preview-body .chapter-semantic-inner-thought {
+  color: oklch(0.7 0.04 280);
+  font-style: italic;
+  opacity: 0.85;
+}
+
+.chapter-preview-body .chapter-semantic-normal {
+  color: oklch(0.88 0.01 270);
+  font-style: normal;
+  opacity: 1;
+}
+
 .chapter-preview-body .chapter-divider {
   text-align: center;
   margin: 1.5em 0;
