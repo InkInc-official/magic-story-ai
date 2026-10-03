@@ -1,0 +1,46 @@
+name: PostgreSQL integration
+
+on:
+  pull_request:
+    paths:
+      - "prisma/**"
+      - "src/app/api/characters/**"
+      - "src/lib/symbol-dictionary-service.ts"
+      - "tests/integration/**"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/postgres-integration.yml"
+  workflow_dispatch:
+
+jobs:
+  postgres-integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: magic_story_test
+          POSTGRES_PASSWORD: magic_story_test
+          POSTGRES_DB: magic_story_integration
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U magic_story_test -d magic_story_integration"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      NODE_ENV: test
+      RUN_POSTGRES_INTEGRATION: "1"
+      DATABASE_URL: postgresql://magic_story_test:magic_story_test@127.0.0.1:5432/magic_story_integration?schema=magic_story
+      DIRECT_URL: postgresql://magic_story_test:magic_story_test@127.0.0.1:5432/magic_story_integration?schema=magic_story
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx prisma generate
+      - run: npm run test:postgres
