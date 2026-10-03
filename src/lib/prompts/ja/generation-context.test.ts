@@ -164,6 +164,22 @@ describe('buildChapterGenerationContext integration', () => {
     assert.ok(fullMessage.includes('章本文を書く'));
   });
 
+  test('connects Creative Rules to Summary/Writer inside the 18,000 cap', () => {
+    const rules = [
+      { id: 'story', kind: 'builtin' as const, techniqueKey: 'causal_progression', mode: 'required' as const, priority: 10, overridable: false, source: 'author' as const, active: true, authorAdjustment: '選択の代価を明確にする', notes: '作者の固定方針' },
+      { id: 'prose', kind: 'builtin' as const, techniqueKey: 'sentence_length_variation', mode: 'reference' as const, priority: 0, overridable: true, source: 'author' as const, active: true },
+      { id: 'off', kind: 'builtin' as const, techniqueKey: 'sentence_ending_variety', mode: 'off' as const, priority: 0, overridable: true, source: 'author' as const, active: true },
+    ];
+    const summary = buildChapterSummaryUserMessage(source({ creativeRules: rules }));
+    const writer = buildChapterFullUserMessage(source({ creativeRules: rules }));
+    assert.ok(summary.length <= 18_000); assert.ok(writer.length <= 18_000);
+    assert.match(summary, /因果による進行/); assert.doesNotMatch(summary, /文の長短/);
+    assert.match(writer, /因果による進行/); assert.match(writer, /文の長短/);
+    assert.match(writer, /作者調整：選択の代価を明確にする/);
+    assert.match(writer, /例外：競合時は作者確認が必要/);
+    assert.doesNotMatch(writer, /文末の変化/);
+  });
+
   test('keeps author-confirmed symbol rules inside final writer caps without treating alternatives as defaults', () => {
     const heavy = source({
       symbolDictionary: [{

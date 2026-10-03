@@ -9,6 +9,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { X, Send, Loader2, Trash2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { buildCreativeRulePromptContext, buildJapaneseAgentSystemPrompt } from '@/lib/prompts/ja';
+import type { ProjectCreativeRule } from '@/lib/creative-rules';
 
 interface Message {
   id: string;
@@ -62,9 +64,18 @@ export function AgentChat({ projectId, agentType }: AgentChatProps) {
     try {
       abortRef.current = new AbortController();
 
-      const chatMessages = [...messages, userMsg]
+      let chatMessages = [...messages, userMsg]
         .filter(m => m.role !== 'system')
         .map(m => ({ role: m.role, content: m.content }));
+      let systemPrompt: string | undefined;
+      if (agentType === 'editor') {
+        const rulesResponse = await fetch(`/api/creative-rules/runtime?projectId=${encodeURIComponent(projectId)}`);
+        if (!rulesResponse.ok) throw new Error('Creative Rulesの取得に失敗したため、編集を中止しました。');
+        const runtime = await rulesResponse.json() as { rules: ProjectCreativeRule[] };
+        const creativeRules = buildCreativeRulePromptContext(runtime.rules, 'editor');
+        systemPrompt = buildJapaneseAgentSystemPrompt('editor', creativeRules.suppressedFallbackKeys);
+        if (creativeRules.text) chatMessages = [{ role: 'user' as const, content: `${creativeRules.text}\n\n以下に続く依頼が現在の明示指示です。` }, ...chatMessages];
+      }
 
       const res = await fetch('/api/ai', {
         method: 'POST',
@@ -72,6 +83,7 @@ export function AgentChat({ projectId, agentType }: AgentChatProps) {
         body: JSON.stringify({
           agentType,
           messages: chatMessages,
+          ...(systemPrompt && { systemPrompt }),
         }),
         signal: abortRef.current.signal,
       });

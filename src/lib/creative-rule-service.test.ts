@@ -5,6 +5,7 @@ import { CREATIVE_TECHNIQUE_CATALOG } from '@/lib/creative-rules';
 import {
   buildCreativeTechniqueReadModel, createProjectCreativeTechnique, createProjectCustomCreativeRule,
   deleteProjectCreativeTechnique, deleteProjectCustomCreativeRule, mapCreativeTechniquePersistenceToDomain, mapCustomCreativeRulePersistenceToDomain,
+  loadProjectCreativeRuleRuntime,
   updateProjectCreativeTechnique, updateProjectCustomCreativeRule,
 } from './creative-rule-service.js';
 
@@ -131,4 +132,28 @@ test('Customは3 modeを許可しoff・空白・長さ超過を拒否する', as
 test('Catalogへ29件目を足したread modelもDB seedなしで29件になる', () => {
   const extra = { ...CREATIVE_TECHNIQUE_CATALOG[0], key: 'future_technique' as typeof CREATIVE_TECHNIQUE_CATALOG[0]['key'], label: '将来技法' };
   assert.equal(buildCreativeTechniqueReadModel([], [...CREATIVE_TECHNIQUE_CATALOG, extra]).techniques.length, 29);
+});
+
+test('runtime loaderはbounded queryでcurrent/customを返しoutdated/unknownを診断へ分離する', async t => {
+  let builtinQueries = 0; let customQueries = 0;
+  const restore = [
+    replaceMethod(db.project, 'findUnique', async () => ({ id: 'project-a' })),
+    replaceMethod(db.projectCreativeTechnique, 'findMany', async () => { builtinQueries += 1; return [builtinRow(), builtinRow({ id: 'old', catalogContractVersion: 0 }), builtinRow({ id: 'unknown', techniqueKey: 'removed' })]; }),
+    replaceMethod(db.projectCustomCreativeRule, 'findMany', async () => { customQueries += 1; return [customRow()]; }),
+  ];
+  t.after(() => restore.reverse().forEach(value => value()));
+  const result = await loadProjectCreativeRuleRuntime('project-a');
+  assert.equal(builtinQueries, 1); assert.equal(customQueries, 1);
+  assert.deepEqual(result.rules.map(rule => rule.id), ['builtin-1', 'custom-1']);
+  assert.deepEqual(result.excluded, [{ id: 'old', reason: 'outdated' }, { id: 'unknown', reason: 'unknown' }]);
+});
+
+test('runtime loaderはDB failureをzero rowsへ変換しない', async t => {
+  const restore = [
+    replaceMethod(db.project, 'findUnique', async () => ({ id: 'project-a' })),
+    replaceMethod(db.projectCreativeTechnique, 'findMany', async () => { throw new Error('database unavailable'); }),
+    replaceMethod(db.projectCustomCreativeRule, 'findMany', async () => []),
+  ];
+  t.after(() => restore.reverse().forEach(value => value()));
+  await assert.rejects(loadProjectCreativeRuleRuntime('project-a'), /database unavailable/);
 });

@@ -3,10 +3,12 @@ export {
   JAPANESE_NOVEL_CORE_PRINCIPLES,
   JAPANESE_WRITING_PRIORITY,
   composeJapaneseNovelPrompt,
+  buildJapaneseNovelCommonSpec,
 } from './common-novel';
 export {
   JAPANESE_AGENT_SYSTEM_PROMPTS,
   getJapaneseAgentSystemPrompt,
+  buildJapaneseAgentSystemPrompt,
   type JapaneseAgentPromptId,
 } from './agents';
 export {
@@ -24,6 +26,7 @@ export {
   buildCharacterVoiceContext,
   selectChapterCast,
   selectReviewCharacters,
+  resolveChapterCreativeRulePrompt,
   type ChapterGenerationSource,
   type GenerationCharacter,
   type GenerationChapterCharacter,
@@ -52,3 +55,4 @@ export {
   type SymbolDictionaryPromptSection,
 } from './symbol-dictionary-context';
 export { REVIEW_SUPPLEMENTAL_CONTEXT_LIMIT, buildReviewUserMessage } from './review-prompt';
+export { CREATIVE_RULE_BUDGETS, applyCreativeRuleFallbacksToReviewInstruction, buildCreativeRulePromptContext, type CreativeRulePromptContext } from './creative-rules';

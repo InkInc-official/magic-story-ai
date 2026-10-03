@@ -17,7 +17,9 @@ export const JAPANESE_NOVEL_CORE_PRINCIPLES = `${JAPANESE_WRITING_PRIORITY}
 - 説明、描写、要約、台詞、内面描写は、場面に必要な効果と速度に応じて選ぶ。
 - 特定の作家の模倣ではなく、簡潔、会話中心、描写中心、重厚、軽快、詩的、ドライなど抽象的な文体指定を扱う。`;
 
-export const JAPANESE_NOVEL_COMMON_SPEC = `${JAPANESE_NOVEL_CORE_PRINCIPLES}
+type CommonNovelFallbackKey = 'sentence_length_variation' | 'sentence_ending_variety' | 'scene_focus_change' | 'causal_progression';
+
+const JAPANESE_NOVEL_COMMON_SPEC_BASELINE = `${JAPANESE_NOVEL_CORE_PRINCIPLES}
 
 【文章と段落】
 - 同じ接続詞、語尾、構文を理由なく連続させず、文の長短と段落の密度を場面の速度に合わせる。
@@ -57,7 +59,57 @@ export const JAPANESE_NOVEL_COMMON_SPEC = `${JAPANESE_NOVEL_CORE_PRINCIPLES}
 - 指定がない場合の本文目安は約3,000字、通常の柔軟な範囲は2,000～5,000字とする。
 - 文字数を満たすための水増しや、自然な場面の終了を損なう引き延ばしをしない。`;
 
-export function composeJapaneseNovelPrompt(roleInstructions: string, includeFullSpecification = false): string {
-  const shared = includeFullSpecification ? JAPANESE_NOVEL_COMMON_SPEC : JAPANESE_NOVEL_CORE_PRINCIPLES;
+const COMMON_NOVEL_SECTIONS: ReadonlyArray<{ key?: CommonNovelFallbackKey; text: string }> = [
+  { text: `【文章と段落】` },
+  { key: 'sentence_ending_variety', text: `- 同じ接続詞、語尾、構文を理由なく連続させない。` },
+  { key: 'sentence_length_variation', text: `- 文の長短と段落の密度を場面の速度に合わせる。` },
+  { text: `- 段落は、時間、場所、話者、行動、認識の焦点が変わる箇所を基準に分ける。
+- 情報をすべて場面化せず、重要度の低い経過や反復は要約してよい。
+- 設定を説明するためだけの不自然な会話を避ける。` },
+
+  { text: `【標準表記】
+- 別の指定がない場合、会話は「」、引用内引用は『』を用いる。
+- 別の指定がない場合、三点リーダーは「……」、ダッシュは「――」を用いる。
+- 句読点、感嘆符、疑問符、空白、段落字下げ、会話末尾の句点は、採用した表記方針の中で統一する。
+- 固有名詞、漢字と仮名の選択、数字、呼称の表記揺れを避ける。` },
+
+  { text: `【視点】
+- 一人称か三人称か、視点人物、視点距離、時制、視点変更の可否を確認して守る。
+- 視点人物が知り得ない情報や他者の内面を、根拠なく断定しない。
+- 推測、伝聞、回想、夢は、それと分かる形で現在の認識と区別する。` },
+
+  { text: `【人物と会話】
+- 人物ごとに、一人称、二人称、相手別の呼称、敬語水準、語彙、語尾、文の長さ、言い淀み、省略、感情時の変化を反映する。
+- 人物差を特徴的な語尾だけで作らず、話題の選び方、判断、間、沈黙、言わないことにも表す。
+- 関係性や公私の場面が変われば、同じ人物でも話し方が変わり得る。` },
+
+  { text: `【描写と心理】
+- 情景、五感、行動、台詞、直接説明、内語、身体反応、情景への投影を必要に応じて使い分ける。
+- 感情を直接説明することも、読者に行動や台詞から読み取らせることも、場面に応じて選択する。
+- 比喩や感覚描写を一律に増やさず、視点人物と作品の文体に合うものだけを使う。` },
+
+  { text: `【章とシーン】` },
+  { key: 'scene_focus_change', text: `- 章やシーンでは、必要に応じて開始時から焦点または状況を変化させる。` },
+  { key: 'causal_progression', text: `- 人物の選択、出来事、その結果の因果を、章の目的に応じてつなぐ。` },
+  { text: `- 導入、展開、転換、クライマックス、余韻は必要なものを選び、すべてを毎章に詰め込まない。
+- 章末は、引き、余韻、疑問、発見、決断、転換、感情の着地、静かな終了などから、章の役割に適した形を選ぶ。
+- 毎章クリフハンガーにせず、同じ終わり方の機械的な反復も避ける。` },
+
+  { text: `【文字量】
+- 文字量は、ユーザー指定、ジャンルプリセット、標準目安の順で決める。
+- 指定がない場合の本文目安は約3,000字、通常の柔軟な範囲は2,000～5,000字とする。
+- 文字数を満たすための水増しや、自然な場面の終了を損なう引き延ばしをしない。` },
+];
+
+export function buildJapaneseNovelCommonSpec(suppressedFallbackKeys: readonly string[] = []): string {
+  const suppressed = new Set(suppressedFallbackKeys);
+  if (suppressed.size === 0) return JAPANESE_NOVEL_COMMON_SPEC_BASELINE;
+  return `${JAPANESE_NOVEL_CORE_PRINCIPLES}\n\n${COMMON_NOVEL_SECTIONS.filter(section => !section.key || !suppressed.has(section.key)).map(section => section.text).join('\n')}`;
+}
+
+export const JAPANESE_NOVEL_COMMON_SPEC = buildJapaneseNovelCommonSpec();
+
+export function composeJapaneseNovelPrompt(roleInstructions: string, includeFullSpecification = false, suppressedFallbackKeys: readonly string[] = []): string {
+  const shared = includeFullSpecification ? buildJapaneseNovelCommonSpec(suppressedFallbackKeys) : JAPANESE_NOVEL_CORE_PRINCIPLES;
   return `${roleInstructions.trim()}\n\n━━━━━━━━━━━━━━━━━━━━\n日本語小説の共通方針\n━━━━━━━━━━━━━━━━━━━━\n${shared}`;
 }

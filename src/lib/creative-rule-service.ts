@@ -2,6 +2,7 @@ import { Prisma } from '@prisma/client';
 import { db } from '@/lib/db';
 import {
   CREATIVE_TECHNIQUE_CATALOG,
+  buildRuntimeCreativeRuleSet,
   validateProjectCreativeRule,
   type BuiltinCreativeRuleAdoption,
   type CreativeTechniqueDefinition,
@@ -125,6 +126,15 @@ export async function loadProjectCreativeRuleDomain(projectId: string): Promise<
     db.projectCustomCreativeRule.findMany({ where: { projectId } }),
   ]);
   return [...builtins.map(mapCreativeTechniquePersistenceToDomain), ...custom.map(mapCustomCreativeRulePersistenceToDomain)];
+}
+
+export async function loadProjectCreativeRuleRuntime(projectId: string) {
+  await requireProject(projectId);
+  const [builtins, custom] = await Promise.all([
+    db.projectCreativeTechnique.findMany({ where: { projectId }, orderBy: [{ priority: 'desc' }, { techniqueKey: 'asc' }] }),
+    db.projectCustomCreativeRule.findMany({ where: { projectId }, orderBy: [{ priority: 'desc' }, { createdAt: 'asc' }, { id: 'asc' }] }),
+  ]);
+  return buildRuntimeCreativeRuleSet(builtins, custom);
 }
 
 export async function createProjectCreativeTechnique(input: Record<string, unknown>) {

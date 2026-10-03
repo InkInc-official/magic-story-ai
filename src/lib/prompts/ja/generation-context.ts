@@ -6,6 +6,8 @@ import { buildContextWithinBudget, safeContextExcerpt, type ContextEntry } from 
 import { buildStoryFactContextEntries, type StoryFactValue } from '@/lib/story-facts';
 import { buildCharacterKnowledgeContextEntries, type CharacterKnowledgeEvent } from '@/lib/character-knowledge';
 import { buildSymbolDictionaryPromptSection, type PromptSymbolDefinition } from './symbol-dictionary-context';
+import { buildCreativeRulePromptContext } from './creative-rules';
+import type { ProjectCreativeRule } from '@/lib/creative-rules';
 
 export interface GenerationCharacter {
   id: string;
@@ -166,6 +168,7 @@ export interface ChapterGenerationSource {
   storyFacts?: StoryFactValue[];
   characterKnowledge?: CharacterKnowledgeEvent[];
   symbolDictionary?: PromptSymbolDefinition[];
+  creativeRules?: ProjectCreativeRule[];
 }
 
 export const AUTHORITATIVE_KNOWLEDGE_BOUNDARY = `【情報開示・人物認識の優先規則】
@@ -447,11 +450,18 @@ const FULL_TASK_INSTRUCTION = `【タスク】
 前置きや解説を付けず、章本文だけを日本語で出力する。`;
 
 function buildWriterUserMessage(source: ChapterGenerationSource, task: string): string {
+  const surface = task === SUMMARY_TASK_INSTRUCTION ? 'summary' : 'writer';
+  const creativeRules = buildCreativeRulePromptContext(source.creativeRules || [], surface);
   const entries: ContextEntry[] = [
     { id: 'writer-task', tier: 0, required: true, full: task },
+    ...(creativeRules.text ? [{ id: 'creative-rules', tier: 0 as const, required: true, full: creativeRules.text }] : []),
     ...buildChapterGenerationContextEntries(source),
   ];
   return withOmissionNote(buildContextWithinBudget(entries));
+}
+
+export function resolveChapterCreativeRulePrompt(source: ChapterGenerationSource, surface: 'writer' | 'summary') {
+  return buildCreativeRulePromptContext(source.creativeRules || [], surface);
 }
 
 export function buildChapterSummaryUserMessage(source: ChapterGenerationSource): string {

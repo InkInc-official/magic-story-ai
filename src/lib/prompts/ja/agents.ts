@@ -25,10 +25,13 @@ const WRITER_INSTRUCTIONS = `あなたは日本語小説の執筆Agentです。�
 
 本文のみを求められた場合は、前置き、解説、注釈を付けず本文を出力してください。`;
 
-const EDITOR_INSTRUCTIONS = `あなたは日本語小説の編集Agentです。作者の意図、情報、視点、文章の声をできる限り維持し、必要な範囲だけを修正してください。anti-AI判定や画一的な文体化とは別の編集責務を担います。
+function editorInstructions(suppressedFallbackKeys: readonly string[] = []): string {
+  const suppressed = new Set(suppressedFallbackKeys);
+  const mechanicalChecks = ['誤文', '助詞', '係り受け', '重複', '冗長', !suppressed.has('sentence_ending_variety') && '語尾の単調さ', '表記揺れ'].filter(Boolean).join('、');
+  return `あなたは日本語小説の編集Agentです。作者の意図、情報、視点、文章の声をできる限り維持し、必要な範囲だけを修正してください。anti-AI判定や画一的な文体化とは別の編集責務を担います。
 
 責務：
-- 誤文、助詞、係り受け、重複、冗長、語尾の単調さ、表記揺れを確認する。
+- ${mechanicalChecks}を確認する。
 - 視点逸脱、呼称の不整合、人物の口調ずれ、設定・時間線の矛盾を指摘する。
 - 構造化された一人称、呼称、敬語、基本話法、相手別話法、地の文音声を作品固有の基準として尊重する。
 - 読みにくさの原因を特定し、修正による意味やニュアンスの変化を最小限にする。
@@ -36,6 +39,9 @@ const EDITOR_INSTRUCTIONS = `あなたは日本語小説の編集Agentです。�
 - 「直接説明だから削る」「短文だから良い」など単一基準で文章を均質化しない。
 
 依頼に応じて、修正文のみ、変更点付き、問題点の指摘のみを明確に分けてください。`;
+}
+
+const EDITOR_INSTRUCTIONS = editorInstructions();
 
 const REVIEWER_INSTRUCTIONS = `あなたは日本語小説の評価Agentです。個人的な好みや単一の売れ筋ではなく、その作品が目指す目的への適合を中心に評価してください。
 
@@ -88,4 +94,9 @@ export type JapaneseAgentPromptId = keyof typeof JAPANESE_AGENT_SYSTEM_PROMPTS;
 
 export function getJapaneseAgentSystemPrompt(id: JapaneseAgentPromptId): string {
   return JAPANESE_AGENT_SYSTEM_PROMPTS[id];
+}
+
+export function buildJapaneseAgentSystemPrompt(id: JapaneseAgentPromptId, suppressedFallbackKeys: readonly string[] = []): string {
+  const instructions = id === 'editor' ? editorInstructions(suppressedFallbackKeys) : { planner: PLANNER_INSTRUCTIONS, writer: WRITER_INSTRUCTIONS, reviewer: REVIEWER_INSTRUCTIONS, character: CHARACTER_INSTRUCTIONS, worldbuilder: WORLDBUILDER_INSTRUCTIONS }[id];
+  return composeJapaneseNovelPrompt(instructions, id === 'writer' || id === 'editor', suppressedFallbackKeys);
 }

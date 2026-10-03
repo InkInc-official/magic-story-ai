@@ -7,7 +7,8 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Loader2, Swords, AlertTriangle, CheckCircle2 } from 'lucide-react';
-import { AUTHORITATIVE_KNOWLEDGE_BOUNDARY, REVIEW_SUPPLEMENTAL_CONTEXT_LIMIT, buildCharacterVoiceContext, buildContextWithinBudget, buildReviewUserMessage, buildSymbolDictionaryPromptSection, formatSemanticLabel, selectReviewCharacters, type ContextEntry, type GenerationChapterCharacter, type GenerationCharacter, type GenerationRelationship, type PromptSymbolDefinition } from '@/lib/prompts/ja';
+import { AUTHORITATIVE_KNOWLEDGE_BOUNDARY, REVIEW_SUPPLEMENTAL_CONTEXT_LIMIT, applyCreativeRuleFallbacksToReviewInstruction, buildCharacterVoiceContext, buildContextWithinBudget, buildCreativeRulePromptContext, buildJapaneseAgentSystemPrompt, buildReviewUserMessage, buildSymbolDictionaryPromptSection, formatSemanticLabel, selectReviewCharacters, type ContextEntry, type GenerationChapterCharacter, type GenerationCharacter, type GenerationRelationship, type PromptSymbolDefinition } from '@/lib/prompts/ja';
+import type { ProjectCreativeRule } from '@/lib/creative-rules';
 import { displayLabel, NARRATIVE_PERSPECTIVE_LABELS } from '@/lib/i18n';
 import { buildStoryFactContextEntries, STORY_FACT_REVIEW_GUIDANCE, type StoryFactValue } from '@/lib/story-facts';
 import { buildCharacterKnowledgeContextEntries, CHARACTER_KNOWLEDGE_REVIEW_GUIDANCE, type CharacterKnowledgeEvent } from '@/lib/character-knowledge';
@@ -31,7 +32,7 @@ interface AdversarialReviewProps {
 }
 
 const REVIEW_PERSPECTIVES = [
-  { id: 'structure', label: '構成レビュー', emoji: '🏗️', color: 'text-amber-400', systemPrompt: `構成と因果を中心に評価してください。出来事と人物の選択のつながり、章内の焦点と変化、場面転換、情報開示を確認します。緊張の強弱や章末フックを一律に要求せず、この章の目的と作品の文体に合っているかを基準にしてください。` },
+  { id: 'structure', label: '構成レビュー', emoji: '🏗️', color: 'text-amber-400', systemPrompt: `構成を中心に評価してください。場面転換と情報開示を確認します。緊張の強弱や章末フックを一律に要求せず、この章の目的と作品の文体に合っているかを基準にしてください。` },
   { id: 'character', label: '人物レビュー', emoji: '👤', color: 'text-rose-400', systemPrompt: `人物を中心に評価してください。設定された動機と行動の整合性、人物ごとの会話、呼称、敬語、関係性、感情の変化を確認します。静かな人物や変化しない人物を、それだけで欠点としないでください。` },
   { id: 'narrative', label: '語り口レビュー', emoji: '✍️', color: 'text-blue-400', systemPrompt: `語り口を中心に評価してください。視点と知識範囲、自然な日本語、段落、文章の速度、説明・描写・要約・台詞の選択を確認します。Show, don't tell、五感描写、短文中心を絶対基準にせず、採用された文体と場面の効果から判断してください。` },
   { id: 'consistency', label: '整合性チェック', emoji: '🔍', color: 'text-emerald-400', systemPrompt: `事実の整合性を中心に評価してください。本文内の矛盾、既出情報、伏線、世界の規則、時間順序を確認します。提供されていない設定を推測で事実とせず、本文だけでは判断できない点は「確認が必要」と区別してください。` },
@@ -58,9 +59,11 @@ export function AdversarialReviewPanel({ content, chapterTitle, projectId, chapt
     abortRef.current = new AbortController();
 
     let projectContext = '';
+    let reviewSystemPrompt = buildJapaneseAgentSystemPrompt('reviewer');
+    let reviewSuppressedFallbackKeys: string[] = [];
     if (projectId) {
       try {
-        const [response, characterResponse, castResponse, factsResponse, chaptersResponse, knowledgeResponse, symbolResponse] = await Promise.all([
+        const [response, characterResponse, castResponse, factsResponse, chaptersResponse, knowledgeResponse, symbolResponse, creativeRuleResponse] = await Promise.all([
           fetch('/api/projects'),
           fetch(`/api/characters?projectId=${projectId}`),
           chapterId ? fetch(`/api/chapter-characters?chapterId=${chapterId}`) : Promise.resolve(null),
@@ -68,8 +71,10 @@ export function AdversarialReviewPanel({ content, chapterTitle, projectId, chapt
           fetch(`/api/chapters?projectId=${projectId}`),
           fetch(`/api/character-knowledge?projectId=${projectId}`),
           fetch(`/api/symbol-definitions?projectId=${projectId}`),
+          fetch(`/api/creative-rules/runtime?projectId=${projectId}`),
         ]);
         if (!symbolResponse.ok) throw new Error('作品表記辞書の取得に失敗したため、レビューを中止しました。');
+        if (!creativeRuleResponse.ok) throw new Error('Creative Rulesの取得に失敗したため、レビューを中止しました。');
         if (response.ok) {
           const projects = await response.json() as Array<{ id: string; title: string; genre: string; description: string; narrativePerspective?: string | null; defaultPovCharacterId?: string | null; writingStyleNotes?: string }>;
           const project = projects.find(item => item.id === projectId);
@@ -79,6 +84,10 @@ export function AdversarialReviewPanel({ content, chapterTitle, projectId, chapt
           const chapters = chaptersResponse.ok ? await chaptersResponse.json() as Array<{ id: string; order: number }> : [];
           const knowledgeEvents = knowledgeResponse.ok ? await knowledgeResponse.json() as CharacterKnowledgeEvent[] : [];
           const symbolDictionary = await symbolResponse.json() as PromptSymbolDefinition[];
+          const creativeRuleRuntime = await creativeRuleResponse.json() as { rules: ProjectCreativeRule[] };
+          const creativeRuleContext = buildCreativeRulePromptContext(creativeRuleRuntime.rules, 'review');
+          reviewSuppressedFallbackKeys = creativeRuleContext.suppressedFallbackKeys;
+          reviewSystemPrompt = buildJapaneseAgentSystemPrompt('reviewer', creativeRuleContext.suppressedFallbackKeys);
           const resolvedPovId = povCharacterId || project?.defaultPovCharacterId;
           const povName = characterData.characters?.find(character => character.id === resolvedPovId)?.name;
           const reviewCharacters = selectReviewCharacters(characterData.characters || [], explicitCast, content, resolvedPovId);
@@ -95,6 +104,7 @@ export function AdversarialReviewPanel({ content, chapterTitle, projectId, chapt
               { id: 'review-project', tier: 0, required: true, full: `作品：${project.title}\nジャンル：${formatSemanticLabel('genre', project.genre)}\n作品概要：${project.description || '未設定'}`, compact: `作品：${project.title}\nジャンル：${formatSemanticLabel('genre', project.genre)}`, minimum: `作品：${project.title}` },
               { id: 'review-intent', tier: 0, required: true, full: [project.narrativePerspective && `視点方式：${displayLabel(NARRATIVE_PERSPECTIVE_LABELS, project.narrativePerspective)}`, povName && `視点人物：${povName}`, project.writingStyleNotes && `文体メモ：${project.writingStyleNotes}`, endingNotes && `章末メモ：${endingNotes}`].filter(Boolean).join('\n') || '作品固有の追加設定なし' },
             ];
+            if (creativeRuleContext.text) reviewEntries.push({ id: 'review-creative-rules', tier: 0, required: true, full: creativeRuleContext.text });
             const symbolContext = buildSymbolDictionaryPromptSection(symbolDictionary, { maxCharacters: 1_800, audience: 'review' });
             if (symbolContext.text) {
               const compactSymbols = buildSymbolDictionaryPromptSection(symbolDictionary, { maxCharacters: 1_100, audience: 'review' });
@@ -143,10 +153,11 @@ export function AdversarialReviewPanel({ content, chapterTitle, projectId, chapt
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             agentType: 'reviewer',
+            systemPrompt: reviewSystemPrompt,
             messages: [{
               role: 'user',
               content: buildReviewUserMessage({
-                reviewerInstruction: perspective.systemPrompt,
+                reviewerInstruction: applyCreativeRuleFallbacksToReviewInstruction(perspective.systemPrompt, perspective.id, reviewSuppressedFallbackKeys),
                 outputContract: REVIEW_OUTPUT_RULES,
                 supplementalContext: projectContext,
                 chapterPurpose,

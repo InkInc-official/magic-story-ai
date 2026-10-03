@@ -28,6 +28,8 @@ import {
 import {
   buildChapterFullUserMessage,
   buildChapterSummaryUserMessage,
+  buildJapaneseAgentSystemPrompt,
+  resolveChapterCreativeRulePrompt,
   type ChapterGenerationSource,
 } from '@/lib/prompts/ja';
 
@@ -151,7 +153,7 @@ export function ChapterEditor({ projectId }: ChapterEditorProps) {
       return response.json() as Promise<T>;
     };
 
-    const [projects, characterData, chapterCharacters, worldSettings, scenes, foreshadowings, storyStates, outlines, plots, storyNodes, storyEdges, storyFacts, characterKnowledge, symbolDictionary] = await Promise.all([
+    const [projects, characterData, chapterCharacters, worldSettings, scenes, foreshadowings, storyStates, outlines, plots, storyNodes, storyEdges, storyFacts, characterKnowledge, symbolDictionary, creativeRuleRuntime] = await Promise.all([
       safeJson<Array<NonNullable<ChapterGenerationSource['project']> & { id: string }>>('/api/projects', []),
       safeJson<{ characters: ChapterGenerationSource['characters']; relationships: ChapterGenerationSource['relationships'] }>(`/api/characters?projectId=${projectId}`, { characters: [], relationships: [] }),
       selectedId ? safeJson<NonNullable<ChapterGenerationSource['chapterCharacters']>>(`/api/chapter-characters?chapterId=${selectedId}`, []) : [],
@@ -166,6 +168,7 @@ export function ChapterEditor({ projectId }: ChapterEditorProps) {
       safeJson<NonNullable<ChapterGenerationSource['storyFacts']>>(`/api/story-facts?projectId=${projectId}`, []),
       safeJson<NonNullable<ChapterGenerationSource['characterKnowledge']>>(`/api/character-knowledge?projectId=${projectId}`, []),
       requiredJson<NonNullable<ChapterGenerationSource['symbolDictionary']>>(`/api/symbol-definitions?projectId=${projectId}`, '作品表記辞書'),
+      requiredJson<{ rules: NonNullable<ChapterGenerationSource['creativeRules']> }>(`/api/creative-rules/runtime?projectId=${projectId}`, 'Creative Rules'),
     ]);
 
     return {
@@ -203,6 +206,7 @@ export function ChapterEditor({ projectId }: ChapterEditorProps) {
       storyFacts,
       characterKnowledge,
       symbolDictionary,
+      creativeRules: creativeRuleRuntime.rules,
     };
   };
 
@@ -388,12 +392,14 @@ export function ChapterEditor({ projectId }: ChapterEditorProps) {
     try {
       const generationSource = await loadGenerationContext();
       const prompt = buildChapterSummaryUserMessage(generationSource);
+      const creativeRuleContext = resolveChapterCreativeRulePrompt(generationSource, 'summary');
 
       const res = await fetch('/api/ai', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           agentType: 'writer',
+          systemPrompt: buildJapaneseAgentSystemPrompt('writer', creativeRuleContext.suppressedFallbackKeys),
           messages: [{ role: 'user', content: prompt }],
         }),
         signal: abortRef.current.signal,
@@ -446,12 +452,14 @@ export function ChapterEditor({ projectId }: ChapterEditorProps) {
     try {
       const generationSource = await loadGenerationContext();
       const prompt = buildChapterFullUserMessage(generationSource);
+      const creativeRuleContext = resolveChapterCreativeRulePrompt(generationSource, 'writer');
 
       const res = await fetch('/api/ai', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           agentType: 'writer',
+          systemPrompt: buildJapaneseAgentSystemPrompt('writer', creativeRuleContext.suppressedFallbackKeys),
           messages: [{ role: 'user', content: prompt }],
         }),
         signal: abortRef.current.signal,
