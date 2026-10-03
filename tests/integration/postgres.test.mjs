@@ -92,6 +92,8 @@ test('Symbol Dictionaryの循環参照とProject cascadeが実DBで成立する'
   const currentChapter = await chapter(value.id);
   const symbol = await definition(value.id);
   const rule = await usage(value.id, symbol.id, { speakerMode: 'fixed_character', fixedSpeakerId: speaker.id });
+  await prisma.projectCreativeTechnique.create({ data: { projectId: value.id, techniqueKey: 'show_dont_tell', mode: 'off', catalogContractVersion: 1 } });
+  await prisma.projectCustomCreativeRule.create({ data: { projectId: value.id, title: '固有方針', instruction: '原文を保持する', category: 'style' } });
   await prisma.projectSymbolDefinition.update({ where: { id: symbol.id }, data: { defaultUsageRuleId: rule.id } });
   await prisma.symbolOccurrenceOverride.create({ data: {
     projectId: value.id, chapterId: currentChapter.id, definitionId: symbol.id, usageRuleId: rule.id,
@@ -101,6 +103,37 @@ test('Symbol Dictionaryの循環参照とProject cascadeが実DBで成立する'
   assert.equal(await prisma.projectSymbolDefinition.count({ where: { projectId: value.id } }), 0);
   assert.equal(await prisma.symbolUsageRule.count({ where: { projectId: value.id } }), 0);
   assert.equal(await prisma.symbolOccurrenceOverride.count({ where: { projectId: value.id } }), 0);
+  assert.equal(await prisma.projectCreativeTechnique.count({ where: { projectId: value.id } }), 0);
+  assert.equal(await prisma.projectCustomCreativeRule.count({ where: { projectId: value.id } }), 0);
+});
+
+test('Creative Rulesのunique・CHECK・off/delete・raw text contractが実DBで成立する', async () => {
+  const value = await project('Creative Rules');
+  const adoption = await prisma.projectCreativeTechnique.create({ data: {
+    projectId: value.id, techniqueKey: 'show_dont_tell', mode: 'off', priority: -100,
+    active: false, catalogContractVersion: 1,
+  } });
+  assert.equal(adoption.mode, 'off'); assert.equal(adoption.active, false);
+  await assert.rejects(prisma.projectCreativeTechnique.create({ data: {
+    projectId: value.id, techniqueKey: 'show_dont_tell', mode: 'reference', catalogContractVersion: 1,
+  } }));
+  await assert.rejects(admin.query(`INSERT INTO magic_story."ProjectCreativeTechnique"
+    (id, "projectId", "techniqueKey", mode, priority, "catalogContractVersion", "updatedAt")
+    VALUES ('invalid-mode', $1, 'sensory_detail', 'invalid', 0, 1, NOW())`, [value.id]));
+  await assert.rejects(admin.query(`INSERT INTO magic_story."ProjectCreativeTechnique"
+    (id, "projectId", "techniqueKey", mode, priority, "catalogContractVersion", "updatedAt")
+    VALUES ('invalid-priority', $1, 'sensory_detail', 'reference', 101, 1, NOW())`, [value.id]));
+  const rawTitle = 'か\u3099\r\n🧭'; const rawInstruction = '  改行を保持\r\n正規化しない  ';
+  const custom = await prisma.projectCustomCreativeRule.create({ data: {
+    projectId: value.id, title: rawTitle, instruction: rawInstruction, category: 'style', mode: 'required',
+  } });
+  assert.equal(custom.title, rawTitle); assert.equal(custom.instruction, rawInstruction);
+  await assert.rejects(admin.query(`INSERT INTO magic_story."ProjectCustomCreativeRule"
+    (id, "projectId", title, instruction, category, mode, "updatedAt")
+    VALUES ('custom-off', $1, '拒否', 'offは保存しない', 'style', 'off', NOW())`, [value.id]));
+  await prisma.projectCreativeTechnique.delete({ where: { id: adoption.id } });
+  assert.equal(await prisma.projectCreativeTechnique.count({ where: { projectId: value.id } }), 0, 'row deleteはoff rowの保持と異なる');
+  await prisma.project.delete({ where: { id: value.id } });
 });
 
 test('Definition/default Usageの設定・解除・削除順序を実DBで扱える', async () => {
@@ -246,4 +279,7 @@ test('④以前のmigration pointからsample Projectを保持したままremain
   assert.equal((await admin.query('SELECT title FROM magic_story."Project" WHERE id = $1', ['upgrade-project'])).rows[0].title, 'Upgrade sample');
   assert.equal((await admin.query('SELECT "fingerprintVersion" FROM magic_story."NarrativeInspectionRun" WHERE id = $1', ['upgrade-run'])).rows[0].fingerprintVersion, 'legacy-v1');
   assert.equal((await admin.query("SELECT to_regclass('magic_story.\"ProjectSymbolDefinition\"') AS value")).rows[0].value, 'magic_story."ProjectSymbolDefinition"');
+  assert.equal((await admin.query("SELECT to_regclass('magic_story.\"ProjectCreativeTechnique\"') AS value")).rows[0].value, 'magic_story."ProjectCreativeTechnique"');
+  assert.equal((await admin.query('SELECT COUNT(*)::int AS count FROM magic_story."ProjectCreativeTechnique"')).rows[0].count, 0);
+  assert.equal((await admin.query('SELECT COUNT(*)::int AS count FROM magic_story."ProjectCustomCreativeRule"')).rows[0].count, 0);
 });

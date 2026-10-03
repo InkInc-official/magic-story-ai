@@ -61,11 +61,56 @@ model Project {
   symbolDefinitions   ProjectSymbolDefinition[]
   symbolUsageRules    SymbolUsageRule[]
   symbolOccurrenceOverrides SymbolOccurrenceOverride[]
+  creativeTechniques ProjectCreativeTechnique[]
+  customCreativeRules ProjectCustomCreativeRule[]
   defaultPovCharacter Character? @relation("ProjectDefaultPov", fields: [defaultPovCharacterId], references: [id], onDelete: SetNull)
   defaultNarrator NarratorProfile? @relation("ProjectDefaultNarrator", fields: [defaultNarratorId], references: [id], onDelete: SetNull)
 
   @@index([defaultPovCharacterId])
   @@index([defaultNarratorId])
+  @@schema("magic_story")
+}
+
+model ProjectCreativeTechnique {
+  id                     String   @id @default(cuid())
+  projectId              String
+  techniqueKey           String
+  mode                   String   @default("reference")
+  priority               Int      @default(0)
+  overridable            Boolean  @default(true)
+  authorAdjustment       String   @default("")
+  notes                  String   @default("")
+  source                 String   @default("author")
+  active                 Boolean  @default(true)
+  catalogContractVersion Int
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, techniqueKey])
+  @@index([projectId, active, priority])
+  @@schema("magic_story")
+}
+
+model ProjectCustomCreativeRule {
+  id          String   @id @default(cuid())
+  projectId   String
+  title       String
+  instruction String
+  category    String
+  mode        String   @default("reference")
+  priority    Int      @default(0)
+  overridable Boolean  @default(true)
+  notes       String   @default("")
+  source      String   @default("author")
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId, active, priority])
   @@schema("magic_story")
 }
 
