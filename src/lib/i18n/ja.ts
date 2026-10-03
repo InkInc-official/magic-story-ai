@@ -126,6 +126,11 @@ export const SYMBOL_SPEAKER_MODE_LABELS: LabelMap = {
   contextual: '文脈によって変わる', unknown: '不明',
 };
 
+export const SYMBOL_RESOLUTION_STATUS_LABELS: LabelMap = {
+  confirmed_override: '個別指定', confirmed_default: '既定用途', convention_only: '一般的な表記例（未確認）',
+  unresolved: '未分類', stale_override: '要再確認', invalid_structure: '構造を確認してください',
+};
+
 export const SPEECH_REGISTER_LABELS: LabelMap = {
   plain: 'くだけた話し方',
   mixed: '相手や場面で変化',

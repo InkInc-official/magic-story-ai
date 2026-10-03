@@ -2,8 +2,10 @@ import { Prisma } from '@prisma/client';
 import { db } from '@/lib/db';
 import {
   buildConfirmedOccurrencePersistence,
+  buildSymbolOccurrenceBrowser,
   SymbolOccurrenceSelectionError,
   type SymbolDefinition,
+  type SymbolOccurrenceOverrideStatus,
   type SymbolUsageRule,
   validateSymbolDefinitions,
   validateSymbolUsageRules,
@@ -212,6 +214,22 @@ export async function listSymbolOccurrenceOverrides(projectId: string, chapterId
   return db.symbolOccurrenceOverride.findMany({ where: { projectId, chapterId }, orderBy: [{ startOffset: 'asc' }, { endOffset: 'asc' }, { id: 'asc' }] });
 }
 
+export async function analyzeChapterSymbolOccurrences(projectId: string, chapterId: string) {
+  const [chapter, definitions, overrides] = await Promise.all([
+    db.chapter.findFirst({ where: { id: chapterId, projectId }, select: { id: true, title: true, order: true, content: true } }),
+    db.projectSymbolDefinition.findMany({ where: { projectId }, include: { usageRules: { orderBy: [{ priority: 'desc' }, { id: 'asc' }] } }, orderBy: [{ order: 'asc' }, { id: 'asc' }] }),
+    db.symbolOccurrenceOverride.findMany({ where: { projectId, chapterId }, orderBy: [{ startOffset: 'asc' }, { endOffset: 'asc' }, { id: 'asc' }] }),
+  ]);
+  if (!chapter) throw new SymbolDictionaryServiceError('cross_project', 'Chapterは同じProjectから指定してください。');
+  const domainDefinitions = definitions.map(definitionDomain);
+  const result = buildSymbolOccurrenceBrowser({ projectId, chapterId, content: chapter.content, definitions: domainDefinitions,
+    usageRules: definitions.flatMap(value => value.usageRules).map(usageDomain),
+    overrides: overrides.map(value => ({ ...value, status: value.status as SymbolOccurrenceOverrideStatus })) });
+  const persistedDefinitions = new Map(definitions.map(value => [value.id, value]));
+  return { chapter: { id: chapter.id, title: chapter.title, order: chapter.order }, definitions, ...result,
+    items: result.items.map(item => ({ ...item, definition: item.definition ? persistedDefinitions.get(item.definition.id) || null : null })) };
+}
+
 export async function createSymbolOccurrenceOverride(input: Record<string, unknown>) {
   const projectId = stringValue(input.projectId, 'projectId'); const chapterId = stringValue(input.chapterId, 'chapterId');
   const definitionId = stringValue(input.definitionId, 'definitionId'); const usageRuleId = stringValue(input.usageRuleId, 'usageRuleId');
@@ -240,6 +258,39 @@ export async function createSymbolOccurrenceOverride(input: Record<string, unkno
       exactExcerpt: anchor.exactExcerpt, anchorBefore: anchor.anchorBefore, anchorAfter: anchor.anchorAfter,
       contentHash: anchor.contentHash, anchorFingerprint: anchor.anchorFingerprint,
     } });
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') throw new SymbolDictionaryServiceError('conflict', 'このRegionにはすでにOverrideがあります。');
+    throw error;
+  }
+}
+
+export async function updateSymbolOccurrenceOverride(input: Record<string, unknown>) {
+  const projectId = stringValue(input.projectId, 'projectId'); const id = stringValue(input.id, 'id');
+  const usageRuleId = stringValue(input.usageRuleId, 'usageRuleId');
+  const startOffset = integerValue(input.startOffset, 'startOffset'); const endOffset = integerValue(input.endOffset, 'endOffset');
+  try {
+    return await db.$transaction(async transaction => {
+    const existing = await transaction.symbolOccurrenceOverride.findFirst({ where: { id, projectId } });
+    if (!existing) throw new SymbolDictionaryServiceError('not_found', 'Overrideが見つかりません。');
+    const [chapter, definition, rule, definitions] = await Promise.all([
+      transaction.chapter.findFirst({ where: { id: existing.chapterId, projectId }, select: { id: true, content: true } }),
+      transaction.projectSymbolDefinition.findFirst({ where: { id: existing.definitionId, projectId, active: true } }),
+      transaction.symbolUsageRule.findFirst({ where: { id: usageRuleId, projectId, definitionId: existing.definitionId, active: true } }),
+      transaction.projectSymbolDefinition.findMany({ where: { projectId } }),
+    ]);
+    if (!chapter || !definition || !rule) throw new SymbolDictionaryServiceError('cross_project', 'Chapter・Definition・Usage Ruleの有効な同一Project参照が必要です。');
+    let anchor;
+    try {
+      anchor = buildConfirmedOccurrencePersistence({ projectId, chapterId: chapter.id, content: chapter.content,
+        definitions: definitions.map(definitionDomain), definition: definitionDomain(definition), usageRule: usageDomain(rule), startOffset, endOffset }).anchor;
+    } catch (error) {
+      if (error instanceof SymbolOccurrenceSelectionError) throw new SymbolDictionaryServiceError('stale_range', error.message);
+      throw error;
+    }
+      return transaction.symbolOccurrenceOverride.update({ where: { id }, data: { usageRuleId, status: 'confirmed', startOffset, endOffset,
+        exactExcerpt: anchor.exactExcerpt, anchorBefore: anchor.anchorBefore, anchorAfter: anchor.anchorAfter,
+        contentHash: anchor.contentHash, anchorFingerprint: anchor.anchorFingerprint } });
+    });
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') throw new SymbolDictionaryServiceError('conflict', 'このRegionにはすでにOverrideがあります。');
     throw error;

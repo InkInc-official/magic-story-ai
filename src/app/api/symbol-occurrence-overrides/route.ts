@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import {
   createSymbolOccurrenceOverride, deleteSymbolOccurrenceOverride, listSymbolOccurrenceOverrides,
-  symbolServiceErrorStatus,
+  symbolServiceErrorStatus, updateSymbolOccurrenceOverride,
 } from '@/lib/symbol-dictionary-service';
 
 const failure = (error: unknown) => {
@@ -17,6 +17,10 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try { return NextResponse.json(await createSymbolOccurrenceOverride(await request.json()), { status: 201 }); } catch (error) { return failure(error); }
+}
+
+export async function PUT(request: NextRequest) {
+  try { return NextResponse.json(await updateSymbolOccurrenceOverride(await request.json())); } catch (error) { return failure(error); }
 }
 
 export async function DELETE(request: NextRequest) {

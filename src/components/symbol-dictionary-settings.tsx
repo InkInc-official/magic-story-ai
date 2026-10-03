@@ -12,6 +12,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { BUILTIN_SYMBOL_PAIRS } from '@/lib/japanese-text';
 import { displayLabel, SYMBOL_BUILTIN_LABELS, SYMBOL_SEMANTIC_KIND_LABELS, SYMBOL_SPEAKER_MODE_LABELS } from '@/lib/i18n';
 import { booleanToTriState, buildSymbolUsageMutationPayload, isLatestSymbolDictionaryRequest, mergeSymbolDictionaryDisplayItems, triStateToBoolean, type TriStateValue } from '@/lib/symbol-dictionary-ui';
+import { SymbolOccurrenceBrowser } from '@/components/symbol-occurrence-browser';
 
 interface CharacterOption { id: string; name: string }
 interface UsageValue {
@@ -81,6 +82,14 @@ export function SymbolDictionarySettings({ projectId }: { projectId: string }) {
     return () => controller.abort();
   }, [load]);
 
+  useEffect(() => {
+    const refresh = (event: Event) => {
+      if ((event as CustomEvent<{ source?: string }>).detail?.source === 'browser') void load();
+    };
+    window.addEventListener('symbol-dictionary-changed', refresh);
+    return () => window.removeEventListener('symbol-dictionary-changed', refresh);
+  }, [load]);
+
   const items = useMemo(() => mergeSymbolDictionaryDisplayItems(BUILTIN_SYMBOL_PAIRS, definitions), [definitions]);
   const selected = items.find(value => value.key === selectedKey) || items[0];
   const definition = selected?.definition ? definitions.find(value => value.id === selected.definition?.id) || null : null;
@@ -98,7 +107,9 @@ export function SymbolDictionarySettings({ projectId }: { projectId: string }) {
       if (!response.ok) throw new Error(await responseError(response));
       const value = await response.json();
       if (!isLatestSymbolDictionaryRequest(token, requestToken.current)) return null;
-      await load(undefined, token); return value;
+      await load(undefined, token);
+      window.dispatchEvent(new CustomEvent('symbol-dictionary-changed', { detail: { source: 'management' } }));
+      return value;
     } catch (caught) {
       if (!isLatestSymbolDictionaryRequest(token, requestToken.current)) return null;
       const message = caught instanceof Error ? caught.message : '操作に失敗しました。'; setError(message); toast.error(message); return null;
@@ -198,5 +209,6 @@ export function SymbolDictionarySettings({ projectId }: { projectId: string }) {
         </CardContent></Card>}
       </div>
     </div>
+    <SymbolOccurrenceBrowser projectId={projectId} />
   </div>;
 }
