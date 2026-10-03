@@ -103,6 +103,29 @@ export const GENRE_GUIDANCE_MODE_LABELS: LabelMap = {
   required: '必須条件として扱う',
 };
 
+export const SYMBOL_BUILTIN_LABELS: LabelMap = {
+  'corner-brackets': 'かぎ括弧',
+  'white-corner-brackets': '二重かぎ括弧',
+  'fullwidth-parentheses': '全角丸括弧',
+  'ascii-parentheses': '半角丸括弧',
+  'lenticular-brackets': '隅付き括弧',
+  'angle-brackets': '山括弧',
+  'double-angle-brackets': '二重山括弧',
+  'reversed-double-prime': 'ダブルミニュート',
+  'double-curly-quotes': 'ダブル引用符',
+  'single-curly-quotes': 'シングル引用符',
+};
+
+export const SYMBOL_SEMANTIC_KIND_LABELS: LabelMap = {
+  dialogue: '会話', inner_voice: '内心', quotation: '引用', narrative_span: '叙述範囲',
+  displayed_text: '表示テキスト', special_voice: '特殊な声', custom: 'その他',
+};
+
+export const SYMBOL_SPEAKER_MODE_LABELS: LabelMap = {
+  none: '話者なし', fixed_character: '特定の登場人物', current_pov: '現在のPOV人物',
+  contextual: '文脈によって変わる', unknown: '不明',
+};
+
 export const SPEECH_REGISTER_LABELS: LabelMap = {
   plain: 'くだけた話し方',
   mixed: '相手や場面で変化',

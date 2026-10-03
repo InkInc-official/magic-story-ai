@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Settings, Save, Download, Info, ChevronDown, ChevronRight } from 'lucide-react';
 import { CHAPTER_LENGTH_POLICY_LABELS, displayLabel, GENRE_GUIDANCE_MODE_LABELS, GENRE_LABELS, NARRATIVE_PERSPECTIVE_LABELS } from '@/lib/i18n';
 import { NarrativeSettings } from '@/components/narrative-settings';
+import { SymbolDictionarySettings } from '@/components/symbol-dictionary-settings';
 
 const GENRE_OPTIONS = [
   ['玄幻系统修仙', '⚔️'], ['都市重生', '🔄'], ['脑洞网文', '💡'],
@@ -102,7 +103,7 @@ export function SettingsPanel({ project, onUpdate }: SettingsPanelProps) {
   }
 
   return (
-    <div className="space-y-6 max-w-2xl">
+    <div className="space-y-6 max-w-5xl">
       <div className="flex items-center gap-2">
         <Settings size={20} className="text-muted-foreground" />
         <h2 className="text-lg font-bold text-foreground">プロジェクト設定</h2>
@@ -206,6 +207,11 @@ export function SettingsPanel({ project, onUpdate }: SettingsPanelProps) {
         <CardContent>
           <NarrativeSettings projectId={project.id} defaultNarratorId={project.defaultNarratorId} characters={characters} onProjectUpdate={onUpdate} />
         </CardContent>
+      </Card>
+
+      <Card className="bg-card/50 border-border/50">
+        <CardHeader><CardTitle className="text-sm font-medium">作品表記辞書</CardTitle></CardHeader>
+        <CardContent><SymbolDictionarySettings projectId={project.id} /></CardContent>
       </Card>
 
       {/* Export */}
