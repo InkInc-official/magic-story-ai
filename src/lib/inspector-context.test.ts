@@ -111,6 +111,28 @@ test('Ruleのpriority・provenance・unknown machineKey・長文descriptionを�
   assert.equal(result.budget.included.some(item => item.representation === 'truncated'), false);
 });
 
+test('Creative RulesをNarrative Rulesと別sectionで14k cap内に保持する', () => {
+  const value = source(); value.creativeRules = [
+    { id: 'required', kind: 'builtin', techniqueKey: 'show_dont_tell', mode: 'required', priority: 10, overridable: false, authorAdjustment: '直接説明も場面次第', notes: '作者方針', source: 'author', active: true },
+    { id: 'reference', kind: 'custom', title: '沈黙', instruction: '答えない選択を残す', category: 'dialogue', mode: 'reference', priority: 0, overridable: true, notes: '', source: 'author', active: true },
+  ];
+  const result = buildInspectorContext(value);
+  assert.ok(result.text.length <= INSPECTOR_CONTEXT_HARD_CAP);
+  assert.match(result.text, /Project Narrative Rule/); assert.match(result.text, /創作ルール（Inspector）/);
+  assert.match(result.text, /参考は本文に関係する場合のsuggestion/);
+  assert.match(result.text, /creative-rule:required/);
+  assert.match(result.learningBudget.text, /創作ルール（学習支援）/);
+  assert.doesNotMatch(result.learningBudget.text, /創作ルール（Inspector）/);
+});
+
+test('Creative Rule offはforbidden化せずknown fallbackを検査基準から外す', () => {
+  const value = source(); value.creativeRules = [{ id: 'off', kind: 'builtin', techniqueKey: 'sentence_ending_variety', mode: 'off', priority: 0, overridable: true, source: 'author', active: true }];
+  const result = buildInspectorContext(value);
+  assert.match(result.text, /一般fallbackから除外する観点/); assert.match(result.text, /offはforbiddenを意味しない/);
+  assert.doesNotMatch(result.text, /\[禁止\] 文末の変化/);
+  assert.deepEqual(result.creativeRules.inspector.suppressedFallbackKeys, ['sentence_ending_variety']);
+});
+
 test('巨大本文と多数optional Knowledgeでもhard cap内でrequiredを維持する', () => {
   const value = source(); value.chapter.content = `秘密の観測者。${'長い本文。'.repeat(4000)}`;
   for (let index = 0; index < 80; index += 1) {

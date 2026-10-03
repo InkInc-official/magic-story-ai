@@ -5,6 +5,8 @@ import { buildInspectorSymbolSemantics, inspectorSymbolContextEntry, type Inspec
 import { buildRuntimeSymbolPairDefinitions } from './symbol-dictionary/runtime-definitions';
 import { resolveNarrativeRoles, resolveProjectNarrativeRules, type NarrativeRuleValue, type NarratorValue } from './narrative-foundation';
 import { buildContextWithinBudget, safeContextExcerpt, type ContextBudgetResult, type ContextEntry } from './prompts/ja/context-budget';
+import { buildCreativeRulePromptContext } from './prompts/ja/creative-rules';
+import type { ProjectCreativeRule } from './creative-rules';
 
 export const INSPECTOR_CONTEXT_BUILDER_VERSION = '4b2-v1';
 export const INSPECTOR_CONTEXT_HARD_CAP = 14_000;
@@ -41,6 +43,7 @@ export interface InspectorSources {
   characterKnowledge: InspectorKnowledgeEvent[];
   relationships: InspectorRelationship[];
   symbolDictionary?: InspectorSymbolSources;
+  creativeRules?: ProjectCreativeRule[];
 }
 
 export type ReaderKnowledgePhase = 'known_before' | 'revealed_during' | 'hidden_at_start' | 'future_reveal';
@@ -211,12 +214,21 @@ export function buildInspectorContext(source: InspectorSources, options: Inspect
     symbols: symbolDictionary,
     characterNames: new Map(source.characters.map(character => [character.id, character.name])),
   });
+  const inspectorCreativeRules = buildCreativeRulePromptContext(source.creativeRules || [], 'inspector');
+  const learningCreativeRules = buildCreativeRulePromptContext(source.creativeRules || [], 'learning');
 
   const entries: ContextEntry[] = [
     { id: 'inspected-text', tier: 0, required: true, full: `【検査対象本文】\n範囲：${range.inspected.start}-${range.inspected.end}\n${excerpt || '（空）'}`, compact: `【検査対象本文】\n${safeContextExcerpt(excerpt || '（空）', 5000)}`, minimum: `【検査対象本文】\n${safeContextExcerpt(excerpt || '（空）', 3000)}` },
     { id: 'roles', tier: 0, required: true, full: `【叙述役割】\nPerspective：${roles.perspective || '未指定'}\nNarrator：${roles.narrator?.name || '未指定'}${roles.narrator?.identityDisclosureMode === 'concealed' ? '（作者用の正体は秘匿設定）' : ''}\nPOV：${roles.pov?.name || '未指定'}\nCast：${source.cast.map(entry => source.characters.find(character => character.id === entry.characterId)?.name).filter(Boolean).join('、') || 'なし'}` },
     { id: 'knowledge-boundary', tier: 0, required: true, full: '【Authoritative Knowledge Boundary】\nAuthor Truth、Reader Knowledge、人物認識、Narratorの知識源を統合せず、別々の根拠として扱う。章中の開示・認識変化を章開始時点の既知情報にしない。' },
   ];
+  if (inspectorCreativeRules.text) {
+    const refs = inspectorCreativeRules.evidenceRefs.map(value => `${value.title}：${value.ref}`).join('\n');
+    entries.push({
+      id: 'creative-rules', tier: 0, required: true,
+      full: `${inspectorCreativeRules.text}\n根拠参照（内部識別子）：\n${refs}`,
+    });
+  }
   for (const rule of rules) entries.push({ id: `rule:${rule.id}`, tier: 0, required: true,
     full: `【Project Narrative Rule】\nID：${rule.id}\n名称：${rule.title}\n分類：${rule.category}\n種別：${rule.mode}\n優先度：${rule.priority}\n由来：${rule.source}\nmachineKey：${rule.machineKey || 'なし'}\n上書き：${rule.overridable ? '可' : '不可'}\n本文：${safeContextExcerpt(rule.description, 1800)}`,
     compact: `【Project Narrative Rule】${rule.title}（${rule.mode}／優先度${rule.priority}）\n${safeContextExcerpt(rule.description, 700)}`,
@@ -249,13 +261,22 @@ export function buildInspectorContext(source: InspectorSources, options: Inspect
     full: `【Relationship Voice】${relation.fromCharacterId}→${relation.toCharacterId}\n呼称：${relation.addressTerm || '基本設定'}\n話し方：${relation.speechRegister || '基本設定'}\nメモ：${relation.speechStyleNotes || 'なし'}` }));
   symbolSemantics.forEach(value => entries.push(inspectorSymbolContextEntry(value)));
 
+  const learningEntries = entries.filter(entry => entry.id !== 'creative-rules');
+  if (learningCreativeRules.text) learningEntries.push({ id: 'creative-rules-learning', tier: 0, required: true, full: learningCreativeRules.text });
+
   const minimumRequiredLength = entries.filter(entry => entry.required).reduce((sum, entry, index) => sum + (entry.minimum || entry.compact || entry.full).trim().length + (index ? 2 : 0), 0);
   if (minimumRequiredLength > maxCharacters) throw new InspectorContextBudgetError(`Required Inspector Contextが上限を超えています（${minimumRequiredLength}/${maxCharacters}）`);
   const budget = buildContextWithinBudget(entries, maxCharacters);
   if (budget.included.some(item => item.representation === 'truncated')) throw new InspectorContextBudgetError('Required semantic blockを安全に保持できません');
-  // semantic-v2 and legacy-v1 are frozen contracts. Dictionary rollout must not
-  // alter their budget selection even when a v3 symbol entry competes for space.
-  const semanticV2Entries = entries.filter(entry => !entry.id.startsWith('symbol:'));
+  const learningMinimumRequiredLength = learningEntries.filter(entry => entry.required).reduce((sum, entry, index) => sum + (entry.minimum || entry.compact || entry.full).trim().length + (index ? 2 : 0), 0);
+  if (learningMinimumRequiredLength > maxCharacters) throw new InspectorContextBudgetError(`Required Learning Contextが上限を超えています（${learningMinimumRequiredLength}/${maxCharacters}）`);
+  const learningBudget = buildContextWithinBudget(learningEntries, maxCharacters);
+  if (learningBudget.included.some(item => item.representation === 'truncated')) throw new InspectorContextBudgetError('Required Learning semantic blockを安全に保持できません');
+  // legacy-v1/semantic-v2/semantic-v3 are frozen contracts. New semantic inputs
+  // must not alter their historical budget selection.
+  const semanticV3Entries = entries.filter(entry => entry.id !== 'creative-rules');
+  const semanticV3Budget = buildContextWithinBudget(semanticV3Entries, maxCharacters);
+  const semanticV2Entries = semanticV3Entries.filter(entry => !entry.id.startsWith('symbol:'));
   const semanticV2Budget = buildContextWithinBudget(semanticV2Entries, maxCharacters);
   const legacyEntries = semanticV2Entries.filter(entry => entry.id !== 'surrounding-text');
   const legacySurrounding = surroundingEntry(legacyBefore, legacyAfter, true);
@@ -302,6 +323,8 @@ export function buildInspectorContext(source: InspectorSources, options: Inspect
   const legacyManifest = buildManifest(legacyBudget, true);
   const includedIds = new Set(budget.included.map(item => item.id));
   const includedSymbolSemantics = symbolSemantics.filter(value => includedIds.has(`symbol:${value.id}`));
+  const semanticV3IncludedIds = new Set(semanticV3Budget.included.map(item => item.id));
+  const semanticV3SymbolSemantics = symbolSemantics.filter(value => semanticV3IncludedIds.has(`symbol:${value.id}`));
   return {
     text: budget.text,
     inspectedText: { requestedRange: range.requested, startOffset: range.inspected.start, endOffset: range.inspected.end, excerpt, contentHash, truncated: range.truncated, surroundingBefore: before, surroundingAfter: after },
@@ -310,7 +333,8 @@ export function buildInspectorContext(source: InspectorSources, options: Inspect
     rules, knowledge: { authorTruth: storyFacts, reader: readerKnowledge, characters: characterKnowledge, narratorKnowledgeSource },
     voices: { characters: relevantCharacters, relationships, narratorVoiceNotes: roles.narrator?.voiceNotes || '', povNarrationVoiceNotes: roles.pov?.narrationVoiceNotes || '' },
     symbolSemantics: includedSymbolSemantics,
-    budget, semanticV2Budget, textStructure,
+    creativeRules: { inspector: inspectorCreativeRules, learning: learningCreativeRules },
+    budget, learningBudget, semanticV2Budget, semanticV3Budget, semanticV3SymbolSemantics, textStructure,
     manifest,
     // Compatibility bridge: actual structural context is provenance, not a reason
     // to invalidate author decisions or Learning sessions after adapter rollout.

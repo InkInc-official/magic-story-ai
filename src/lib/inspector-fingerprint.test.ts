@@ -4,10 +4,12 @@ import { buildInspectorContext, type InspectorSources } from './inspector-contex
 import {
   buildCanonicalInspectorSemanticFingerprintPayloadV2,
   buildCanonicalInspectorSemanticFingerprintPayloadV3,
+  buildCanonicalInspectorSemanticFingerprintPayloadV4,
   buildInspectorContextFingerprint,
   CURRENT_INSPECTOR_FINGERPRINT_VERSION,
 } from './inspector-fingerprint.js';
 import { buildSymbolOccurrenceAnchor } from './symbol-dictionary/occurrence-anchor.js';
+import { buildRuntimeCreativeRuleSet } from './creative-rules/runtime.js';
 
 function source(): InspectorSources {
   return {
@@ -31,8 +33,8 @@ function source(): InspectorSources {
 
 const semantic = (value: InspectorSources) => buildInspectorContextFingerprint(buildInspectorContext(value), 'semantic-v2');
 
-test('CURRENT Inspector fingerprint versionはsemantic-v3', () => {
-  assert.equal(CURRENT_INSPECTOR_FINGERPRINT_VERSION, 'semantic-v3');
+test('CURRENT Inspector fingerprint versionはsemantic-v4', () => {
+  assert.equal(CURRENT_INSPECTOR_FINGERPRINT_VERSION, 'semantic-v4');
 });
 
 test('legacy-v1 dispatcherはrollout前fixtureを完全維持する', () => {
@@ -102,6 +104,50 @@ test('Symbol Dictionaryは6B-6のsemantic-v2 dependencyではない', () => {
   };
   assert.equal(semantic(withDictionary), semantic(base));
   assert.notEqual(buildInspectorContextFingerprint(buildInspectorContext(withDictionary), 'semantic-v3'), buildInspectorContextFingerprint(buildInspectorContext(base), 'semantic-v3'));
+});
+
+test('semantic-v3はCreative Rules追加後もfrozen payloadを維持する', () => {
+  const base = source();
+  const changed = source(); changed.creativeRules = [{ id: 'rule-db-a', kind: 'builtin', techniqueKey: 'show_dont_tell', mode: 'required', priority: 10, overridable: false, authorAdjustment: '場面ごとに確認', notes: '作者メモ', source: 'author', active: true }];
+  assert.deepEqual(buildCanonicalInspectorSemanticFingerprintPayloadV3(buildInspectorContext(changed)), buildCanonicalInspectorSemanticFingerprintPayloadV3(buildInspectorContext(base)));
+  assert.equal(buildInspectorContextFingerprint(buildInspectorContext(changed), 'semantic-v3'), buildInspectorContextFingerprint(buildInspectorContext(base), 'semantic-v3'));
+});
+
+test('semantic-v4は実投入Creative Rulesとoff suppressionだけを追加する', () => {
+  const base = source(); const baseline = buildInspectorContextFingerprint(buildInspectorContext(base), 'semantic-v4');
+  const required = source(); required.creativeRules = [{ id: 'db-a', kind: 'builtin', techniqueKey: 'show_dont_tell', mode: 'required', priority: 10, overridable: false, authorAdjustment: '場面ごとに確認', notes: '作者メモ', source: 'author', active: true }];
+  const reference = source(); reference.creativeRules = [{ ...required.creativeRules[0], id: 'db-b', mode: 'reference' }];
+  const off = source(); off.creativeRules = [{ id: 'db-c', kind: 'builtin', techniqueKey: 'sentence_ending_variety', mode: 'off', priority: 10, overridable: false, authorAdjustment: '場面ごとに確認', notes: '作者メモ', source: 'author', active: true }];
+  for (const value of [required, reference, off]) assert.notEqual(buildInspectorContextFingerprint(buildInspectorContext(value), 'semantic-v4'), baseline);
+  const payload = buildCanonicalInspectorSemanticFingerprintPayloadV4(buildInspectorContext(required));
+  assert.equal(payload.creativeRules.rules[0].techniqueKey, 'show_dont_tell');
+  assert.doesNotMatch(JSON.stringify(payload.creativeRules), /db-a|source|catalogContractVersion|createdAt|updatedAt/);
+});
+
+test('semantic-v4はinactiveを無視しDB id・非semantic priority変更で変化しない', () => {
+  const first = source(); first.creativeRules = [{ id: 'db-a', kind: 'custom', title: '独自方針', instruction: '沈黙を残す', category: 'style', mode: 'reference', priority: 1, overridable: true, notes: '', source: 'author', active: true }];
+  const metadata = structuredClone(first); metadata.creativeRules![0].id = 'db-b'; metadata.creativeRules![0].priority = 2;
+  assert.equal(buildInspectorContextFingerprint(buildInspectorContext(first), 'semantic-v4'), buildInspectorContextFingerprint(buildInspectorContext(metadata), 'semantic-v4'));
+  const inactive = source(); inactive.creativeRules = [{ id: 'db-c', kind: 'custom', title: '独自方針', instruction: '変更後', category: 'style', mode: 'reference', priority: 1, overridable: true, notes: '', source: 'author', active: false }];
+  assert.equal(buildInspectorContextFingerprint(buildInspectorContext(inactive), 'semantic-v4'), buildInspectorContextFingerprint(buildInspectorContext(source()), 'semantic-v4'));
+});
+
+test('semantic-v4はoutdated/unknown persistence rowを現在Catalogの意味でfingerprintしない', () => {
+  const row = { id: 'old', techniqueKey: 'show_dont_tell', mode: 'required', priority: 1, overridable: true, authorAdjustment: '', notes: '', source: 'author', active: true, catalogContractVersion: 0 };
+  const runtime = buildRuntimeCreativeRuleSet([row, { ...row, id: 'unknown', techniqueKey: 'removed_key', catalogContractVersion: 99 }], []);
+  const value = source(); value.creativeRules = runtime.rules;
+  assert.deepEqual(runtime.excluded, [{ id: 'old', reason: 'outdated' }, { id: 'unknown', reason: 'unknown' }]);
+  assert.equal(buildInspectorContextFingerprint(buildInspectorContext(value), 'semantic-v4'), buildInspectorContextFingerprint(buildInspectorContext(source()), 'semantic-v4'));
+});
+
+test('semantic-v4はCustom instruction・authorAdjustment・notesの実変更を検知する', () => {
+  const base = source(); base.creativeRules = [{ id: 'c', kind: 'custom', title: '独自方針', instruction: '沈黙を残す', category: 'style', mode: 'required', priority: 1, overridable: true, notes: '補足', source: 'author', active: true }];
+  const builtin = source(); builtin.creativeRules = [{ id: 'b', kind: 'builtin', techniqueKey: 'show_dont_tell', mode: 'required', priority: 1, overridable: true, authorAdjustment: '調整A', notes: '補足A', source: 'author', active: true }];
+  const fingerprint = (value: InspectorSources) => buildInspectorContextFingerprint(buildInspectorContext(value), 'semantic-v4');
+  const customChanged = structuredClone(base); if (customChanged.creativeRules?.[0].kind === 'custom') customChanged.creativeRules[0].instruction = '沈黙を破る';
+  const adjustment = structuredClone(builtin); if (adjustment.creativeRules?.[0].kind === 'builtin') adjustment.creativeRules[0].authorAdjustment = '調整B';
+  const notes = structuredClone(builtin); if (notes.creativeRules?.[0]) notes.creativeRules[0].notes = '補足B';
+  assert.notEqual(fingerprint(customChanged), fingerprint(base)); assert.notEqual(fingerprint(adjustment), fingerprint(builtin)); assert.notEqual(fingerprint(notes), fingerprint(builtin));
 });
 
 test('semantic-v3は実際に投入された関連Symbol semanticsだけをdependencyにする', () => {

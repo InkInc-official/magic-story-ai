@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import type { NarrativeInspectorIssue } from './narrative-inspector';
 
-export const NARRATIVE_INSPECTOR_VERSION = '4b5-v1';
+export const NARRATIVE_INSPECTOR_VERSION = '4b5-v2';
 export const NARRATIVE_ISSUE_STATUSES = ['open', 'resolved', 'stale', 'superseded'] as const;
 export const NARRATIVE_ISSUE_DECISIONS = ['accepted_issue', 'allowed_exception', 'not_an_issue'] as const;
 export type NarrativeIssueStatus = typeof NARRATIVE_ISSUE_STATUSES[number];

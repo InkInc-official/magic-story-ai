@@ -12,7 +12,7 @@ function source(): InspectorSources {
   };
 }
 
-test('新規Runとupsert Issueへsemantic-v3を同一versionで伝播する', async () => {
+test('新規Runとupsert Issueへsemantic-v4を同一versionで伝播する', async () => {
   const captured: Record<string, unknown>[] = [];
   const transaction = {
     narrativeIssue: {
@@ -41,6 +41,6 @@ test('新規Runとupsert Issueへsemantic-v3を同一versionで伝播する', as
     { database: database as never, buildContext: async () => buildInspectorContext(source()) },
   );
   for (const kind of ['run-create', 'issue-create', 'issue-update', 'run-complete']) {
-    assert.equal(captured.find(value => value.kind === kind)?.fingerprintVersion, 'semantic-v3');
+    assert.equal(captured.find(value => value.kind === kind)?.fingerprintVersion, 'semantic-v4');
   }
 });

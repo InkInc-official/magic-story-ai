@@ -4,6 +4,7 @@ import { buildInspectorContext, type InspectorSources } from './inspector-contex
 import { sanitizeInspectorText } from './narrative-inspector.js';
 import { fallbackLearningQuestion, learningSessionIsFresh, learningStatusAfterReinspection, NarrativeLearningError, nextLearningLevel, parseLearningOutput } from './narrative-learning.js';
 import { buildNarrativeLearningPrompt, NARRATIVE_LEARNING_SYSTEM_PROMPT } from './prompts/ja/narrative-learning.js';
+import { buildInspectorContextFingerprint } from './inspector-fingerprint.js';
 
 function contextSource(): InspectorSources {
   return {
@@ -57,6 +58,12 @@ test('semantic-v2 Learningはrolloutだけでは継続しsemantic-v3再検査tra
   assert.equal(learningStatusAfterReinspection(session, { issueFingerprint: 'issue', contentHash: 'content', contextFingerprint: 'v3-context', fingerprintVersion: 'semantic-v3' }, false), 'stale');
 });
 
+test('semantic-v3 Learningは旧contractで継続しsemantic-v4再検査transitionでstaleになる', () => {
+  const session = { startingIssueFingerprint: 'issue', startingContentHash: 'content', startingContextFingerprint: 'v3-context', fingerprintVersion: 'semantic-v3' };
+  assert.equal(learningSessionIsFresh(session, { issueFingerprint: 'issue', contentHash: 'content', contextFingerprint: 'v3-context', fingerprintVersion: 'semantic-v3' }), true);
+  assert.equal(learningStatusAfterReinspection(session, { issueFingerprint: 'issue', contentHash: 'content', contextFingerprint: 'v4-context', fingerprintVersion: 'semantic-v4' }, false), 'stale');
+});
+
 test('category fallbackは問いであり完成修正文を返さない', () => {
   for (const category of ['viewpoint', 'knowledge', 'voice', 'narrative_rule']) {
     const fallback = fallbackLearningQuestion(category);
@@ -71,6 +78,42 @@ test('Learning promptは段階別要求と禁止事項を持ち、Hintを先行�
   assert.match(level0, /開かれた問いを一つ/); assert.doesNotMatch(level0, /hint1/);
   assert.match(NARRATIVE_LEARNING_SYSTEM_PROMPT, /完成修正文、置換文、模範解答を提示しない/);
   assert.match(NARRATIVE_LEARNING_SYSTEM_PROMPT, /NarratorとPOV/);
+});
+
+test('LearningはCreative Rulesを作者方針として扱いreferenceを必須修正化しない', () => {
+  const value = contextSource(); value.creativeRules = [
+    { id: 'required', kind: 'builtin', techniqueKey: 'show_dont_tell', mode: 'required', priority: 10, overridable: false, source: 'author', active: true },
+    { id: 'reference', kind: 'custom', title: '沈黙', instruction: '答えない選択を残す', category: 'dialogue', mode: 'reference', priority: 0, overridable: true, source: 'author', active: true },
+  ];
+  const context = buildInspectorContext(value);
+  const issue = { category: 'narrative_rule' as const, issueType: 'rule_application_unclear' as const, excerpt: '誰かが見ていた。', explanation: '作者方針との関係を確認する', suggestedDirection: '適用意図を考える', evidenceRefs: ['creative-rule:reference'] };
+  const prompt = buildNarrativeLearningPrompt({ context, issue, level: 0, previousSteps: [] });
+  assert.match(prompt, /創作ルール（学習支援）/); assert.match(prompt, /参考は任意の検討材料/);
+  assert.doesNotMatch(prompt, /創作ルール（Inspector）/);
+  assert.match(NARRATIVE_LEARNING_SYSTEM_PROMPT, /referenceを必須修正として教えず/);
+  assert.match(NARRATIVE_LEARNING_SYSTEM_PROMPT, /完成修正文、置換文、模範解答を提示しない/);
+});
+
+test('LearningではCreative Rule offをforbidden化せずinactiveを投入しない', () => {
+  const value = contextSource(); value.creativeRules = [
+    { id: 'off', kind: 'builtin', techniqueKey: 'sentence_ending_variety', mode: 'off', priority: 0, overridable: true, source: 'author', active: true },
+    { id: 'inactive', kind: 'custom', title: '非使用', instruction: '投入されない', category: 'style', mode: 'required', priority: 100, overridable: false, source: 'author', active: false },
+  ];
+  const context = buildInspectorContext(value);
+  assert.match(context.learningBudget.text, /offはforbiddenを意味しない/);
+  assert.doesNotMatch(context.learningBudget.text, /投入されない|\[禁止\] 文末の変化/);
+});
+
+test('semantic-v4 Learning freshnessは関連Creative Rule変更でstale、inactive変更で維持する', () => {
+  const base = contextSource(); base.creativeRules = [{ id: 'custom-a', kind: 'custom', title: '沈黙', instruction: '答えない選択を残す', category: 'dialogue', mode: 'reference', priority: 0, overridable: true, source: 'author', active: true }];
+  const initialContext = buildInspectorContext(base); const initialFingerprint = buildInspectorContextFingerprint(initialContext, 'semantic-v4');
+  const session = { startingIssueFingerprint: 'issue', startingContentHash: initialContext.inspectedText.contentHash, startingContextFingerprint: initialFingerprint, fingerprintVersion: 'semantic-v4' };
+  const changed = structuredClone(base); if (changed.creativeRules?.[0].kind === 'custom') changed.creativeRules[0].instruction = '沈黙を破る';
+  const changedContext = buildInspectorContext(changed);
+  assert.equal(learningSessionIsFresh(session, { issueFingerprint: 'issue', contentHash: changedContext.inspectedText.contentHash, contextFingerprint: buildInspectorContextFingerprint(changedContext, 'semantic-v4'), fingerprintVersion: 'semantic-v4' }), false);
+  const inactive = contextSource(); inactive.creativeRules = [{ id: 'inactive', kind: 'custom', title: '非使用', instruction: 'A', category: 'style', mode: 'required', priority: 0, overridable: false, source: 'author', active: false }];
+  const inactiveChanged = structuredClone(inactive); if (inactiveChanged.creativeRules?.[0].kind === 'custom') inactiveChanged.creativeRules[0].instruction = 'B';
+  assert.equal(buildInspectorContextFingerprint(buildInspectorContext(inactive), 'semantic-v4'), buildInspectorContextFingerprint(buildInspectorContext(inactiveChanged), 'semantic-v4'));
 });
 
 test('concealed Narrator名とidentity Fact本文をQuestion/Hint表示から除去する', () => {

@@ -1,6 +1,7 @@
 import 'server-only';
 import { db } from '@/lib/db';
 import { buildInspectorContext, InspectorContextInputError, type InspectorContextOptions, type InspectorSources } from '@/lib/inspector-context';
+import { loadProjectCreativeRuleRuntime } from '@/lib/creative-rule-service';
 
 const chapterRefSelect = { id: true, projectId: true, order: true, title: true } as const;
 
@@ -11,7 +12,7 @@ export async function loadInspectorSources(projectId: string, chapterId: string)
   });
   if (!chapter) throw new InspectorContextInputError('同じProjectのChapterが見つかりません');
 
-  const [project, characters, narrators, cast, narrativeRules, storyFacts, characterKnowledge, relationships, symbolDefinitions] = await Promise.all([
+  const [project, characters, narrators, cast, narrativeRules, storyFacts, characterKnowledge, relationships, symbolDefinitions, creativeRuleRuntime] = await Promise.all([
     db.project.findUnique({ where: { id: projectId }, select: { id: true, narrativePerspective: true, defaultPovCharacterId: true, defaultNarratorId: true } }),
     db.character.findMany({ where: { projectId }, select: { id: true, projectId: true, name: true, firstPerson: true, defaultSecondPerson: true, speechRegister: true, speechStyleNotes: true, narrationVoiceNotes: true, updatedAt: true }, orderBy: { id: 'asc' } }),
     db.narratorProfile.findMany({ where: { projectId }, include: { linkedCharacter: { select: { id: true, name: true } }, identityFact: { select: { id: true, content: true, readerInitiallyKnows: true } } }, orderBy: { id: 'asc' } }),
@@ -32,6 +33,7 @@ export async function loadInspectorSources(projectId: string, chapterId: string)
       },
       orderBy: [{ openSymbol: 'asc' }, { closeSymbol: 'asc' }, { id: 'asc' }],
     }),
+    loadProjectCreativeRuleRuntime(projectId),
   ]);
   if (!project) throw new InspectorContextInputError('Projectが見つかりません');
 
@@ -45,6 +47,7 @@ export async function loadInspectorSources(projectId: string, chapterId: string)
     storyFacts,
     characterKnowledge,
     relationships,
+    creativeRules: creativeRuleRuntime.rules,
     symbolDictionary: {
       definitions: symbolDefinitions.map(value => ({
         id: value.id, projectId: value.projectId, openSymbol: value.openSymbol, closeSymbol: value.closeSymbol,

@@ -1,6 +1,6 @@
 import type { BuiltInspectorContext, NarrativeInspectorIssue } from '../../narrative-inspector';
 
-export const NARRATIVE_LEARNING_PROMPT_VERSION = '4b6-v1';
+export const NARRATIVE_LEARNING_PROMPT_VERSION = '4b6-v2';
 
 export const NARRATIVE_LEARNING_SYSTEM_PROMPT = `あなたは日本語小説の作品設定と叙述Issueを理解し、作者自身が修正方針を考えられるよう支援する編集指導者です。
 
@@ -10,7 +10,7 @@ export const NARRATIVE_LEARNING_SYSTEM_PROMPT = `あなたは日本語小説の�
 - 一般的小説論やShow, don't tellを絶対化せず、内面直接描写を一律禁止しない。
 - NarratorとPOV、Character beliefとAuthor Truthを同一視しない。
 - 信頼できない語り手や誤認を扱うIssueでは、Reader-hiddenなAuthor Truthを答えとして明かさず、人物認識と語りの整合性を考える問いにする。
-- Narrative Ruleを一般論より優先する。
+- Narrative RuleとCreative Ruleを別の作者設定sourceとして扱い、どちらも一般論より優先する。Creative Ruleのreferenceを必須修正として教えず、required/forbiddenだけを作品固有方針として扱う。
 - 作者確認済みSymbol Dictionaryを一般慣習より優先し、Occurrence Overrideはその箇所だけに適用する。意味未設定や要再確認の指定を正解として先に教えない。
 - 秘匿中のidentityやFact本文を不要に反復せず「秘匿中の作者設定」と表現する。
 - Issueに保存されたEvidenceと現在Context以外の設定を創作しない。
@@ -30,7 +30,7 @@ export function buildNarrativeLearningPrompt(input: {
       ? '既存の問いへ直接答えず、作者が見るべき着目点を一つ示す。'
       : '完成文は書かず、一つの修正方向として、より具体的に検討できる方法を示す。';
   return `【現在のInspector Context】
-${input.context.text}
+${input.context.learningBudget.text}
 
 【学習対象Issue】
 category：${input.issue.category}

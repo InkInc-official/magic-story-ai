@@ -220,6 +220,31 @@ test('guidanceだけのproblemとspeaker_unclear problemをcheckへ補正し記�
   assert.equal(unclear.severity, 'check'); assert.deepEqual(unclear.adjustments, ['speaker_unclear_problem_downgraded']);
 });
 
+test('Creative required/forbiddenを既存Issue typeで受理しprovenanceをevidenceへ保持する', () => {
+  const value = source('静かな朝だった。'); value.creativeRules = [
+    { id: 'required-creative', kind: 'builtin', techniqueKey: 'opening_hook', mode: 'required', priority: 10, overridable: false, source: 'author', active: true },
+    { id: 'forbidden-creative', kind: 'builtin', techniqueKey: 'cliffhanger', mode: 'forbidden', priority: 9, overridable: true, source: 'author', active: true },
+  ];
+  const context = buildInspectorContext(value);
+  const required = { category: 'narrative_rule', issueType: 'required_rule_missing', locationKind: 'chapter', excerpt: '', startOffset: 0, endOffset: 0, explanation: '作者方針を確認できません。', suggestedDirection: '適用意図を確認する。', severity: 'check', evidenceRefs: ['creative-rule:required-creative'] };
+  assert.equal(validateNarrativeInspectorOutput({ schemaVersion: 1, issues: [required] }, context).issues[0].evidenceRefs[0], 'creative-rule:required-creative');
+  const excerpt = context.inspectedText.excerpt;
+  const forbidden = { ...required, issueType: 'forbidden_rule_violation', locationKind: 'excerpt', excerpt, startOffset: 0, endOffset: excerpt.length, evidenceRefs: ['creative-rule:forbidden-creative'] };
+  assert.equal(validateNarrativeInspectorOutput({ schemaVersion: 1, issues: [forbidden] }, context).issues[0].issueType, 'forbidden_rule_violation');
+});
+
+test('Creative referenceは違反Issueを拒否しproblem/checkをsuggestionへ補正する', () => {
+  const value = source('静かな朝だった。'); value.creativeRules = [{ id: 'reference-creative', kind: 'custom', title: '余韻', instruction: '沈黙を残す', category: 'style', mode: 'reference', priority: 0, overridable: true, source: 'author', active: true }];
+  const context = buildInspectorContext(value); const excerpt = context.inspectedText.excerpt;
+  const base = { category: 'narrative_rule', locationKind: 'excerpt', excerpt, startOffset: 0, endOffset: excerpt.length, explanation: '参考方針です。', suggestedDirection: '取り入れるか検討する。', severity: 'problem', evidenceRefs: ['creative-rule:reference-creative'] };
+  const suggestion = validateNarrativeInspectorOutput({ schemaVersion: 1, issues: [{ ...base, issueType: 'rule_application_unclear' }] }, context).issues[0];
+  assert.equal(suggestion.severity, 'suggestion'); assert.deepEqual(suggestion.adjustments, ['creative_reference_downgraded_to_suggestion']);
+  for (const issueType of ['required_rule_missing', 'forbidden_rule_violation']) {
+    assert.throws(() => validateNarrativeInspectorOutput({ schemaVersion: 1, issues: [{ ...base, issueType }] }, context), NarrativeInspectorError);
+  }
+  assert.match(NARRATIVE_INSPECTOR_SYSTEM_PROMPT, /reference未使用は違反にしない/);
+});
+
 test('foreign Voice/Rule evidenceを拒否し、concealed Narrator voice利用時もidentityをredactする', async () => {
   const value = source('誰かの声がした。');
   value.narrators[0] = { ...value.narrators[0], name: '作者用：幽霊の太郎', identityDisclosureMode: 'concealed', identityFactId: 'identity', voiceNotes: '乾いた古風な声' };

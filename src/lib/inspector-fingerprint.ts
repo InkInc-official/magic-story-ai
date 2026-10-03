@@ -1,10 +1,10 @@
 import type { InspectorBuiltContext } from './inspector-context';
 import { buildContextFingerprint } from './narrative-inspector-persistence';
 
-export const INSPECTOR_FINGERPRINT_VERSIONS = ['legacy-v1', 'semantic-v2', 'semantic-v3'] as const;
+export const INSPECTOR_FINGERPRINT_VERSIONS = ['legacy-v1', 'semantic-v2', 'semantic-v3', 'semantic-v4'] as const;
 export type InspectorFingerprintVersion = typeof INSPECTOR_FINGERPRINT_VERSIONS[number];
 export const LEGACY_INSPECTOR_FINGERPRINT_VERSION: InspectorFingerprintVersion = 'legacy-v1';
-export const CURRENT_INSPECTOR_FINGERPRINT_VERSION: InspectorFingerprintVersion = 'semantic-v3';
+export const CURRENT_INSPECTOR_FINGERPRINT_VERSION: InspectorFingerprintVersion = 'semantic-v4';
 
 const byId = <T extends { id: string }>(values: T[]) => [...values].sort((a, b) => a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
 const eventValue = (event: InspectorBuiltContext['knowledge']['characters'][number]['beforeChapter']) => event ? {
@@ -112,8 +112,8 @@ export function buildCanonicalInspectorSemanticFingerprintPayloadV2(context: Ins
 /** semantic-v3 extends the frozen v2 contract with only Symbol semantics actually supplied to Inspector. */
 export function buildCanonicalInspectorSemanticFingerprintPayloadV3(context: InspectorBuiltContext) {
   return {
-    semanticV2: canonicalInspectorSemanticFingerprintPayloadV2(context, context.budget.included.map(item => item.id)),
-    symbolSemantics: context.symbolSemantics.map(value => ({
+    semanticV2: canonicalInspectorSemanticFingerprintPayloadV2(context, context.semanticV3Budget.included.map(item => item.id)),
+    symbolSemantics: context.semanticV3SymbolSemantics.map(value => ({
       scope: value.scope,
       startOffset: value.startOffset,
       endOffset: value.endOffset,
@@ -133,10 +133,24 @@ export function buildCanonicalInspectorSemanticFingerprintPayloadV3(context: Ins
   };
 }
 
+/** semantic-v4 extends the frozen v3 contract with only Creative Rules actually supplied to Inspector. */
+export function buildCanonicalInspectorSemanticFingerprintPayloadV4(context: InspectorBuiltContext) {
+  return {
+    semanticV3: buildCanonicalInspectorSemanticFingerprintPayloadV3(context),
+    creativeRules: {
+      rules: context.creativeRules.inspector.semanticRules,
+      suppressedFallbackKeys: [...context.creativeRules.inspector.suppressedFallbackKeys].sort(),
+      hardConflicts: [...context.creativeRules.inspector.hardConflicts].sort(),
+      overridableConflicts: [...context.creativeRules.inspector.overridableConflicts].sort(),
+    },
+  };
+}
+
 export function buildInspectorContextFingerprint(context: InspectorBuiltContext, version: InspectorFingerprintVersion): string {
   if (version === 'legacy-v1') return buildContextFingerprint(context.legacyFreshnessPayload);
   if (version === 'semantic-v2') return buildContextFingerprint(buildCanonicalInspectorSemanticFingerprintPayloadV2(context));
   if (version === 'semantic-v3') return buildContextFingerprint(buildCanonicalInspectorSemanticFingerprintPayloadV3(context));
+  if (version === 'semantic-v4') return buildContextFingerprint(buildCanonicalInspectorSemanticFingerprintPayloadV4(context));
   const exhaustive: never = version;
   throw new Error(`Unsupported Inspector fingerprint version: ${exhaustive}`);
 }

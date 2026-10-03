@@ -78,6 +78,7 @@ export function allowedInspectorEvidenceRefs(context: BuiltInspectorContext): Se
   context.voices.characters.forEach(character => refs.add(`character:${character.id}`));
   context.voices.relationships.forEach(relationship => refs.add(`relationship:${relationship.id}`));
   context.rules.forEach(rule => refs.add(`rule:${rule.id}`));
+  context.creativeRules.inspector.evidenceRefs.forEach(value => refs.add(value.ref));
   context.knowledge.authorTruth.forEach(fact => refs.add(`fact:${fact.id}`));
   context.manifest.characterKnowledge.forEach(event => refs.add(`knowledge:${event.id}`));
   context.symbolSemantics.forEach(symbol => {
@@ -121,15 +122,23 @@ export function validateNarrativeInspectorOutput(value: unknown, context: BuiltI
     if (!Array.isArray(issue.evidenceRefs) || issue.evidenceRefs.length === 0 || issue.evidenceRefs.length > 12 || issue.evidenceRefs.some(ref => typeof ref !== 'string' || !allowedRefs.has(ref))) throw new NarrativeInspectorError('invalid_schema', `issues[${index}].evidenceRefsが不正です`);
     const evidenceRefs = [...new Set(issue.evidenceRefs as string[])];
     const evidenceRules = evidenceRefs.filter(ref => ref.startsWith('rule:')).map(ref => context.rules.find(rule => `rule:${rule.id}` === ref)!);
+    const evidenceCreativeRules = evidenceRefs.filter(ref => ref.startsWith('creative-rule:')).map(ref => context.creativeRules.inspector.evidenceRefs.find(rule => rule.ref === ref)!);
     const evidenceSymbols = evidenceRefs.filter(ref => ref.startsWith('symbol-'));
-    if (issue.category === 'narrative_rule' && evidenceRules.length === 0 && evidenceSymbols.length === 0) throw new NarrativeInspectorError('invalid_schema', `issues[${index}]にはRuleまたは作品表記辞書のevidenceが必要です`);
-    if (issue.issueType === 'required_rule_missing' && !evidenceRules.some(rule => rule.mode === 'require')) throw new NarrativeInspectorError('invalid_schema', `issues[${index}]はrequire Ruleを参照していません`);
-    if (issue.issueType === 'forbidden_rule_violation' && !evidenceRules.some(rule => rule.mode === 'forbid')) throw new NarrativeInspectorError('invalid_schema', `issues[${index}]はforbid Ruleを参照していません`);
+    if (issue.category === 'narrative_rule' && evidenceRules.length === 0 && evidenceCreativeRules.length === 0 && evidenceSymbols.length === 0) throw new NarrativeInspectorError('invalid_schema', `issues[${index}]にはRuleまたは作品表記辞書のevidenceが必要です`);
+    if (issue.issueType === 'required_rule_missing' && !evidenceRules.some(rule => rule.mode === 'require') && !evidenceCreativeRules.some(rule => rule.mode === 'required')) throw new NarrativeInspectorError('invalid_schema', `issues[${index}]はrequired Ruleを参照していません`);
+    if (issue.issueType === 'forbidden_rule_violation' && !evidenceRules.some(rule => rule.mode === 'forbid') && !evidenceCreativeRules.some(rule => rule.mode === 'forbidden')) throw new NarrativeInspectorError('invalid_schema', `issues[${index}]はforbidden Ruleを参照していません`);
     let severity = issue.severity as InspectorSeverity;
     const adjustments: string[] = [];
     if (severity === 'problem' && evidenceRules.length > 0 && evidenceRules.every(rule => rule.mode === 'guidance')) {
       severity = 'check';
       adjustments.push('guidance_only_problem_downgraded');
+    }
+    if (evidenceCreativeRules.length > 0 && evidenceCreativeRules.every(rule => rule.mode === 'reference')) {
+      if (issue.issueType === 'required_rule_missing' || issue.issueType === 'forbidden_rule_violation') throw new NarrativeInspectorError('invalid_schema', `issues[${index}]はreference Creative Ruleを違反として扱っています`);
+      if (severity !== 'suggestion') {
+        severity = 'suggestion';
+        adjustments.push('creative_reference_downgraded_to_suggestion');
+      }
     }
     if (issue.issueType === 'speaker_unclear' && severity === 'problem') {
       severity = 'check';
