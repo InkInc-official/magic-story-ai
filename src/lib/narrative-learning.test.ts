@@ -51,6 +51,12 @@ test('legacy Learningはrolloutだけなら継続しsemantic-v2再検査transiti
   assert.equal(learningStatusAfterReinspection(session, { issueFingerprint: 'issue', contentHash: 'content', contextFingerprint: 'semantic', fingerprintVersion: 'semantic-v2' }, false), 'stale');
 });
 
+test('semantic-v2 Learningはrolloutだけでは継続しsemantic-v3再検査transitionでstaleになる', () => {
+  const session = { startingIssueFingerprint: 'issue', startingContentHash: 'content', startingContextFingerprint: 'v2-context', fingerprintVersion: 'semantic-v2' };
+  assert.equal(learningSessionIsFresh(session, { issueFingerprint: 'issue', contentHash: 'content', contextFingerprint: 'v2-context', fingerprintVersion: 'semantic-v2' }), true);
+  assert.equal(learningStatusAfterReinspection(session, { issueFingerprint: 'issue', contentHash: 'content', contextFingerprint: 'v3-context', fingerprintVersion: 'semantic-v3' }, false), 'stale');
+});
+
 test('category fallbackは問いであり完成修正文を返さない', () => {
   for (const category of ['viewpoint', 'knowledge', 'voice', 'narrative_rule']) {
     const fallback = fallbackLearningQuestion(category);

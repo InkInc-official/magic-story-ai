@@ -53,6 +53,32 @@ test('allow Ruleの自由記述をpromptへ渡し、一般慣習より優先す�
   assert.match(NARRATIVE_INSPECTOR_SYSTEM_PROMPT, /Narrative Ruleを一般的な叙述慣習より優先/);
 });
 
+test('作者確認済み表記辞書を一般慣習より優先し、意味未設定をauthor truthにしない', () => {
+  const value = source('彼は『逃げろ』と叫んだ。「了解」');
+  value.symbolDictionary = {
+    definitions: [{ id: 'special', projectId: 'p1', openSymbol: '『', closeSymbol: '』', label: '特殊声', active: true, order: 0, defaultUsageRuleId: 'god' }],
+    usageRules: [{ id: 'god', projectId: 'p1', definitionId: 'special', label: '神の声', description: '声に出さず届く', semanticKind: 'special_voice', countsAsDialogue: false, countsAsNarration: false, countsAsInnerVoice: true, readerVisible: true, spokenAloud: false, speakerMode: 'unknown', fixedSpeakerId: null, priority: 100, active: true, provenance: 'author' }],
+    overrides: [],
+  };
+  const context = buildInspectorContext(value);
+  const prompt = buildNarrativeInspectorUserPrompt(context);
+  assert.match(prompt, /神の声/u);
+  assert.match(NARRATIVE_INSPECTOR_SYSTEM_PROMPT, /作者確認済みSymbol Dictionary/u);
+  assert.match(prompt, /意味未設定（一般慣習を作者設定として確定しない）/u);
+  assert.equal(context.textStructure.parseCount, 1);
+  assert.deepEqual(context.knowledge.authorTruth, []);
+  assert.deepEqual(context.knowledge.characters, []);
+  assert.ok(context.text.length <= 14_000);
+  const excerpt = '『逃げろ』';
+  const startOffset = context.inspectedText.excerpt.indexOf(excerpt);
+  const result = validateNarrativeInspectorOutput({ schemaVersion: 1, issues: [{
+    category: 'narrative_rule', issueType: 'rule_application_unclear', locationKind: 'excerpt', excerpt,
+    startOffset, endOffset: startOffset + excerpt.length, explanation: '作品表記辞書と「叫んだ」の関係を確認してください。',
+    suggestedDirection: '特殊表現か意図を確認する。', severity: 'check', evidenceRefs: ['symbol-definition:special', 'symbol-usage:god'],
+  }] }, context);
+  assert.equal(result.issues[0].issueType, 'rule_application_unclear');
+});
+
 test('Author Truthとbelieves_falseをprompt内で分離し、StoryFact差だけでIssueを作らない', async () => {
   const value = source('父はあの男に殺された。');
   value.storyFacts.push({ id: 'father', projectId: 'p1', content: '父親は殺されていない', importance: 'high', readerInitiallyKnows: false });

@@ -80,6 +80,11 @@ export function allowedInspectorEvidenceRefs(context: BuiltInspectorContext): Se
   context.rules.forEach(rule => refs.add(`rule:${rule.id}`));
   context.knowledge.authorTruth.forEach(fact => refs.add(`fact:${fact.id}`));
   context.manifest.characterKnowledge.forEach(event => refs.add(`knowledge:${event.id}`));
+  context.symbolSemantics.forEach(symbol => {
+    if (symbol.definitionId) refs.add(`symbol-definition:${symbol.definitionId}`);
+    symbol.activeUsages.forEach(usage => refs.add(`symbol-usage:${usage.id}`));
+    if (symbol.overrideId) refs.add(`symbol-override:${symbol.overrideId}`);
+  });
   return refs;
 }
 
@@ -116,7 +121,8 @@ export function validateNarrativeInspectorOutput(value: unknown, context: BuiltI
     if (!Array.isArray(issue.evidenceRefs) || issue.evidenceRefs.length === 0 || issue.evidenceRefs.length > 12 || issue.evidenceRefs.some(ref => typeof ref !== 'string' || !allowedRefs.has(ref))) throw new NarrativeInspectorError('invalid_schema', `issues[${index}].evidenceRefsが不正です`);
     const evidenceRefs = [...new Set(issue.evidenceRefs as string[])];
     const evidenceRules = evidenceRefs.filter(ref => ref.startsWith('rule:')).map(ref => context.rules.find(rule => `rule:${rule.id}` === ref)!);
-    if (issue.category === 'narrative_rule' && evidenceRules.length === 0) throw new NarrativeInspectorError('invalid_schema', `issues[${index}]にはRule evidenceが必要です`);
+    const evidenceSymbols = evidenceRefs.filter(ref => ref.startsWith('symbol-'));
+    if (issue.category === 'narrative_rule' && evidenceRules.length === 0 && evidenceSymbols.length === 0) throw new NarrativeInspectorError('invalid_schema', `issues[${index}]にはRuleまたは作品表記辞書のevidenceが必要です`);
     if (issue.issueType === 'required_rule_missing' && !evidenceRules.some(rule => rule.mode === 'require')) throw new NarrativeInspectorError('invalid_schema', `issues[${index}]はrequire Ruleを参照していません`);
     if (issue.issueType === 'forbidden_rule_violation' && !evidenceRules.some(rule => rule.mode === 'forbid')) throw new NarrativeInspectorError('invalid_schema', `issues[${index}]はforbid Ruleを参照していません`);
     let severity = issue.severity as InspectorSeverity;

@@ -2,6 +2,7 @@ import {
   analyzeJapaneseTextSource,
   getGraphemeRanges,
   type JapaneseTextSourceDocument,
+  type PairedSymbolRegion,
   type SourceRange,
   type StructuralSentence,
   type TextParagraph,
@@ -26,6 +27,7 @@ export interface InspectorStructureAdapterOptions {
 }
 
 export interface InspectorTextStructureContext {
+  parseCount: 1;
   parserVersion: string;
   adapterVersion: typeof INSPECTOR_STRUCTURE_ADAPTER_VERSION;
   requestedRange: SourceRange;
@@ -43,6 +45,8 @@ export interface InspectorTextStructureContext {
   expansionMode: InspectorStructureExpansionMode;
   diagnosticCodes: string[];
   fallbackReason: InspectorStructureFallbackReason | null;
+  /** Canonical parser regions reused by semantic adapters; not persisted as Issue identity. */
+  symbolRegions: PairedSymbolRegion[];
 }
 
 type AnalyzeText = (content: string) => JapaneseTextSourceDocument;
@@ -129,9 +133,10 @@ function resultFromRanges(
   parserVersion: string,
   beforeRange: SourceRange,
   afterRange: SourceRange,
-  values: Pick<InspectorTextStructureContext, 'overlappingSentenceIds' | 'overlappingParagraphIds' | 'anchorSentenceIds' | 'anchorParagraphIds' | 'sectionIds' | 'expansionMode' | 'diagnosticCodes' | 'fallbackReason'>,
+  values: Pick<InspectorTextStructureContext, 'overlappingSentenceIds' | 'overlappingParagraphIds' | 'anchorSentenceIds' | 'anchorParagraphIds' | 'sectionIds' | 'expansionMode' | 'diagnosticCodes' | 'fallbackReason' | 'symbolRegions'>,
 ): InspectorTextStructureContext {
   return {
+    parseCount: 1,
     parserVersion,
     adapterVersion: INSPECTOR_STRUCTURE_ADAPTER_VERSION,
     requestedRange: copyRange(input.requestedRange),
@@ -171,6 +176,7 @@ export function buildInspectorTextStructure(
       anchorSentenceIds: [], anchorParagraphIds: [],
       expansionMode: input.content.length === 0 ? 'none' : 'character-fallback',
       diagnosticCodes: [], fallbackReason: 'parser_exception',
+      symbolRegions: [],
     });
   }
 
@@ -181,6 +187,7 @@ export function buildInspectorTextStructure(
       overlappingSentenceIds: [], overlappingParagraphIds: [], sectionIds: [],
       anchorSentenceIds: [], anchorParagraphIds: [],
       expansionMode: 'none', diagnosticCodes, fallbackReason: null,
+      symbolRegions: analysis.symbolRegions,
     });
   }
 
@@ -195,6 +202,7 @@ export function buildInspectorTextStructure(
       overlappingSentenceIds: [], overlappingParagraphIds: [], sectionIds: [],
       anchorSentenceIds: [], anchorParagraphIds: [],
       expansionMode: 'character-fallback', diagnosticCodes, fallbackReason: 'no_structural_node',
+      symbolRegions: analysis.symbolRegions,
     });
   }
 
@@ -212,6 +220,7 @@ export function buildInspectorTextStructure(
       anchorParagraphIds: anchorParagraphs.map(value => value.id),
       sectionIds: [...new Set(anchors.map(value => value.sectionId))],
       expansionMode: 'character-fallback', diagnosticCodes, fallbackReason: 'giant_sentence',
+      symbolRegions: analysis.symbolRegions,
     });
   }
 
@@ -255,6 +264,6 @@ export function buildInspectorTextStructure(
     overlappingParagraphIds: overlappingParagraphs.map(value => value.id),
     anchorSentenceIds: anchors.map(value => value.id),
     anchorParagraphIds: anchorParagraphs.map(value => value.id),
-    sectionIds, expansionMode, diagnosticCodes, fallbackReason: null,
+    sectionIds, expansionMode, diagnosticCodes, fallbackReason: null, symbolRegions: analysis.symbolRegions,
   });
 }

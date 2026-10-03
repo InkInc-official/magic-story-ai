@@ -1,10 +1,10 @@
 import type { InspectorBuiltContext } from './inspector-context';
 import { buildContextFingerprint } from './narrative-inspector-persistence';
 
-export const INSPECTOR_FINGERPRINT_VERSIONS = ['legacy-v1', 'semantic-v2'] as const;
+export const INSPECTOR_FINGERPRINT_VERSIONS = ['legacy-v1', 'semantic-v2', 'semantic-v3'] as const;
 export type InspectorFingerprintVersion = typeof INSPECTOR_FINGERPRINT_VERSIONS[number];
 export const LEGACY_INSPECTOR_FINGERPRINT_VERSION: InspectorFingerprintVersion = 'legacy-v1';
-export const CURRENT_INSPECTOR_FINGERPRINT_VERSION: InspectorFingerprintVersion = 'semantic-v2';
+export const CURRENT_INSPECTOR_FINGERPRINT_VERSION: InspectorFingerprintVersion = 'semantic-v3';
 
 const byId = <T extends { id: string }>(values: T[]) => [...values].sort((a, b) => a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
 const eventValue = (event: InspectorBuiltContext['knowledge']['characters'][number]['beforeChapter']) => event ? {
@@ -23,8 +23,8 @@ const eventValue = (event: InspectorBuiltContext['knowledge']['characters'][numb
  * Inspector. Structural parser provenance and future semantic dependencies
  * (including the Project Symbol Dictionary) are deliberately excluded.
  */
-export function buildCanonicalInspectorSemanticFingerprintPayloadV2(context: InspectorBuiltContext) {
-  const included = new Set(context.budget.included.map(item => item.id));
+function canonicalInspectorSemanticFingerprintPayloadV2(context: InspectorBuiltContext, includedIds: readonly string[]) {
+  const included = new Set(includedIds);
   const readerByFact = new Map(context.knowledge.reader.map(value => [value.factId, value]));
 
   return {
@@ -105,9 +105,38 @@ export function buildCanonicalInspectorSemanticFingerprintPayloadV2(context: Ins
   };
 }
 
+export function buildCanonicalInspectorSemanticFingerprintPayloadV2(context: InspectorBuiltContext) {
+  return canonicalInspectorSemanticFingerprintPayloadV2(context, context.semanticV2Budget.included.map(item => item.id));
+}
+
+/** semantic-v3 extends the frozen v2 contract with only Symbol semantics actually supplied to Inspector. */
+export function buildCanonicalInspectorSemanticFingerprintPayloadV3(context: InspectorBuiltContext) {
+  return {
+    semanticV2: canonicalInspectorSemanticFingerprintPayloadV2(context, context.budget.included.map(item => item.id)),
+    symbolSemantics: context.symbolSemantics.map(value => ({
+      scope: value.scope,
+      startOffset: value.startOffset,
+      endOffset: value.endOffset,
+      openSymbol: value.openSymbol,
+      closeSymbol: value.closeSymbol,
+      rawText: value.rawText,
+      depth: value.depth,
+      definitionId: value.definitionId,
+      definitionLabel: value.definitionLabel,
+      resolution: value.resolution,
+      selectedUsage: value.selectedUsage,
+      defaultUsageId: value.defaultUsageId,
+      activeUsages: value.activeUsages,
+      overrideId: value.overrideId,
+      suggestedRange: value.suggestedRange,
+    })),
+  };
+}
+
 export function buildInspectorContextFingerprint(context: InspectorBuiltContext, version: InspectorFingerprintVersion): string {
   if (version === 'legacy-v1') return buildContextFingerprint(context.legacyFreshnessPayload);
   if (version === 'semantic-v2') return buildContextFingerprint(buildCanonicalInspectorSemanticFingerprintPayloadV2(context));
+  if (version === 'semantic-v3') return buildContextFingerprint(buildCanonicalInspectorSemanticFingerprintPayloadV3(context));
   const exhaustive: never = version;
   throw new Error(`Unsupported Inspector fingerprint version: ${exhaustive}`);
 }

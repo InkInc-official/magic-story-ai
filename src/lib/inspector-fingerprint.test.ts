@@ -3,9 +3,11 @@ import test from 'node:test';
 import { buildInspectorContext, type InspectorSources } from './inspector-context.js';
 import {
   buildCanonicalInspectorSemanticFingerprintPayloadV2,
+  buildCanonicalInspectorSemanticFingerprintPayloadV3,
   buildInspectorContextFingerprint,
   CURRENT_INSPECTOR_FINGERPRINT_VERSION,
 } from './inspector-fingerprint.js';
+import { buildSymbolOccurrenceAnchor } from './symbol-dictionary/occurrence-anchor.js';
 
 function source(): InspectorSources {
   return {
@@ -29,8 +31,8 @@ function source(): InspectorSources {
 
 const semantic = (value: InspectorSources) => buildInspectorContextFingerprint(buildInspectorContext(value), 'semantic-v2');
 
-test('CURRENT Inspector fingerprint versionはsemantic-v2', () => {
-  assert.equal(CURRENT_INSPECTOR_FINGERPRINT_VERSION, 'semantic-v2');
+test('CURRENT Inspector fingerprint versionはsemantic-v3', () => {
+  assert.equal(CURRENT_INSPECTOR_FINGERPRINT_VERSION, 'semantic-v3');
 });
 
 test('legacy-v1 dispatcherはrollout前fixtureを完全維持する', () => {
@@ -92,9 +94,58 @@ test('surrounding proseは意味入力だが構造node IDはpayloadへ入れな�
 });
 
 test('Symbol Dictionaryは6B-6のsemantic-v2 dependencyではない', () => {
-  const base = source();
-  const withDictionary = { ...source(), symbolDictionary: [{ id: 'definition', usage: 'telepathy' }] } as InspectorSources & { symbolDictionary: unknown[] };
+  const base = source(); base.chapter.content = '前<<<声>>>後。';
+  const withDictionary = source(); withDictionary.chapter.content = base.chapter.content;
+  withDictionary.symbolDictionary = {
+    definitions: [{ id: 'definition', projectId: 'p1', openSymbol: '<<<', closeSymbol: '>>>', label: '特殊声', active: true, order: 0, defaultUsageRuleId: null }],
+    usageRules: [], overrides: [],
+  };
   assert.equal(semantic(withDictionary), semantic(base));
+  assert.notEqual(buildInspectorContextFingerprint(buildInspectorContext(withDictionary), 'semantic-v3'), buildInspectorContextFingerprint(buildInspectorContext(base), 'semantic-v3'));
+});
+
+test('semantic-v3は実際に投入された関連Symbol semanticsだけをdependencyにする', () => {
+  const value = source();
+  value.chapter.content = '『声』と本文。';
+  value.symbolDictionary = {
+    definitions: [{ id: 'def', projectId: 'p1', openSymbol: '『', closeSymbol: '』', label: '特殊声', active: true, order: 10, defaultUsageRuleId: 'usage' }],
+    usageRules: [{ id: 'usage', projectId: 'p1', definitionId: 'def', label: '神の声', description: '主人公だけに届く', semanticKind: 'special_voice', countsAsDialogue: false, countsAsNarration: true, countsAsInnerVoice: null, readerVisible: true, spokenAloud: false, speakerMode: 'current_pov', fixedSpeakerId: null, priority: 100, active: true, provenance: 'author' }],
+    overrides: [],
+  };
+  const context = buildInspectorContext(value);
+  const initial = buildInspectorContextFingerprint(context, 'semantic-v3');
+  const changed = structuredClone(value); changed.symbolDictionary!.usageRules[0].description = '変更した意味';
+  assert.notEqual(buildInspectorContextFingerprint(buildInspectorContext(changed), 'semantic-v3'), initial);
+  const dimension = structuredClone(value); dimension.symbolDictionary!.usageRules[0].spokenAloud = true;
+  assert.notEqual(buildInspectorContextFingerprint(buildInspectorContext(dimension), 'semantic-v3'), initial);
+  const noDefault = structuredClone(value); noDefault.symbolDictionary!.definitions[0].defaultUsageRuleId = null;
+  assert.notEqual(buildInspectorContextFingerprint(buildInspectorContext(noDefault), 'semantic-v3'), initial);
+  assert.equal(buildInspectorContextFingerprint(buildInspectorContext(changed), 'semantic-v2'), buildInspectorContextFingerprint(context, 'semantic-v2'));
+  const orderOnly = structuredClone(value); orderOnly.symbolDictionary!.definitions[0].order = 999;
+  orderOnly.symbolDictionary!.usageRules[0].provenance = 'imported';
+  assert.equal(buildInspectorContextFingerprint(buildInspectorContext(orderOnly), 'semantic-v3'), initial);
+  assert.doesNotMatch(JSON.stringify(buildCanonicalInspectorSemanticFingerprintPayloadV3(context)), /parserVersion|parentRegionId|provenance|"order"/u);
+});
+
+test('semantic-v3は対象Occurrence Overrideの作成・変更を検知する', () => {
+  const value = source(); value.chapter.content = '『声』';
+  const definition = { id: 'def', projectId: 'p1', openSymbol: '『', closeSymbol: '』', label: '声', active: true, order: 0, defaultUsageRuleId: 'base' };
+  const baseRule = { id: 'base', projectId: 'p1', definitionId: 'def', label: '神', description: '', semanticKind: 'special_voice' as const, countsAsDialogue: null, countsAsNarration: null, countsAsInnerVoice: null, readerVisible: null, spokenAloud: false, speakerMode: 'unknown' as const, fixedSpeakerId: null, priority: 10, active: true, provenance: 'author' as const };
+  const phoneRule = { ...baseRule, id: 'phone', label: '電話', spokenAloud: true };
+  value.symbolDictionary = { definitions: [definition], usageRules: [baseRule, phoneRule], overrides: [] };
+  const initial = buildInspectorContextFingerprint(buildInspectorContext(value), 'semantic-v3');
+  const withOverride = structuredClone(value);
+  withOverride.symbolDictionary!.overrides = [buildSymbolOccurrenceAnchor({ id: 'ov', projectId: 'p1', chapterId: 'ch1', content: value.chapter.content, definition, usageRuleId: 'phone', status: 'confirmed', range: { startOffset: 0, endOffset: 3 } })];
+  assert.notEqual(buildInspectorContextFingerprint(buildInspectorContext(withOverride), 'semantic-v3'), initial);
+});
+
+test('semantic-v3は本文にない無関係pair変更を無視する', () => {
+  const value = source();
+  value.symbolDictionary = {
+    definitions: [{ id: 'unused', projectId: 'p1', openSymbol: '《', closeSymbol: '》', label: '未使用', active: true, order: 0, defaultUsageRuleId: null }],
+    usageRules: [], overrides: [],
+  };
+  assert.equal(buildInspectorContextFingerprint(buildInspectorContext(value), 'semantic-v3'), buildInspectorContextFingerprint(buildInspectorContext(source()), 'semantic-v3'));
 });
 
 test('versionは明示値だけを受け付けhash形状から推測しない', () => {
