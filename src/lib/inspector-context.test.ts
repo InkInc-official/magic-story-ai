@@ -171,14 +171,14 @@ test('rollout前のlegacy fingerprintを正確に維持し、semantic変更は�
   const fingerprint = (target: InspectorSources) => buildContextFingerprint(buildInspectorContext(target, { range: { start: 5, end: 9 } }).legacyFreshnessPayload);
   const beforeAdapterFingerprint = '54a95970fbd581da2e3f9bf28ebf632ec69a20ffcae498c613fe6503bd2f3ad9';
   assert.equal(fingerprint(value), beforeAdapterFingerprint);
-  const current = { contentHash: buildInspectorContext(value).inspectedText.contentHash, contextFingerprint: fingerprint(value) };
+  const current = { contentHash: buildInspectorContext(value).inspectedText.contentHash, contextFingerprint: fingerprint(value), fingerprintVersion: 'legacy-v1' };
   assert.equal(decisionIsFresh(
-    { issueFingerprint: 'issue', decidedAgainstContentHash: current.contentHash, decidedAgainstExcerpt: '本文', contextFingerprint: beforeAdapterFingerprint },
-    { fingerprint: 'issue', contentHash: current.contentHash, excerpt: '本文', contextFingerprint: current.contextFingerprint },
+    { issueFingerprint: 'issue', decidedAgainstContentHash: current.contentHash, decidedAgainstExcerpt: '本文', contextFingerprint: beforeAdapterFingerprint, fingerprintVersion: 'legacy-v1' },
+    { fingerprint: 'issue', contentHash: current.contentHash, excerpt: '本文', contextFingerprint: current.contextFingerprint, fingerprintVersion: 'legacy-v1' },
     current,
   ), true);
   assert.equal(learningSessionIsFresh(
-    { startingIssueFingerprint: 'issue', startingContentHash: current.contentHash, startingContextFingerprint: beforeAdapterFingerprint },
+    { startingIssueFingerprint: 'issue', startingContentHash: current.contentHash, startingContextFingerprint: beforeAdapterFingerprint, fingerprintVersion: 'legacy-v1' },
     { issueFingerprint: 'issue', ...current },
   ), true);
   assert.notEqual(fingerprint({ ...value, chapter: { ...value.chapter, content: `${value.chapter.content}変更。` } }), beforeAdapterFingerprint);

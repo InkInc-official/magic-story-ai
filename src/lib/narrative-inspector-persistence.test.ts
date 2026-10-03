@@ -59,21 +59,30 @@ test('部分検査は範囲内だけresolved対象にし、本文hash変更時�
 });
 
 test('作者判断はIssue・本文・excerpt・context完全一致時だけfresh', () => {
-  const decision = { issueFingerprint: 'fp', decidedAgainstContentHash: 'content', decidedAgainstExcerpt: 'excerpt', contextFingerprint: 'context' };
-  const target = { fingerprint: 'fp', contentHash: 'content', excerpt: 'excerpt', contextFingerprint: 'context' };
-  const current = { contentHash: 'content', contextFingerprint: 'context' };
+  const decision = { issueFingerprint: 'fp', decidedAgainstContentHash: 'content', decidedAgainstExcerpt: 'excerpt', contextFingerprint: 'context', fingerprintVersion: 'semantic-v2' };
+  const target = { fingerprint: 'fp', contentHash: 'content', excerpt: 'excerpt', contextFingerprint: 'context', fingerprintVersion: 'semantic-v2' };
+  const current = { contentHash: 'content', contextFingerprint: 'context', fingerprintVersion: 'semantic-v2' };
   assert.equal(decisionIsFresh(decision, target, current), true);
   assert.equal(decisionIsFresh(decision, { ...target, excerpt: 'changed' }, current), false);
   assert.equal(decisionIsFresh(decision, target, { ...current, contentHash: 'changed' }), false);
   assert.equal(decisionIsFresh(decision, target, { ...current, contextFingerprint: 'changed' }), false);
+  assert.equal(decisionIsFresh(decision, target, { ...current, fingerprintVersion: 'legacy-v1' }), false);
 });
 
 test('全作者判断種別はAdapter rolloutだけではfreshnessを失わない', () => {
   for (const decisionValue of ['accepted_issue', 'allowed_exception', 'not_an_issue']) {
-    const decision = { decision: decisionValue, issueFingerprint: 'fp', decidedAgainstContentHash: 'content', decidedAgainstExcerpt: 'excerpt', contextFingerprint: 'legacy-compatible' };
-    const target = { fingerprint: 'fp', contentHash: 'content', excerpt: 'excerpt', contextFingerprint: 'legacy-compatible' };
-    assert.equal(decisionIsFresh(decision, target, { contentHash: 'content', contextFingerprint: 'legacy-compatible' }), true);
+    const decision = { decision: decisionValue, issueFingerprint: 'fp', decidedAgainstContentHash: 'content', decidedAgainstExcerpt: 'excerpt', contextFingerprint: 'legacy-compatible', fingerprintVersion: 'legacy-v1' };
+    const target = { fingerprint: 'fp', contentHash: 'content', excerpt: 'excerpt', contextFingerprint: 'legacy-compatible', fingerprintVersion: 'legacy-v1' };
+    assert.equal(decisionIsFresh(decision, target, { contentHash: 'content', contextFingerprint: 'legacy-compatible', fingerprintVersion: 'legacy-v1' }), true);
   }
+});
+
+test('legacy Decisionはrolloutだけではfreshだがsemantic-v2 Issueへの再検査transition後はfreshではない', () => {
+  const decision = { issueFingerprint: 'fp', decidedAgainstContentHash: 'content', decidedAgainstExcerpt: 'excerpt', contextFingerprint: 'legacy', fingerprintVersion: 'legacy-v1' };
+  const legacyIssue = { fingerprint: 'fp', contentHash: 'content', excerpt: 'excerpt', contextFingerprint: 'legacy', fingerprintVersion: 'legacy-v1' };
+  assert.equal(decisionIsFresh(decision, legacyIssue, { contentHash: 'content', contextFingerprint: 'legacy', fingerprintVersion: 'legacy-v1' }), true);
+  const reinspectedIssue = { ...legacyIssue, contextFingerprint: 'semantic', fingerprintVersion: 'semantic-v2' };
+  assert.equal(decisionIsFresh(decision, reinspectedIssue, { contentHash: 'content', contextFingerprint: 'semantic', fingerprintVersion: 'semantic-v2' }), false);
 });
 
 test('successful runはpending作成後にatomic commitしcompleted結果を返す', async () => {

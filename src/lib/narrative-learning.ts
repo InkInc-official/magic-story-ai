@@ -29,10 +29,11 @@ export function parseLearningOutput(raw: string, requestedLevel: LearningLevel) 
   return { schemaVersion: 1 as const, level: requestedLevel, content: value.content.trim() };
 }
 
-export function learningSessionIsFresh(session: { startingIssueFingerprint: string; startingContentHash: string; startingContextFingerprint: string }, current: { issueFingerprint: string; contentHash: string; contextFingerprint: string }) {
+export function learningSessionIsFresh(session: { startingIssueFingerprint: string; startingContentHash: string; startingContextFingerprint: string; fingerprintVersion: string }, current: { issueFingerprint: string; contentHash: string; contextFingerprint: string; fingerprintVersion: string }) {
   return session.startingIssueFingerprint === current.issueFingerprint
     && session.startingContentHash === current.contentHash
-    && session.startingContextFingerprint === current.contextFingerprint;
+    && session.startingContextFingerprint === current.contextFingerprint
+    && session.fingerprintVersion === current.fingerprintVersion;
 }
 
 export function nextLearningLevel(currentLevel: number): 1 | 2 {
@@ -42,8 +43,8 @@ export function nextLearningLevel(currentLevel: number): 1 | 2 {
 }
 
 export function learningStatusAfterReinspection(
-  session: { startingIssueFingerprint: string; startingContentHash: string; startingContextFingerprint: string },
-  current: { issueFingerprint: string; contentHash: string; contextFingerprint: string },
+  session: { startingIssueFingerprint: string; startingContentHash: string; startingContextFingerprint: string; fingerprintVersion: string },
+  current: { issueFingerprint: string; contentHash: string; contextFingerprint: string; fingerprintVersion: string },
   issueResolvedInScope: boolean,
 ): 'active' | 'completed' | 'stale' {
   if (issueResolvedInScope) return 'completed';

@@ -28,20 +28,27 @@ test('HintはLevel 0→1→2の順だけで、Level 2より先へ進まない', 
 });
 
 test('本文・Context・Issue fingerprint変更後はSessionをfresh扱いしない', () => {
-  const session = { startingIssueFingerprint: 'issue', startingContentHash: 'content', startingContextFingerprint: 'context' };
-  assert.equal(learningSessionIsFresh(session, { issueFingerprint: 'issue', contentHash: 'content', contextFingerprint: 'context' }), true);
-  assert.equal(learningSessionIsFresh(session, { issueFingerprint: 'changed', contentHash: 'content', contextFingerprint: 'context' }), false);
-  assert.equal(learningSessionIsFresh(session, { issueFingerprint: 'issue', contentHash: 'changed', contextFingerprint: 'context' }), false);
-  assert.equal(learningSessionIsFresh(session, { issueFingerprint: 'issue', contentHash: 'content', contextFingerprint: 'changed' }), false);
+  const session = { startingIssueFingerprint: 'issue', startingContentHash: 'content', startingContextFingerprint: 'context', fingerprintVersion: 'semantic-v2' };
+  assert.equal(learningSessionIsFresh(session, { issueFingerprint: 'issue', contentHash: 'content', contextFingerprint: 'context', fingerprintVersion: 'semantic-v2' }), true);
+  assert.equal(learningSessionIsFresh(session, { issueFingerprint: 'changed', contentHash: 'content', contextFingerprint: 'context', fingerprintVersion: 'semantic-v2' }), false);
+  assert.equal(learningSessionIsFresh(session, { issueFingerprint: 'issue', contentHash: 'changed', contextFingerprint: 'context', fingerprintVersion: 'semantic-v2' }), false);
+  assert.equal(learningSessionIsFresh(session, { issueFingerprint: 'issue', contentHash: 'content', contextFingerprint: 'changed', fingerprintVersion: 'semantic-v2' }), false);
+  assert.equal(learningSessionIsFresh(session, { issueFingerprint: 'issue', contentHash: 'content', contextFingerprint: 'context', fingerprintVersion: 'legacy-v1' }), false);
 });
 
 test('再検査はscope内で元Issueが消えた時だけcompletedにし、残存や範囲外を成功扱いしない', () => {
-  const session = { startingIssueFingerprint: 'issue', startingContentHash: 'content', startingContextFingerprint: 'context' };
-  const same = { issueFingerprint: 'issue', contentHash: 'content', contextFingerprint: 'context' };
+  const session = { startingIssueFingerprint: 'issue', startingContentHash: 'content', startingContextFingerprint: 'context', fingerprintVersion: 'semantic-v2' };
+  const same = { issueFingerprint: 'issue', contentHash: 'content', contextFingerprint: 'context', fingerprintVersion: 'semantic-v2' };
   assert.equal(learningStatusAfterReinspection(session, same, true), 'completed');
   assert.equal(learningStatusAfterReinspection(session, same, false), 'active');
   assert.equal(learningStatusAfterReinspection(session, { ...same, contentHash: 'changed' }, false), 'stale');
   assert.equal(learningStatusAfterReinspection(session, { ...same, issueFingerprint: 'different-issue' }, true), 'completed');
+});
+
+test('legacy Learningはrolloutだけなら継続しsemantic-v2再検査transitionではstaleになる', () => {
+  const session = { startingIssueFingerprint: 'issue', startingContentHash: 'content', startingContextFingerprint: 'legacy', fingerprintVersion: 'legacy-v1' };
+  assert.equal(learningSessionIsFresh(session, { issueFingerprint: 'issue', contentHash: 'content', contextFingerprint: 'legacy', fingerprintVersion: 'legacy-v1' }), true);
+  assert.equal(learningStatusAfterReinspection(session, { issueFingerprint: 'issue', contentHash: 'content', contextFingerprint: 'semantic', fingerprintVersion: 'semantic-v2' }, false), 'stale');
 });
 
 test('category fallbackは問いであり完成修正文を返さない', () => {

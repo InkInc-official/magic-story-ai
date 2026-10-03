@@ -3,9 +3,9 @@ import { createChatCompletion } from './ai-client';
 import { db } from './db';
 import { loadAndBuildInspectorContext } from './inspector-context-loader';
 import { sanitizeInspectorText, type NarrativeInspectorIssue } from './narrative-inspector';
-import { buildContextFingerprint } from './narrative-inspector-persistence';
 import { fallbackLearningQuestion, learningSessionIsFresh, NarrativeLearningError, nextLearningLevel, parseLearningOutput } from './narrative-learning';
 import { buildNarrativeLearningPrompt, NARRATIVE_LEARNING_PROMPT_VERSION, NARRATIVE_LEARNING_SYSTEM_PROMPT } from './prompts/ja/narrative-learning';
+import { buildInspectorContextFingerprint, isInspectorFingerprintVersion, type InspectorFingerprintVersion } from './inspector-fingerprint';
 
 type LearningCompletion = (messages: Array<{ role: 'system' | 'user'; content: string }>) => Promise<string>;
 
@@ -22,9 +22,14 @@ function issueForPrompt(issue: { category: string; issueType: string; excerpt: s
   };
 }
 
-async function currentLearningContext(projectId: string, chapterId: string) {
+async function currentLearningContext(projectId: string, chapterId: string, fingerprintVersion: InspectorFingerprintVersion) {
   const context = await loadAndBuildInspectorContext(projectId, chapterId);
-  return { context, contentHash: context.inspectedText.contentHash, contextFingerprint: buildContextFingerprint(context.legacyFreshnessPayload) };
+  return { context, contentHash: context.inspectedText.contentHash, contextFingerprint: buildInspectorContextFingerprint(context, fingerprintVersion), fingerprintVersion };
+}
+
+function storedVersion(value: string): InspectorFingerprintVersion {
+  if (!isInspectorFingerprintVersion(value)) throw new NarrativeLearningError('invalid_input', `未対応のInspector fingerprint versionです: ${value}`);
+  return value;
 }
 
 function publicSession<T extends { evidenceRefsSnapshot: string }>(session: T) {
@@ -49,10 +54,11 @@ export async function startLearningSession(issueId: string, projectId: string, c
   const issue = await db.narrativeIssue.findFirst({ where: { id: issueId, projectId }, include: { learningSessions: { where: { status: 'active' }, include: { steps: { orderBy: { level: 'asc' } } }, take: 1 } } });
   if (!issue) throw new NarrativeLearningError('not_found', 'Issueが見つからないかProject境界が不正です');
   if (issue.status !== 'open') throw new NarrativeLearningError('invalid_input', '現在openではないIssueから学習を開始するには再検査が必要です');
-  const current = await currentLearningContext(projectId, issue.chapterId);
+  const fingerprintVersion = storedVersion(issue.fingerprintVersion);
+  const current = await currentLearningContext(projectId, issue.chapterId, fingerprintVersion);
   const active = issue.learningSessions[0];
   if (active) {
-    if (learningSessionIsFresh(active, { issueFingerprint: issue.fingerprint, contentHash: current.contentHash, contextFingerprint: current.contextFingerprint })) return publicSession(active);
+    if (learningSessionIsFresh(active, { issueFingerprint: issue.fingerprint, contentHash: current.contentHash, contextFingerprint: current.contextFingerprint, fingerprintVersion: current.fingerprintVersion })) return publicSession(active);
     await db.narrativeLearningSession.update({ where: { id: active.id }, data: { status: 'stale' } });
   }
   const promptIssue = issueForPrompt(issue);
@@ -67,6 +73,7 @@ export async function startLearningSession(issueId: string, projectId: string, c
       const created = await transaction.narrativeLearningSession.create({ data: {
         projectId, chapterId: issue.chapterId, issueId: issue.id,
         startingIssueFingerprint: issue.fingerprint, startingContentHash: current.contentHash, startingContextFingerprint: current.contextFingerprint,
+        fingerprintVersion,
         issueExcerptSnapshot: issue.excerpt, issueExplanationSnapshot: issue.explanation, evidenceRefsSnapshot: issue.evidenceRefs,
       } });
       await transaction.narrativeLearningStep.create({ data: {
@@ -86,13 +93,14 @@ export async function startLearningSession(issueId: string, projectId: string, c
 }
 
 export async function getLearningSession(issueId: string, projectId: string) {
-  const issue = await db.narrativeIssue.findFirst({ where: { id: issueId, projectId }, select: { id: true, chapterId: true, fingerprint: true } });
+  const issue = await db.narrativeIssue.findFirst({ where: { id: issueId, projectId }, select: { id: true, chapterId: true, fingerprint: true, fingerprintVersion: true } });
   if (!issue) throw new NarrativeLearningError('not_found', 'Issueが見つからないかProject境界が不正です');
   const session = await db.narrativeLearningSession.findFirst({ where: { issueId }, include: { steps: { orderBy: { level: 'asc' } } }, orderBy: { createdAt: 'desc' } });
   if (!session) return null;
   if (session.status === 'active') {
-    const current = await currentLearningContext(projectId, issue.chapterId);
-    if (!learningSessionIsFresh(session, { issueFingerprint: issue.fingerprint, contentHash: current.contentHash, contextFingerprint: current.contextFingerprint })) {
+    const fingerprintVersion = storedVersion(issue.fingerprintVersion);
+    const current = await currentLearningContext(projectId, issue.chapterId, fingerprintVersion);
+    if (!learningSessionIsFresh(session, { issueFingerprint: issue.fingerprint, contentHash: current.contentHash, contextFingerprint: current.contextFingerprint, fingerprintVersion: current.fingerprintVersion })) {
       return publicSession(await db.narrativeLearningSession.update({ where: { id: session.id }, data: { status: 'stale' }, include: { steps: { orderBy: { level: 'asc' } } } }));
     }
   }
@@ -103,8 +111,9 @@ export async function requestLearningHint(sessionId: string, projectId: string, 
   const session = await db.narrativeLearningSession.findFirst({ where: { id: sessionId, projectId }, include: { issue: true, steps: { orderBy: { level: 'asc' } } } });
   if (!session) throw new NarrativeLearningError('not_found', 'Learning Sessionが見つからないかProject境界が不正です');
   if (session.status !== 'active') throw new NarrativeLearningError(session.status === 'stale' ? 'stale' : 'invalid_input', 'このSessionは継続できません');
-  const current = await currentLearningContext(projectId, session.chapterId);
-  if (!learningSessionIsFresh(session, { issueFingerprint: session.issue.fingerprint, contentHash: current.contentHash, contextFingerprint: current.contextFingerprint })) {
+  const fingerprintVersion = storedVersion(session.issue.fingerprintVersion);
+  const current = await currentLearningContext(projectId, session.chapterId, fingerprintVersion);
+  if (!learningSessionIsFresh(session, { issueFingerprint: session.issue.fingerprint, contentHash: current.contentHash, contextFingerprint: current.contextFingerprint, fingerprintVersion: current.fingerprintVersion })) {
     await db.narrativeLearningSession.update({ where: { id: session.id }, data: { status: 'stale' } });
     throw new NarrativeLearningError('stale', '本文または設定が変更されています。再検査して新しいIssueから学習を開始してください');
   }

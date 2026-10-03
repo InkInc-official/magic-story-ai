@@ -490,6 +490,7 @@ model NarrativeInspectionRun {
   contentHash          String   @default("")
   contextManifest      String   @default("")
   contextFingerprint   String   @default("")
+  fingerprintVersion  String   @default("legacy-v1")
   inspectorVersion     String
   status               String   @default("pending")
   error                String   @default("")
@@ -527,6 +528,7 @@ model NarrativeIssue {
   status             String   @default("open")
   contentHash        String
   contextFingerprint String
+  fingerprintVersion String @default("legacy-v1")
   inspectorVersion   String
   firstDetectedAt    DateTime @default(now())
   lastDetectedAt     DateTime @default(now())
@@ -556,6 +558,7 @@ model NarrativeIssueDecision {
   decidedAgainstContentHash String
   decidedAgainstExcerpt    String
   contextFingerprint       String
+  fingerprintVersion       String @default("legacy-v1")
   createdAt                DateTime @default(now())
 
   issue NarrativeIssue @relation(fields: [issueId], references: [id], onDelete: Cascade)
@@ -572,6 +575,7 @@ model NarrativeLearningSession {
   startingIssueFingerprint   String
   startingContentHash        String
   startingContextFingerprint String
+  fingerprintVersion         String   @default("legacy-v1")
   issueExcerptSnapshot       String
   issueExplanationSnapshot   String
   evidenceRefsSnapshot       String   @default("[]")

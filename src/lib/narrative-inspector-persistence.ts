@@ -6,6 +6,7 @@ export const NARRATIVE_ISSUE_STATUSES = ['open', 'resolved', 'stale', 'supersede
 export const NARRATIVE_ISSUE_DECISIONS = ['accepted_issue', 'allowed_exception', 'not_an_issue'] as const;
 export type NarrativeIssueStatus = typeof NARRATIVE_ISSUE_STATUSES[number];
 export type NarrativeIssueDecisionValue = typeof NARRATIVE_ISSUE_DECISIONS[number];
+export interface FingerprintedContext { contentHash: string; contextFingerprint: string; fingerprintVersion: string }
 
 export interface PersistedIssueShape {
   id: string;
@@ -76,13 +77,15 @@ export function partitionReinspection(existing: PersistedIssueShape[], detectedF
   };
 }
 
-export function decisionIsFresh(decision: { issueFingerprint: string; decidedAgainstContentHash: string; decidedAgainstExcerpt: string; contextFingerprint: string }, issue: { fingerprint: string; contentHash: string; excerpt: string; contextFingerprint: string }, current: { contentHash: string; contextFingerprint: string }) {
+export function decisionIsFresh(decision: { issueFingerprint: string; decidedAgainstContentHash: string; decidedAgainstExcerpt: string; contextFingerprint: string; fingerprintVersion: string }, issue: { fingerprint: string; contentHash: string; excerpt: string; contextFingerprint: string; fingerprintVersion: string }, current: FingerprintedContext) {
   return decision.issueFingerprint === issue.fingerprint
     && decision.decidedAgainstContentHash === issue.contentHash
     && decision.decidedAgainstContentHash === current.contentHash
     && decision.decidedAgainstExcerpt === issue.excerpt
     && decision.contextFingerprint === issue.contextFingerprint
-    && decision.contextFingerprint === current.contextFingerprint;
+    && decision.contextFingerprint === current.contextFingerprint
+    && decision.fingerprintVersion === issue.fingerprintVersion
+    && decision.fingerprintVersion === current.fingerprintVersion;
 }
 
 export async function executeInspectionRun<Run, Result>(operations: {

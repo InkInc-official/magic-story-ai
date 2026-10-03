@@ -278,3 +278,5 @@ export function buildInspectorContext(source: InspectorSources, options: Inspect
     legacyFreshnessPayload: { manifest: legacyManifest, semanticContext: legacyBudget.text },
   };
 }
+
+export type InspectorBuiltContext = ReturnType<typeof buildInspectorContext>;
