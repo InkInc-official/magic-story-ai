@@ -14,6 +14,8 @@ test('DB rowなしbuilt-inを未分類表示するだけで入力を変更しな
   const result = browse('「本文」', { overrides });
   assert.equal(result.items[0].status, 'unresolved'); assert.equal(result.counts.unresolved, 1);
   assert.equal(result.parseCount, 1); assert.deepEqual(overrides, []);
+  assert.equal(result.metrics.confirmedSemanticGraphemes, 0);
+  assert.equal(result.metrics.unresolvedSemanticGraphemes, 2);
 });
 
 test('default・override優先・nested・malformedを表示分類する', () => {
@@ -24,6 +26,8 @@ test('default・override優先・nested・malformedを表示分類する', () =>
   const override = buildSymbolOccurrenceAnchor({ id: 'o', projectId, chapterId, content, definition: base, usageRuleId: 'special', status: 'confirmed', range: { startOffset: 0, endOffset: content.length } });
   const result = browse(content, { definitions: [base, inner], usageRules: [rule(), innerRule, overrideRule], overrides: [override] });
   assert.deepEqual(result.items.map(value => [value.depth, value.status, value.usageRule?.id]), [[0, 'confirmed_override', 'special'], [1, 'confirmed_default', 'inner-r']]);
+  assert.equal(result.metrics.confirmedOccurrenceCount, 2);
+  assert.equal(result.metrics.dialogueGraphemes, 4);
   assert.equal(browse('「閉じない', { definitions: [base], usageRules: [rule()] }).items[0].status, 'invalid_structure');
 });
 

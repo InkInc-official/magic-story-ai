@@ -5,3 +5,4 @@ export * from './occurrence-anchor';
 export * from './resolver';
 export * from './persistence-validation';
 export * from './occurrence-browser';
+export * from './semantic-metrics';

@@ -1,6 +1,7 @@
 import { getGraphemeRanges, type SourceRange } from '../japanese-text';
 import { matchSymbolOccurrence } from './occurrence-anchor';
 import { resolveSymbolOccurrences } from './resolver';
+import { computeSymbolSemanticMetrics, type SymbolSemanticMetrics } from './semantic-metrics';
 import type { ResolveSymbolOccurrencesInput, ResolvedSymbolOccurrence, SymbolOccurrenceOverride } from './types';
 
 export type OccurrenceReanchorState = 'reanchorable' | 'ambiguous' | 'not_found' | null;
@@ -30,6 +31,7 @@ export interface SymbolOccurrenceBrowserResult {
   parseCount: 1;
   items: SymbolOccurrenceBrowserItem[];
   counts: { total: number; unresolved: number; review: number; confirmed: number };
+  metrics: SymbolSemanticMetrics;
 }
 
 function safeContext(content: string, range: SourceRange, graphemes: ReturnType<typeof getGraphemeRanges>, radius = 48) {
@@ -91,5 +93,11 @@ export function buildSymbolOccurrenceBrowser(input: ResolveSymbolOccurrencesInpu
     else if (item.status === 'stale_override' || item.status === 'invalid_structure') counts.review += 1;
     else counts.confirmed += 1;
   }
-  return { parserVersion: resolved.parserVersion, parseCount: resolved.parseCount, items, counts };
+  const metrics = computeSymbolSemanticMetrics({
+    content: input.content,
+    analysis: resolved.analysis,
+    occurrences: resolved.occurrences,
+    orphanedStaleOccurrenceCount: items.filter(item => item.orphanedOverride && item.status === 'stale_override').length,
+  });
+  return { parserVersion: resolved.parserVersion, parseCount: resolved.parseCount, items, counts, metrics };
 }

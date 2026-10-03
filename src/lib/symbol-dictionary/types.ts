@@ -1,4 +1,4 @@
-import type { PairedSymbolRegion, SourceRange, SymbolPairDefinition, TextDiagnostic } from '../japanese-text';
+import type { JapaneseTextSourceDocument, PairedSymbolRegion, SourceRange, SymbolPairDefinition, TextDiagnostic } from '../japanese-text';
 
 export const SYMBOL_SEMANTIC_KINDS = ['dialogue', 'inner_voice', 'quotation', 'narrative_span', 'displayed_text', 'special_voice', 'custom'] as const;
 export const SYMBOL_SPEAKER_MODES = ['none', 'fixed_character', 'current_pov', 'contextual', 'unknown'] as const;
@@ -100,6 +100,7 @@ export interface ResolveSymbolOccurrencesInput {
 }
 
 export interface ResolveSymbolOccurrencesResult {
+  analysis: JapaneseTextSourceDocument;
   parserVersion: string;
   runtimeDefinitions: RuntimeSymbolPairDefinition[];
   occurrences: ResolvedSymbolOccurrence[];

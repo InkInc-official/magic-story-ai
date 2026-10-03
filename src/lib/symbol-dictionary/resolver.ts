@@ -82,7 +82,7 @@ export function resolveSymbolOccurrences(input: ResolveSymbolOccurrencesInput): 
     return { region, rawText, definition, usageRule: null, conventionalSuggestion: null, override: null, status: 'unresolved', suggestedRange: null };
   });
 
-  return { parserVersion: analysis.parserVersion, runtimeDefinitions, occurrences, diagnostics: analysis.diagnostics, parseCount: 1 };
+  return { analysis, parserVersion: analysis.parserVersion, runtimeDefinitions, occurrences, diagnostics: analysis.diagnostics, parseCount: 1 };
 }
 
 export class SymbolDictionaryInputError extends Error {

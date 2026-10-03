@@ -19,6 +19,7 @@ import { hasUnsavedInspectorChanges } from '@/lib/narrative-inspector';
 import { APP_LOCALE, EMOTION_ARC_LABELS, EMOTION_LABELS, HOOK_LABELS } from '@/lib/i18n';
 import { useJapaneseTextAnalysis } from '@/hooks/use-japanese-text-analysis';
 import { resolveCurrentChapterTarget } from '@/lib/current-chapter-metrics';
+import { semanticMetricsUseOlderSavedContent, type SymbolSemanticMetrics } from '@/lib/symbol-dictionary/semantic-metrics';
 import {
   buildChapterFullUserMessage,
   buildChapterSummaryUserMessage,
@@ -112,11 +113,16 @@ export function ChapterEditor({ projectId }: ChapterEditorProps) {
   const [showEmotion, setShowEmotion] = useState(false);
   const [sidePanel, setSidePanel] = useState<'none' | 'preview' | 'antiAi' | 'adversarial' | 'inspector'>('preview');
   const [generatingPhase, setGeneratingPhase] = useState<'none' | 'summary' | 'full'>('none');
+  const [symbolMetrics, setSymbolMetrics] = useState<SymbolSemanticMetrics | null>(null);
+  const [symbolMetricsLoading, setSymbolMetricsLoading] = useState(false);
+  const [symbolMetricsError, setSymbolMetricsError] = useState('');
+  const [symbolMetricsRefresh, setSymbolMetricsRefresh] = useState(0);
   const { analysis: currentAnalysis, metrics: currentMetrics, isDeferred: currentAnalysisIsDeferred } = useJapaneseTextAnalysis(editContent);
   const currentTargetWordCount = resolveCurrentChapterTarget(editTargetWordCount, projectDefaultChapterTarget);
   const { setActiveAgent, setActiveChapterId } = useAppStore();
   const abortRef = useRef<AbortController | null>(null);
   const contentRef = useRef<HTMLTextAreaElement | null>(null);
+  const symbolMetricsRequestToken = useRef(0);
 
   const loadGenerationContext = async (): Promise<ChapterGenerationSource> => {
     const selectedChapter = chapters.find(chapter => chapter.id === selectedId);
@@ -223,6 +229,31 @@ export function ChapterEditor({ projectId }: ChapterEditorProps) {
     fetchChapters();
   }, [fetchChapters]);
 
+  useEffect(() => {
+    if (!selectedId) { setSymbolMetrics(null); setSymbolMetricsError(''); setSymbolMetricsLoading(false); return; }
+    const controller = new AbortController();
+    const token = ++symbolMetricsRequestToken.current;
+    setSymbolMetricsLoading(true); setSymbolMetricsError('');
+    void fetch(`/api/symbol-occurrences?projectId=${encodeURIComponent(projectId)}&chapterId=${encodeURIComponent(selectedId)}`, { signal: controller.signal })
+      .then(async response => {
+        if (!response.ok) {
+          const value = await response.json().catch(() => ({})) as { error?: string };
+          throw new Error(value.error || '作品表記の分析を取得できませんでした。');
+        }
+        return response.json() as Promise<{ metrics: SymbolSemanticMetrics }>;
+      })
+      .then(value => { if (token === symbolMetricsRequestToken.current) setSymbolMetrics(value.metrics); })
+      .catch(error => { if (!controller.signal.aborted && token === symbolMetricsRequestToken.current) { setSymbolMetrics(null); setSymbolMetricsError(error instanceof Error ? error.message : '作品表記の分析を取得できませんでした。'); } })
+      .finally(() => { if (!controller.signal.aborted && token === symbolMetricsRequestToken.current) setSymbolMetricsLoading(false); });
+    return () => controller.abort();
+  }, [projectId, selectedId, symbolMetricsRefresh]);
+
+  useEffect(() => {
+    const refresh = () => setSymbolMetricsRefresh(value => value + 1);
+    window.addEventListener('symbol-dictionary-changed', refresh);
+    return () => window.removeEventListener('symbol-dictionary-changed', refresh);
+  }, []);
+
   const selectChapter = (chapter: Chapter) => {
     setSelectedId(chapter.id);
     setActiveChapterId(chapter.id);
@@ -317,6 +348,7 @@ export function ChapterEditor({ projectId }: ChapterEditorProps) {
       });
       if (res.ok) {
         await fetchChapters();
+        setSymbolMetricsRefresh(value => value + 1);
       }
     } catch (e) {
       console.error('Failed to save chapter:', e);
@@ -468,6 +500,7 @@ export function ChapterEditor({ projectId }: ChapterEditorProps) {
   const inspectorDirty = Boolean(selectedChapter && hasUnsavedInspectorChanges(selectedChapter, {
     content: editContent, title: editTitle, povCharacterId: editPovCharacterId, narratorId: editNarratorId,
   }));
+  const symbolMetricsDirty = Boolean(selectedChapter && semanticMetricsUseOlderSavedContent(selectedChapter.content, editContent));
 
   const totalWords = chapters.reduce((sum, c) => sum + c.wordCount, 0);
   const completedCount = chapters.filter(c => c.status === 'completed').length;
@@ -836,7 +869,7 @@ export function ChapterEditor({ projectId }: ChapterEditorProps) {
                   rows={18}
                   className="text-sm leading-relaxed resize-none min-h-[350px]"
                 />
-                <JapaneseTextAnalyticsPanel analysis={currentAnalysis} />
+                <JapaneseTextAnalyticsPanel analysis={currentAnalysis} symbolMetrics={symbolMetrics} symbolMetricsLoading={symbolMetricsLoading} symbolMetricsError={symbolMetricsError} symbolMetricsDirty={symbolMetricsDirty} />
               </CardContent>
             </Card>
           ) : (
