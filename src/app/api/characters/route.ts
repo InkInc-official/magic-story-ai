@@ -120,21 +120,30 @@ export async function DELETE(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
+    const projectId = searchParams.get('projectId');
 
-    if (!id) {
-      return NextResponse.json({ error: 'Character ID is required' }, { status: 400 });
+    if (!id || !projectId) {
+      return NextResponse.json({ error: '人物IDとProject IDは必須です' }, { status: 400 });
     }
 
-    await db.$transaction(async transaction => {
+    const deleted = await db.$transaction(async transaction => {
+      const character = await transaction.character.findFirst({
+        where: { id, projectId },
+        select: { id: true },
+      });
+      if (!character) return false;
+
       // Keep SymbolUsageRule valid when its fixed speaker is removed. The DB FK
       // remains SET NULL as a final safeguard; normal application deletion also
       // changes the semantic mode in the same transaction.
       await transaction.symbolUsageRule.updateMany({
-        where: { fixedSpeakerId: id },
+        where: { projectId, fixedSpeakerId: id, speakerMode: 'fixed_character' },
         data: { fixedSpeakerId: null, speakerMode: 'unknown' },
       });
-      await transaction.character.delete({ where: { id } });
+      await transaction.character.delete({ where: { id: character.id } });
+      return true;
     });
+    if (!deleted) return NextResponse.json({ error: '人物が見つかりません' }, { status: 404 });
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Delete character error:', error);

@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Loader2, Swords, AlertTriangle, CheckCircle2 } from 'lucide-react';
-import { AUTHORITATIVE_KNOWLEDGE_BOUNDARY, buildCharacterVoiceContext, buildContextWithinBudget, buildSymbolDictionaryPromptSection, formatSemanticLabel, selectReviewCharacters, type ContextEntry, type GenerationChapterCharacter, type GenerationCharacter, type GenerationRelationship, type PromptSymbolDefinition } from '@/lib/prompts/ja';
+import { AUTHORITATIVE_KNOWLEDGE_BOUNDARY, REVIEW_SUPPLEMENTAL_CONTEXT_LIMIT, buildCharacterVoiceContext, buildContextWithinBudget, buildReviewUserMessage, buildSymbolDictionaryPromptSection, formatSemanticLabel, selectReviewCharacters, type ContextEntry, type GenerationChapterCharacter, type GenerationCharacter, type GenerationRelationship, type PromptSymbolDefinition } from '@/lib/prompts/ja';
 import { displayLabel, NARRATIVE_PERSPECTIVE_LABELS } from '@/lib/i18n';
 import { buildStoryFactContextEntries, STORY_FACT_REVIEW_GUIDANCE, type StoryFactValue } from '@/lib/story-facts';
 import { buildCharacterKnowledgeContextEntries, CHARACTER_KNOWLEDGE_REVIEW_GUIDANCE, type CharacterKnowledgeEvent } from '@/lib/character-knowledge';
@@ -124,7 +124,7 @@ export function AdversarialReviewPanel({ content, chapterTitle, projectId, chapt
               });
               if (knowledgeEvents.length > 0) reviewEntries.push({ id: 'review-knowledge-boundary', tier: 1, relevance: 147, full: `【人物認識の確認方針】\n${CHARACTER_KNOWLEDGE_REVIEW_GUIDANCE}` });
             }
-            projectContext = buildContextWithinBudget(reviewEntries, 8_000).text;
+            projectContext = buildContextWithinBudget(reviewEntries, REVIEW_SUPPLEMENTAL_CONTEXT_LIMIT).text;
           }
         }
       } catch (error) {
@@ -145,7 +145,14 @@ export function AdversarialReviewPanel({ content, chapterTitle, projectId, chapt
             agentType: 'reviewer',
             messages: [{
               role: 'user',
-              content: `${perspective.systemPrompt}\n\n${REVIEW_OUTPUT_RULES}\n\n${projectContext ? `【作品情報】\n${projectContext}\n\n` : ''}${chapterPurpose ? `【この章の詳細プロット・目的】\n${chapterPurpose}\n\n` : ''}【評価対象】\n## ${chapterTitle}\n\n${content}`,
+              content: buildReviewUserMessage({
+                reviewerInstruction: perspective.systemPrompt,
+                outputContract: REVIEW_OUTPUT_RULES,
+                supplementalContext: projectContext,
+                chapterPurpose,
+                chapterTitle,
+                targetProse: content,
+              }),
             }],
           }),
           signal: abortRef.current?.signal,

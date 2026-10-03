@@ -66,6 +66,22 @@ function nullableBoolean(value: unknown, field: string): boolean | null {
   return value;
 }
 
+async function lockSymbolDefinition(transaction: Prisma.TransactionClient, projectId: string, definitionId: string) {
+  await transaction.$queryRaw(Prisma.sql`
+    SELECT "id" FROM "ProjectSymbolDefinition"
+    WHERE "id" = ${definitionId} AND "projectId" = ${projectId}
+    FOR UPDATE
+  `);
+}
+
+async function lockSymbolUsageRule(transaction: Prisma.TransactionClient, projectId: string, definitionId: string, usageRuleId: string) {
+  await transaction.$queryRaw(Prisma.sql`
+    SELECT "id" FROM "SymbolUsageRule"
+    WHERE "id" = ${usageRuleId} AND "projectId" = ${projectId} AND "definitionId" = ${definitionId}
+    FOR UPDATE
+  `);
+}
+
 async function requireProject(projectId: string) {
   const project = await db.project.findUnique({ where: { id: projectId }, select: { id: true } });
   if (!project) throw new SymbolDictionaryServiceError('not_found', 'Projectが見つかりません。');
@@ -157,43 +173,53 @@ export async function createSymbolUsageRule(input: Record<string, unknown>) {
 
 export async function updateSymbolUsageRule(input: Record<string, unknown>) {
   const id = stringValue(input.id, 'id'); const projectId = stringValue(input.projectId, 'projectId');
-  const existing = await db.symbolUsageRule.findFirst({ where: { id, projectId } });
-  if (!existing) throw new SymbolDictionaryServiceError('not_found', 'Usage Ruleが見つかりません。');
-  if (input.definitionId !== undefined && input.definitionId !== existing.definitionId) throw new SymbolDictionaryServiceError('conflict', 'Usage RuleのDefinitionは変更できません。');
-  if (input.provenance !== undefined && input.provenance !== existing.provenance) throw new SymbolDictionaryServiceError('conflict', 'provenanceは作成後に変更できません。');
-  const merged = usageDomain({ ...existing,
-    label: input.label === undefined ? existing.label : stringValue(input.label, 'label'),
-    description: input.description === undefined ? existing.description : stringValue(input.description, 'description'),
-    semanticKind: input.semanticKind === undefined ? existing.semanticKind : stringValue(input.semanticKind, 'semanticKind'),
-    countsAsDialogue: input.countsAsDialogue === undefined ? existing.countsAsDialogue : nullableBoolean(input.countsAsDialogue, 'countsAsDialogue'),
-    countsAsNarration: input.countsAsNarration === undefined ? existing.countsAsNarration : nullableBoolean(input.countsAsNarration, 'countsAsNarration'),
-    countsAsInnerVoice: input.countsAsInnerVoice === undefined ? existing.countsAsInnerVoice : nullableBoolean(input.countsAsInnerVoice, 'countsAsInnerVoice'),
-    readerVisible: input.readerVisible === undefined ? existing.readerVisible : nullableBoolean(input.readerVisible, 'readerVisible'),
-    spokenAloud: input.spokenAloud === undefined ? existing.spokenAloud : nullableBoolean(input.spokenAloud, 'spokenAloud'),
-    speakerMode: input.speakerMode === undefined ? existing.speakerMode : stringValue(input.speakerMode, 'speakerMode'),
-    fixedSpeakerId: input.fixedSpeakerId === undefined ? existing.fixedSpeakerId : input.fixedSpeakerId === null ? null : stringValue(input.fixedSpeakerId, 'fixedSpeakerId'),
-    priority: input.priority === undefined ? existing.priority : integerValue(input.priority, 'priority'),
-    active: booleanValue(input.active, 'active', existing.active),
-  } as UsageRow);
-  failIssues(validateSymbolUsageRules([merged]));
-  if (merged.fixedSpeakerId && !await db.character.findFirst({ where: { id: merged.fixedSpeakerId, projectId }, select: { id: true } })) throw new SymbolDictionaryServiceError('cross_project', '固定話者は同じProjectから指定してください。');
-  if (!merged.active) {
-    const isDefault = await db.projectSymbolDefinition.findFirst({ where: { id: existing.definitionId, defaultUsageRuleId: id }, select: { id: true } });
-    if (isDefault) throw new SymbolDictionaryServiceError('conflict', 'defaultのUsage Ruleは先にdefaultを解除してください。');
-  }
-  return db.symbolUsageRule.update({ where: { id }, data: {
-    label: merged.label.trim(), description: merged.description, semanticKind: merged.semanticKind,
-    countsAsDialogue: merged.countsAsDialogue, countsAsNarration: merged.countsAsNarration, countsAsInnerVoice: merged.countsAsInnerVoice,
-    readerVisible: merged.readerVisible, spokenAloud: merged.spokenAloud, speakerMode: merged.speakerMode,
-    fixedSpeakerId: merged.fixedSpeakerId, priority: merged.priority, active: merged.active,
-  } });
+  const initial = await db.symbolUsageRule.findFirst({ where: { id, projectId }, select: { definitionId: true } });
+  if (!initial) throw new SymbolDictionaryServiceError('not_found', 'Usage Ruleが見つかりません。');
+  return db.$transaction(async transaction => {
+    // Every default/clear/update path locks Definition first, then Usage, so a
+    // concurrent default assignment cannot race an Usage deactivation.
+    await lockSymbolDefinition(transaction, projectId, initial.definitionId);
+    await lockSymbolUsageRule(transaction, projectId, initial.definitionId, id);
+    const existing = await transaction.symbolUsageRule.findFirst({ where: { id, projectId } });
+    if (!existing) throw new SymbolDictionaryServiceError('not_found', 'Usage Ruleが見つかりません。');
+    if (input.definitionId !== undefined && input.definitionId !== existing.definitionId) throw new SymbolDictionaryServiceError('conflict', 'Usage RuleのDefinitionは変更できません。');
+    if (input.provenance !== undefined && input.provenance !== existing.provenance) throw new SymbolDictionaryServiceError('conflict', 'provenanceは作成後に変更できません。');
+    const merged = usageDomain({ ...existing,
+      label: input.label === undefined ? existing.label : stringValue(input.label, 'label'),
+      description: input.description === undefined ? existing.description : stringValue(input.description, 'description'),
+      semanticKind: input.semanticKind === undefined ? existing.semanticKind : stringValue(input.semanticKind, 'semanticKind'),
+      countsAsDialogue: input.countsAsDialogue === undefined ? existing.countsAsDialogue : nullableBoolean(input.countsAsDialogue, 'countsAsDialogue'),
+      countsAsNarration: input.countsAsNarration === undefined ? existing.countsAsNarration : nullableBoolean(input.countsAsNarration, 'countsAsNarration'),
+      countsAsInnerVoice: input.countsAsInnerVoice === undefined ? existing.countsAsInnerVoice : nullableBoolean(input.countsAsInnerVoice, 'countsAsInnerVoice'),
+      readerVisible: input.readerVisible === undefined ? existing.readerVisible : nullableBoolean(input.readerVisible, 'readerVisible'),
+      spokenAloud: input.spokenAloud === undefined ? existing.spokenAloud : nullableBoolean(input.spokenAloud, 'spokenAloud'),
+      speakerMode: input.speakerMode === undefined ? existing.speakerMode : stringValue(input.speakerMode, 'speakerMode'),
+      fixedSpeakerId: input.fixedSpeakerId === undefined ? existing.fixedSpeakerId : input.fixedSpeakerId === null ? null : stringValue(input.fixedSpeakerId, 'fixedSpeakerId'),
+      priority: input.priority === undefined ? existing.priority : integerValue(input.priority, 'priority'),
+      active: booleanValue(input.active, 'active', existing.active),
+    } as UsageRow);
+    failIssues(validateSymbolUsageRules([merged]));
+    if (merged.fixedSpeakerId && !await transaction.character.findFirst({ where: { id: merged.fixedSpeakerId, projectId }, select: { id: true } })) throw new SymbolDictionaryServiceError('cross_project', '固定話者は同じProjectから指定してください。');
+    if (!merged.active) {
+      const isDefault = await transaction.projectSymbolDefinition.findFirst({ where: { id: existing.definitionId, defaultUsageRuleId: id }, select: { id: true } });
+      if (isDefault) throw new SymbolDictionaryServiceError('conflict', 'defaultのUsage Ruleは先にdefaultを解除してください。');
+    }
+    return transaction.symbolUsageRule.update({ where: { id }, data: {
+      label: merged.label.trim(), description: merged.description, semanticKind: merged.semanticKind,
+      countsAsDialogue: merged.countsAsDialogue, countsAsNarration: merged.countsAsNarration, countsAsInnerVoice: merged.countsAsInnerVoice,
+      readerVisible: merged.readerVisible, spokenAloud: merged.spokenAloud, speakerMode: merged.speakerMode,
+      fixedSpeakerId: merged.fixedSpeakerId, priority: merged.priority, active: merged.active,
+    } });
+  });
 }
 
 export async function setDefaultSymbolUsage(projectId: string, definitionId: string, usageRuleId: string | null) {
   return db.$transaction(async transaction => {
+    await lockSymbolDefinition(transaction, projectId, definitionId);
     const definition = await transaction.projectSymbolDefinition.findFirst({ where: { id: definitionId, projectId } });
     if (!definition) throw new SymbolDictionaryServiceError('not_found', 'Definitionが見つかりません。');
     if (usageRuleId) {
+      await lockSymbolUsageRule(transaction, projectId, definitionId, usageRuleId);
       const rule = await transaction.symbolUsageRule.findFirst({ where: { id: usageRuleId, projectId, definitionId, active: true } });
       if (!rule) throw new SymbolDictionaryServiceError('cross_project', 'defaultには同じDefinitionのactive Usage Ruleを指定してください。');
     }

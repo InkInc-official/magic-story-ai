@@ -128,7 +128,7 @@ export function CharacterManager({ projectId }: CharacterManagerProps) {
 
   const handleDelete = async (id: string) => {
     try {
-      const res = await fetch(`/api/characters?id=${id}`, { method: 'DELETE' });
+      const res = await fetch(`/api/characters?id=${id}&projectId=${projectId}`, { method: 'DELETE' });
       if (res.ok) {
         await fetchData();
         if (selectedChar === id) setSelectedChar(null);
