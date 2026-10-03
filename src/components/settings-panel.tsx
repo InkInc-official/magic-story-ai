@@ -10,6 +10,7 @@ import { Settings, Save, Download, Info, ChevronDown, ChevronRight } from 'lucid
 import { CHAPTER_LENGTH_POLICY_LABELS, displayLabel, GENRE_GUIDANCE_MODE_LABELS, GENRE_LABELS, NARRATIVE_PERSPECTIVE_LABELS } from '@/lib/i18n';
 import { NarrativeSettings } from '@/components/narrative-settings';
 import { SymbolDictionarySettings } from '@/components/symbol-dictionary-settings';
+import { CreativeRulesSettings } from '@/components/creative-rules-settings';
 
 const GENRE_OPTIONS = [
   ['玄幻系统修仙', '⚔️'], ['都市重生', '🔄'], ['脑洞网文', '💡'],
@@ -212,6 +213,11 @@ export function SettingsPanel({ project, onUpdate }: SettingsPanelProps) {
       <Card className="bg-card/50 border-border/50">
         <CardHeader><CardTitle className="text-sm font-medium">作品表記辞書</CardTitle></CardHeader>
         <CardContent><SymbolDictionarySettings projectId={project.id} /></CardContent>
+      </Card>
+
+      <Card className="bg-card/50 border-border/50">
+        <CardHeader><CardTitle className="text-sm font-medium">創作ルール</CardTitle></CardHeader>
+        <CardContent><CreativeRulesSettings projectId={project.id} /></CardContent>
       </Card>
 
       {/* Export */}

@@ -245,3 +245,17 @@ export const AGENT_DESCRIPTION_LABELS: LabelMap = {
   character: '人物像、関係性、成長の流れを設計・管理',
   worldbuilder: '一貫性のある世界設定を構築',
 };
+
+export const CREATIVE_RULE_CATEGORY_LABELS: LabelMap = {
+  description: '描写', psychology: '心理', dialogue: '会話', rhythm: 'リズム', style: '文体',
+  scene: 'シーン', chapter: '章', information: '情報提示', tension: '緊張', structure: '構成',
+  character: 'キャラクター', reader_experience: '読者体験',
+};
+
+export const CREATIVE_RULE_MODE_LABELS: LabelMap = {
+  unset: '未設定', off: '使用しない', reference: '参考', required: '必須', forbidden: '禁止',
+};
+
+export const CREATIVE_RULE_STATE_LABELS: LabelMap = {
+  all: 'すべて', configured: '設定済み', unset: '未設定', review: '要確認', disabled: '一時無効',
+};
