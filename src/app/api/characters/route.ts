@@ -125,7 +125,16 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Character ID is required' }, { status: 400 });
     }
 
-    await db.character.delete({ where: { id } });
+    await db.$transaction(async transaction => {
+      // Keep SymbolUsageRule valid when its fixed speaker is removed. The DB FK
+      // remains SET NULL as a final safeguard; normal application deletion also
+      // changes the semantic mode in the same transaction.
+      await transaction.symbolUsageRule.updateMany({
+        where: { fixedSpeakerId: id },
+        data: { fixedSpeakerId: null, speakerMode: 'unknown' },
+      });
+      await transaction.character.delete({ where: { id } });
+    });
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Delete character error:', error);

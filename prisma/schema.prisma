@@ -58,6 +58,9 @@ model Project {
   narrativeInspectionRuns NarrativeInspectionRun[]
   narrativeIssues      NarrativeIssue[]
   narrativeLearningSessions NarrativeLearningSession[]
+  symbolDefinitions   ProjectSymbolDefinition[]
+  symbolUsageRules    SymbolUsageRule[]
+  symbolOccurrenceOverrides SymbolOccurrenceOverride[]
   defaultPovCharacter Character? @relation("ProjectDefaultPov", fields: [defaultPovCharacterId], references: [id], onDelete: SetNull)
   defaultNarrator NarratorProfile? @relation("ProjectDefaultNarrator", fields: [defaultNarratorId], references: [id], onDelete: SetNull)
 
@@ -118,6 +121,7 @@ model Character {
   chapterCharacters ChapterCharacter[]
   knowledgeEvents CharacterKnowledge[]
   narratorProfiles NarratorProfile[] @relation("NarratorLinkedCharacter")
+  fixedSpeakerSymbolRules SymbolUsageRule[] @relation("SymbolRuleFixedSpeaker")
 
   @@schema("magic_story")
 }
@@ -296,6 +300,7 @@ model Chapter {
   narrativeInspectionRuns NarrativeInspectionRun[]
   narrativeIssues NarrativeIssue[]
   narrativeLearningSessions NarrativeLearningSession[]
+  symbolOccurrenceOverrides SymbolOccurrenceOverride[]
 
   @@index([povCharacterId])
   @@index([narratorId])
@@ -388,6 +393,89 @@ model CharacterKnowledge {
   @@index([factId])
   @@index([characterId])
   @@index([effectiveChapterId])
+  @@schema("magic_story")
+}
+
+model ProjectSymbolDefinition {
+  id                 String   @id @default(cuid())
+  projectId          String
+  openSymbol         String
+  closeSymbol        String
+  label              String
+  active             Boolean  @default(true)
+  order              Int      @default(0)
+  defaultUsageRuleId String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  project          Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  usageRules       SymbolUsageRule[] @relation("SymbolDefinitionUsageRules")
+  defaultUsageRule SymbolUsageRule?  @relation("SymbolDefinitionDefaultUsage", fields: [defaultUsageRuleId], references: [id], onDelete: NoAction)
+  overrides        SymbolOccurrenceOverride[]
+
+  @@unique([projectId, openSymbol, closeSymbol])
+  @@index([projectId, order])
+  @@index([defaultUsageRuleId])
+  @@schema("magic_story")
+}
+
+model SymbolUsageRule {
+  id                 String   @id @default(cuid())
+  projectId          String
+  definitionId       String
+  label              String
+  description        String   @default("")
+  semanticKind       String
+  countsAsDialogue   Boolean?
+  countsAsNarration  Boolean?
+  countsAsInnerVoice Boolean?
+  readerVisible      Boolean?
+  spokenAloud        Boolean?
+  speakerMode        String   @default("unknown")
+  fixedSpeakerId     String?
+  priority           Int      @default(0)
+  active             Boolean  @default(true)
+  provenance         String   @default("author")
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  project               Project                   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  definition            ProjectSymbolDefinition   @relation("SymbolDefinitionUsageRules", fields: [definitionId], references: [id], onDelete: NoAction)
+  defaultForDefinitions ProjectSymbolDefinition[] @relation("SymbolDefinitionDefaultUsage")
+  fixedSpeaker          Character?                 @relation("SymbolRuleFixedSpeaker", fields: [fixedSpeakerId], references: [id], onDelete: SetNull)
+  overrides             SymbolOccurrenceOverride[]
+
+  @@index([projectId, definitionId])
+  @@index([fixedSpeakerId])
+  @@schema("magic_story")
+}
+
+model SymbolOccurrenceOverride {
+  id                String   @id @default(cuid())
+  projectId         String
+  chapterId         String
+  definitionId      String
+  usageRuleId       String
+  status            String   @default("confirmed")
+  startOffset       Int
+  endOffset         Int
+  exactExcerpt      String
+  anchorBefore      String
+  anchorAfter       String
+  contentHash       String
+  anchorFingerprint String
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  project    Project                 @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  chapter    Chapter                 @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  definition ProjectSymbolDefinition @relation(fields: [definitionId], references: [id], onDelete: NoAction)
+  usageRule  SymbolUsageRule         @relation(fields: [usageRuleId], references: [id], onDelete: NoAction)
+
+  @@index([projectId, chapterId])
+  @@index([definitionId])
+  @@index([usageRuleId])
+  @@unique([chapterId, startOffset, endOffset])
   @@schema("magic_story")
 }
 
