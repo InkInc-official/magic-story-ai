@@ -164,6 +164,26 @@ describe('buildChapterGenerationContext integration', () => {
     assert.ok(fullMessage.includes('章本文を書く'));
   });
 
+  test('keeps author-confirmed symbol rules inside final writer caps without treating alternatives as defaults', () => {
+    const heavy = source({
+      symbolDictionary: [{
+        id: 'telepathy', openSymbol: '「', closeSymbol: '」', label: '作品内の特殊会話', active: true, order: 0,
+        defaultUsageRuleId: 'mind', usageRules: [
+          { id: 'mind', label: 'テレパシー', description: '声には出さず相手の心へ直接届く。', priority: 1, active: true, spokenAloud: false, readerVisible: true, speakerMode: 'contextual' },
+          { id: 'phone', label: '電話越しの声', description: '', priority: 10, active: true },
+        ],
+      }],
+    });
+    for (const message of [buildChapterSummaryUserMessage(heavy), buildChapterFullUserMessage(heavy)]) {
+      assert.ok(message.length <= 18_000);
+      assert.match(message, /作品固有の表記ルール/);
+      assert.match(message, /通常の用途："テレパシー"/);
+      assert.match(message, /現在の明示的な執筆・修正指示.*今回だけ現在指示を優先/);
+      assert.match(message, /一般的な日本語表記より優先/);
+      assert.match(message, /明示指示なしに通常用途から切り替えない/);
+    }
+  });
+
   test('prioritizes a late API-order POV in review selection and retains its voice and knowledge', () => {
     const characters = Array.from({ length: 20 }, (_, index) => ({
       id: `review-${index}`, name: `レビュー人物${index}`, role: '配角', firstPerson: index === 19 ? '私' : '僕', speechRegister: 'plain',

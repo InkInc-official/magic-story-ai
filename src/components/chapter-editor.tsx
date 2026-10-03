@@ -131,8 +131,13 @@ export function ChapterEditor({ projectId }: ChapterEditorProps) {
         return fallback;
       }
     };
+    const requiredJson = async <T,>(url: string, label: string): Promise<T> => {
+      const response = await fetch(url);
+      if (!response.ok) throw new Error(`${label}の取得に失敗しました。生成を中止します。`);
+      return response.json() as Promise<T>;
+    };
 
-    const [projects, characterData, chapterCharacters, worldSettings, scenes, foreshadowings, storyStates, outlines, plots, storyNodes, storyEdges, storyFacts, characterKnowledge] = await Promise.all([
+    const [projects, characterData, chapterCharacters, worldSettings, scenes, foreshadowings, storyStates, outlines, plots, storyNodes, storyEdges, storyFacts, characterKnowledge, symbolDictionary] = await Promise.all([
       safeJson<Array<NonNullable<ChapterGenerationSource['project']> & { id: string }>>('/api/projects', []),
       safeJson<{ characters: ChapterGenerationSource['characters']; relationships: ChapterGenerationSource['relationships'] }>(`/api/characters?projectId=${projectId}`, { characters: [], relationships: [] }),
       selectedId ? safeJson<NonNullable<ChapterGenerationSource['chapterCharacters']>>(`/api/chapter-characters?chapterId=${selectedId}`, []) : [],
@@ -146,6 +151,7 @@ export function ChapterEditor({ projectId }: ChapterEditorProps) {
       safeJson<ChapterGenerationSource['storyEdges']>(`/api/story-edges?projectId=${projectId}`, []),
       safeJson<NonNullable<ChapterGenerationSource['storyFacts']>>(`/api/story-facts?projectId=${projectId}`, []),
       safeJson<NonNullable<ChapterGenerationSource['characterKnowledge']>>(`/api/character-knowledge?projectId=${projectId}`, []),
+      requiredJson<NonNullable<ChapterGenerationSource['symbolDictionary']>>(`/api/symbol-definitions?projectId=${projectId}`, '作品表記辞書'),
     ]);
 
     return {
@@ -182,6 +188,7 @@ export function ChapterEditor({ projectId }: ChapterEditorProps) {
       storyEdges,
       storyFacts,
       characterKnowledge,
+      symbolDictionary,
     };
   };
 
@@ -382,6 +389,7 @@ export function ChapterEditor({ projectId }: ChapterEditorProps) {
     } catch (e) {
       if (e instanceof Error && e.name !== 'AbortError') {
         console.error('Failed to generate summary:', e);
+        window.alert(e.message || '章要約の生成に失敗しました。');
       }
     } finally {
       setGeneratingPhase('none');
@@ -439,6 +447,7 @@ export function ChapterEditor({ projectId }: ChapterEditorProps) {
     } catch (e) {
       if (e instanceof Error && e.name !== 'AbortError') {
         console.error('Failed to expand content:', e);
+        window.alert(e.message || '本文の生成に失敗しました。');
       }
     } finally {
       setGeneratingPhase('none');

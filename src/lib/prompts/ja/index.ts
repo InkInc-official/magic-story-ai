@@ -45,3 +45,9 @@ export {
   type ContextTier,
 } from './context-budget';
 export { STORY_NAVIGATOR_PROMPT_VERSION, STORY_NAVIGATOR_SYSTEM_PROMPT, buildStoryNavigatorUserPrompt } from './story-navigator';
+export {
+  buildSymbolDictionaryPromptSection,
+  type PromptSymbolDefinition,
+  type PromptSymbolUsageRule,
+  type SymbolDictionaryPromptSection,
+} from './symbol-dictionary-context';

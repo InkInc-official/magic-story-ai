@@ -5,6 +5,7 @@ import { resolveDirectedVoice, shouldUseNarrationVoice } from '@/lib/character-v
 import { buildContextWithinBudget, safeContextExcerpt, type ContextEntry } from './context-budget';
 import { buildStoryFactContextEntries, type StoryFactValue } from '@/lib/story-facts';
 import { buildCharacterKnowledgeContextEntries, type CharacterKnowledgeEvent } from '@/lib/character-knowledge';
+import { buildSymbolDictionaryPromptSection, type PromptSymbolDefinition } from './symbol-dictionary-context';
 
 export interface GenerationCharacter {
   id: string;
@@ -164,6 +165,7 @@ export interface ChapterGenerationSource {
   storyEdges: GenerationStoryEdge[];
   storyFacts?: StoryFactValue[];
   characterKnowledge?: CharacterKnowledgeEvent[];
+  symbolDictionary?: PromptSymbolDefinition[];
 }
 
 export const AUTHORITATIVE_KNOWLEDGE_BOUNDARY = `【情報開示・人物認識の優先規則】
@@ -303,6 +305,17 @@ function buildChapterGenerationContextEntries(source: ChapterGenerationSource): 
     compact: `【プロジェクト】\n作品名：${source.project.title}\nジャンル：${formatSemanticLabel('genre', source.project.genre)}\n作品概要：${safeContextExcerpt(source.project.description || '未設定', 700)}`,
     minimum: `【プロジェクト】\n作品名：${source.project.title}\nジャンル：${formatSemanticLabel('genre', source.project.genre)}`,
   });
+  const symbolDictionary = buildSymbolDictionaryPromptSection(source.symbolDictionary, { maxCharacters: 2_600, audience: 'writer' });
+  if (symbolDictionary.text) {
+    const compactSymbols = buildSymbolDictionaryPromptSection(source.symbolDictionary, { maxCharacters: 1_600, audience: 'writer' });
+    const minimumSymbols = buildSymbolDictionaryPromptSection(source.symbolDictionary, { maxCharacters: 700, audience: 'writer' });
+    entries.push({
+      id: 'project-symbol-dictionary', tier: 0, required: true,
+      full: symbolDictionary.text,
+      compact: compactSymbols.text,
+      minimum: minimumSymbols.text,
+    });
+  }
   if (source.previousChapter) {
     const previousSummary = safeContextExcerpt(source.previousChapter.summary, 1200) || '未設定';
     const previousTail = safeContextExcerpt(source.previousChapter.content, 2200, true) || '本文なし';

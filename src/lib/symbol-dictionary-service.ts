@@ -78,7 +78,7 @@ async function projectDefinitions(projectId: string) {
 export async function listSymbolDictionary(projectId: string) {
   await requireProject(projectId);
   return db.projectSymbolDefinition.findMany({
-    where: { projectId }, include: { usageRules: { orderBy: [{ priority: 'desc' }, { id: 'asc' }] } },
+    where: { projectId }, include: { usageRules: { include: { fixedSpeaker: { select: { id: true, name: true } } }, orderBy: [{ priority: 'desc' }, { id: 'asc' }] } },
     orderBy: [{ order: 'asc' }, { openSymbol: 'asc' }, { closeSymbol: 'asc' }, { id: 'asc' }],
   });
 }

@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Loader2, Swords, AlertTriangle, CheckCircle2 } from 'lucide-react';
-import { AUTHORITATIVE_KNOWLEDGE_BOUNDARY, buildCharacterVoiceContext, buildContextWithinBudget, formatSemanticLabel, selectReviewCharacters, type ContextEntry, type GenerationChapterCharacter, type GenerationCharacter, type GenerationRelationship } from '@/lib/prompts/ja';
+import { AUTHORITATIVE_KNOWLEDGE_BOUNDARY, buildCharacterVoiceContext, buildContextWithinBudget, buildSymbolDictionaryPromptSection, formatSemanticLabel, selectReviewCharacters, type ContextEntry, type GenerationChapterCharacter, type GenerationCharacter, type GenerationRelationship, type PromptSymbolDefinition } from '@/lib/prompts/ja';
 import { displayLabel, NARRATIVE_PERSPECTIVE_LABELS } from '@/lib/i18n';
 import { buildStoryFactContextEntries, STORY_FACT_REVIEW_GUIDANCE, type StoryFactValue } from '@/lib/story-facts';
 import { buildCharacterKnowledgeContextEntries, CHARACTER_KNOWLEDGE_REVIEW_GUIDANCE, type CharacterKnowledgeEvent } from '@/lib/character-knowledge';
@@ -60,14 +60,16 @@ export function AdversarialReviewPanel({ content, chapterTitle, projectId, chapt
     let projectContext = '';
     if (projectId) {
       try {
-        const [response, characterResponse, castResponse, factsResponse, chaptersResponse, knowledgeResponse] = await Promise.all([
+        const [response, characterResponse, castResponse, factsResponse, chaptersResponse, knowledgeResponse, symbolResponse] = await Promise.all([
           fetch('/api/projects'),
           fetch(`/api/characters?projectId=${projectId}`),
           chapterId ? fetch(`/api/chapter-characters?chapterId=${chapterId}`) : Promise.resolve(null),
           fetch(`/api/story-facts?projectId=${projectId}`),
           fetch(`/api/chapters?projectId=${projectId}`),
           fetch(`/api/character-knowledge?projectId=${projectId}`),
+          fetch(`/api/symbol-definitions?projectId=${projectId}`),
         ]);
+        if (!symbolResponse.ok) throw new Error('作品表記辞書の取得に失敗したため、レビューを中止しました。');
         if (response.ok) {
           const projects = await response.json() as Array<{ id: string; title: string; genre: string; description: string; narrativePerspective?: string | null; defaultPovCharacterId?: string | null; writingStyleNotes?: string }>;
           const project = projects.find(item => item.id === projectId);
@@ -76,6 +78,7 @@ export function AdversarialReviewPanel({ content, chapterTitle, projectId, chapt
           const storyFacts = factsResponse.ok ? await factsResponse.json() as StoryFactValue[] : [];
           const chapters = chaptersResponse.ok ? await chaptersResponse.json() as Array<{ id: string; order: number }> : [];
           const knowledgeEvents = knowledgeResponse.ok ? await knowledgeResponse.json() as CharacterKnowledgeEvent[] : [];
+          const symbolDictionary = await symbolResponse.json() as PromptSymbolDefinition[];
           const resolvedPovId = povCharacterId || project?.defaultPovCharacterId;
           const povName = characterData.characters?.find(character => character.id === resolvedPovId)?.name;
           const reviewCharacters = selectReviewCharacters(characterData.characters || [], explicitCast, content, resolvedPovId);
@@ -92,6 +95,17 @@ export function AdversarialReviewPanel({ content, chapterTitle, projectId, chapt
               { id: 'review-project', tier: 0, required: true, full: `作品：${project.title}\nジャンル：${formatSemanticLabel('genre', project.genre)}\n作品概要：${project.description || '未設定'}`, compact: `作品：${project.title}\nジャンル：${formatSemanticLabel('genre', project.genre)}`, minimum: `作品：${project.title}` },
               { id: 'review-intent', tier: 0, required: true, full: [project.narrativePerspective && `視点方式：${displayLabel(NARRATIVE_PERSPECTIVE_LABELS, project.narrativePerspective)}`, povName && `視点人物：${povName}`, project.writingStyleNotes && `文体メモ：${project.writingStyleNotes}`, endingNotes && `章末メモ：${endingNotes}`].filter(Boolean).join('\n') || '作品固有の追加設定なし' },
             ];
+            const symbolContext = buildSymbolDictionaryPromptSection(symbolDictionary, { maxCharacters: 1_800, audience: 'review' });
+            if (symbolContext.text) {
+              const compactSymbols = buildSymbolDictionaryPromptSection(symbolDictionary, { maxCharacters: 1_100, audience: 'review' });
+              const minimumSymbols = buildSymbolDictionaryPromptSection(symbolDictionary, { maxCharacters: 700, audience: 'review' });
+              reviewEntries.push({
+                id: 'review-symbol-dictionary', tier: 0, required: true,
+                full: `${symbolContext.text}\nレビューでは作品固有ルールを一般的な表記慣習より優先し、登録された別用途を本文の根拠なしに誤用と断定しない。`,
+                compact: compactSymbols.text,
+                minimum: minimumSymbols.text,
+              });
+            }
             if (voiceContext) reviewEntries.push({ id: 'review-voice', tier: 1, relevance: 100, full: `${voiceContext}\n設定されていない音声要素を正解として作らず、上記の明示設定との不整合だけを評価してください。`, compact: voiceContext, minimum: voiceContext.split('\n').slice(0, 8).join('\n') });
             if (castContext) reviewEntries.push({ id: 'review-cast', tier: 1, relevance: 90, full: `【明示章キャスト】\n${castContext}`, compact: `【明示章キャスト】\n${castContext.split('\n').slice(0, 2).join('\n')}` });
             const currentChapter = chapters.find(chapter => chapter.id === chapterId);
@@ -113,8 +127,12 @@ export function AdversarialReviewPanel({ content, chapterTitle, projectId, chapt
             projectContext = buildContextWithinBudget(reviewEntries, 8_000).text;
           }
         }
-      } catch {
-        // Project context is optional; review can continue with the chapter alone.
+      } catch (error) {
+        console.error('Failed to load review context:', error);
+        window.alert(error instanceof Error ? error.message : '作品情報の取得に失敗したため、レビューを中止しました。');
+        setIsReviewing(false);
+        abortRef.current = null;
+        return;
       }
     }
 
