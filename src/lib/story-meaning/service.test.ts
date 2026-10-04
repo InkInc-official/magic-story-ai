@@ -11,6 +11,7 @@ import {
   markStoryMeaningRunFailed,
   startStoryMeaningRun,
   StoryMeaningPersistenceError,
+  StoryMeaningValidationError,
 } from './index.js';
 
 function context(content = '「帰る」😀', factContent = '真実') {
@@ -40,7 +41,7 @@ function fakeDatabase() {
     chapters: [{ id: 'ch1', projectId: 'p1', content: '「帰る」😀' }],
     runs: [] as Row[], events: [] as Row[], claims: [] as Row[], decisions: [] as Row[],
     entities: {
-      character: new Set(['char1']), story_fact: new Set(['fact1']), relationship: new Set<string>(), plot: new Set<string>(), foreshadowing: new Set<string>(),
+      character: new Set(['char1', 'char2']), story_fact: new Set(['fact1']), relationship: new Set<string>(), plot: new Set<string>(), foreshadowing: new Set<string>(),
     },
     failEventCreate: false,
   };
@@ -110,14 +111,26 @@ test('validated output persists atomically with AI provenance and raw Unicode ev
   assert.equal((completed as { events: unknown[] }).events.length, 1);
 });
 
-test('invalid output and cross-project entity refs are rejected before transaction writes', async () => {
+test('invalid output and entity IDs absent from the supplied context are rejected before transaction writes', async () => {
   const { database, state } = fakeDatabase();
   const run = await startStoryMeaningRun({ projectId: 'p1', chapterId: 'ch1', context: context() }, database);
   const invalid = output(); invalid.events[0].evidence[0].exactExcerpt = '不一致';
   await assert.rejects(completeStoryMeaningRun({ projectId: 'p1', runId: run.id, output: invalid }, database));
   assert.equal(state.events.length, 0); assert.equal(state.runs[0].status, 'pending');
+  const unpresented = output(); unpresented.events[0].actorRefs[0].id = 'char2';
+  await assert.rejects(completeStoryMeaningRun({ projectId: 'p1', runId: run.id, output: unpresented }, database), (error: unknown) => error instanceof StoryMeaningValidationError && error.code === 'unknown_entity');
   const cross = output(); cross.events[0].actorRefs[0].id = 'other-project-character';
-  await assert.rejects(completeStoryMeaningRun({ projectId: 'p1', runId: run.id, output: cross }, database), (error: unknown) => error instanceof StoryMeaningPersistenceError && error.code === 'ownership');
+  await assert.rejects(completeStoryMeaningRun({ projectId: 'p1', runId: run.id, output: cross }, database), (error: unknown) => error instanceof StoryMeaningValidationError && error.code === 'unknown_entity');
+  assert.equal(state.events.length, 0);
+
+  const poisonedContext = buildChapterMeaningContext({
+    project: { id: 'p1', title: '作品' },
+    chapter: { id: 'ch1', projectId: 'p1', order: 1, title: '第一章', content: '「帰る」😀' },
+    characters: [{ id: 'other-project-character', name: '別Project人物' }],
+    facts: [{ id: 'fact1', content: '真実', readerState: 'reader_hidden' }],
+  });
+  const poisonedRun = await startStoryMeaningRun({ projectId: 'p1', chapterId: 'ch1', context: poisonedContext }, database);
+  await assert.rejects(completeStoryMeaningRun({ projectId: 'p1', runId: poisonedRun.id, output: cross }, database), (error: unknown) => error instanceof StoryMeaningPersistenceError && error.code === 'ownership');
   assert.equal(state.events.length, 0);
 });
 

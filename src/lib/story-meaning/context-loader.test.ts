@@ -48,7 +48,9 @@ function fakeLoaderDatabase(options: { projectId?: string; failFacts?: boolean }
 const creativeRules = async () => ({ rules: [
   { id: 'rule1', kind: 'builtin' as const, techniqueKey: 'fair_play_clues', mode: 'required' as const, priority: 1, overridable: true, authorAdjustment: '', notes: '', source: 'author' as const, active: true },
   { id: 'rule2', kind: 'builtin' as const, techniqueKey: 'sensory_detail', mode: 'reference' as const, priority: 0, overridable: true, authorAdjustment: '', notes: '', source: 'author' as const, active: true },
-], excluded: [] });
+  { id: 'rule3', kind: 'builtin' as const, techniqueKey: 'cliffhanger', mode: 'reference' as const, priority: 0, overridable: true, authorAdjustment: '', notes: '', source: 'author' as const, active: true },
+  { id: 'rule4', kind: 'custom' as const, title: '独自の構成原則', instruction: '反復を意味の変化として読む', category: 'structure' as const, mode: 'reference' as const, priority: 0, overridable: true, notes: '', source: 'author' as const, active: true },
+], excluded: [{ id: 'outdated-rule', reason: 'outdated' }] });
 
 test('loader selects saved Chapter sources and preserves truth/knowledge/planned/lens boundaries', async () => {
   const { database, calls } = fakeLoaderDatabase();
@@ -65,9 +67,10 @@ test('loader selects saved Chapter sources and preserves truth/knowledge/planned
   assert.equal(payload.actualCanonical.relationships[0].relationship, '友人');
   assert.equal(payload.planned.plots[0].id, 'plot1'); assert.equal(payload.planned.foreshadowings[0].id, 'fs1');
   assert.equal(payload.authorIntent, '赦しを描く'); assert.equal(payload.interpretiveLens.genre, 'ミステリー');
-  assert.deepEqual(payload.interpretiveLens.creativeRules.map(value => value.id), ['rule1']);
+  assert.deepEqual(payload.interpretiveLens.creativeRules.map(value => value.id), ['rule1', 'rule3', 'rule4']);
   assert.ok(result.diagnostics.some(value => value.code === 'relationship_history_unavailable'));
   assert.ok(result.diagnostics.some(value => value.sourceIds?.includes('rule2')));
+  assert.ok(result.diagnostics.some(value => value.sourceIds?.includes('outdated-rule')));
   assert.doesNotMatch(JSON.stringify(result.sourceManifest), /葵は「鍵」を見つけた/);
   assert.equal(calls.some(value => value.toLowerCase().includes('navigator')), false);
 });

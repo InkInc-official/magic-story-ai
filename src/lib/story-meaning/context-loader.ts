@@ -21,11 +21,9 @@ export class StoryMeaningContextLoadError extends Error {
   }
 }
 
-const MEANING_RELEVANT_TECHNIQUES = new Set([
-  'staged_information_reveal', 'fair_play_clues', 'foreshadow_and_payoff', 'causal_progression',
-  'character_arc', 'three_act_structure', 'kishotenketsu', 'reversal_catharsis', 'scene_sequel_rhythm',
-  'tension_escalation', 'tension_release', 'chapter_end_hook', 'quiet_chapter_ending',
-]);
+function isMeaningRelevantCategory(category: string): boolean {
+  return ['structure', 'information', 'tension', 'character', 'reader_experience', 'scene', 'chapter'].includes(category);
+}
 
 function includesMeaningfulText(haystack: string, ...needles: string[]) {
   return needles.map(value => value.trim()).filter(value => value.length >= 2).some(value => haystack.includes(value));
@@ -44,7 +42,7 @@ function selectCreativeRules(rules: ProjectCreativeRule[]) {
     if (!rule.active || rule.mode === 'off') continue;
     if (rule.kind === 'builtin') {
       const definition = CREATIVE_TECHNIQUE_BY_KEY.get(rule.techniqueKey as never);
-      if (!definition || !MEANING_RELEVANT_TECHNIQUES.has(rule.techniqueKey)) { omitted.push(rule.id); continue; }
+      if (!definition || !isMeaningRelevantCategory(definition.category)) { omitted.push(rule.id); continue; }
       const mode = rule.mode as 'reference' | 'required' | 'forbidden';
       selected.push({
         id: rule.id, title: definition.label, guidance: definition.guidance[mode], mode,
@@ -52,7 +50,7 @@ function selectCreativeRules(rules: ProjectCreativeRule[]) {
       });
       continue;
     }
-    if (['structure', 'information', 'tension', 'character', 'reader_experience', 'scene', 'chapter'].includes(rule.category)) {
+    if (isMeaningRelevantCategory(rule.category)) {
       selected.push({ id: rule.id, title: rule.title, guidance: rule.instruction, mode: rule.mode });
     } else omitted.push(rule.id);
   }
@@ -189,7 +187,7 @@ export async function loadChapterMeaningContext(
   const context = buildChapterMeaningContext(input);
   const diagnostics: MeaningContextLoaderDiagnostics[] = [
     { code: 'relationship_history_unavailable', message: '人物関係は現在値であり、過去時点の履歴を表すものではありません。' },
-    { code: 'creative_rule_no_meaning_surface', sourceIds: creative.omitted, message: 'Meaning専用surfaceがないため、関連する明示設定だけをInterpretive Lensとして選択しました。' },
+    { code: 'creative_rule_no_meaning_surface', sourceIds: [...creativeRuntime.excluded.map(value => value.id), ...creative.omitted], message: 'Meaning専用surfaceがないため、正本Catalogのcategory metadataから関連する明示設定だけをInterpretive Lensとして選択しました。' },
     ...(context.manifest.omitted.length ? [{ code: 'optional_source_omitted' as const, sourceIds: context.manifest.omitted, message: '補助コンテキスト予算によりoptional sectionを省略しました。' }] : []),
   ];
   return {

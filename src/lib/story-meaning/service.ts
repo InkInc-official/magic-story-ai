@@ -44,6 +44,22 @@ function parseJson(value: string, fallback: unknown) {
   try { return JSON.parse(value); } catch { return fallback; }
 }
 
+function presentedEntityIds(sourceManifest: string): Partial<Record<MeaningEntityType, ReadonlySet<string>>> {
+  const manifest = parseJson(sourceManifest, null);
+  if (!manifest || typeof manifest !== 'object' || Array.isArray(manifest)) throw new StoryMeaningPersistenceError('invalid_input', 'RunのSource Manifestが不正です。');
+  const sources = (manifest as { sources?: unknown }).sources;
+  if (!sources || typeof sources !== 'object' || Array.isArray(sources)) throw new StoryMeaningPersistenceError('invalid_input', 'RunのSource Manifestにsource一覧がありません。');
+  const record = sources as Record<string, unknown>;
+  const ids = (key: string) => new Set(Array.isArray(record[key]) ? record[key].filter((value): value is string => typeof value === 'string') : []);
+  return {
+    character: new Set([...ids('characterIds'), ...ids('castCharacterIds')]),
+    story_fact: ids('storyFactIds'),
+    relationship: ids('relationshipIds'),
+    plot: ids('plotIds'),
+    foreshadowing: ids('foreshadowingIds'),
+  };
+}
+
 function publicRun(run: Record<string, unknown>, context?: ChapterMeaningContext) {
   const events = Array.isArray(run.events) ? run.events as Array<Record<string, unknown>> : [];
   return {
@@ -140,7 +156,9 @@ export async function completeStoryMeaningRun(
   if (!run) throw new StoryMeaningPersistenceError('ownership', 'Runが見つからないかProject境界が不正です。');
   if (run.chapter.projectId !== input.projectId) throw new StoryMeaningPersistenceError('ownership', 'RunとChapterのProject境界が不正です。');
   if (run.status !== 'pending') throw new StoryMeaningPersistenceError('invalid_state', 'pending Runだけを完了できます。');
-  const output = validateChapterMeaningAnalysisOutput(input.output, run.chapter);
+  const output = validateChapterMeaningAnalysisOutput(input.output, run.chapter, {
+    knownEntityIds: presentedEntityIds(run.sourceManifest),
+  });
   await assertEntityOwnership(database, input.projectId, output);
   return database.$transaction(async transaction => {
     const claimed = await transaction.storyMeaningAnalysisRun.updateMany({
