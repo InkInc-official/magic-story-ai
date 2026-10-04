@@ -48,7 +48,14 @@ export function buildMeaningSemanticPayload(input: BuildChapterMeaningContextInp
   const { content: _content, ...target } = input.chapter;
   return {
     version: STORY_MEANING_CONTEXT_VERSION,
-    target: { ...target, projectTitle: input.project.title },
+    target: {
+      ...target,
+      projectTitle: input.project.title,
+      narrativePerspective: input.project.narrativePerspective || null,
+      povNotes: input.project.povNotes?.trim() || '',
+      writingStyleNotes: input.project.writingStyleNotes?.trim() || '',
+      formattingNotes: input.project.formattingNotes?.trim() || '',
+    },
     actualCanonical: {
       characters: clean(visible(input.characters)),
       narrators: clean(visible(input.narrators)),
@@ -64,6 +71,8 @@ export function buildMeaningSemanticPayload(input: BuildChapterMeaningContextInp
     authorIntent: input.project.authorIntent?.trim() || '',
     interpretiveLens: {
       genre: input.project.genre?.trim() || '',
+      genreGuidanceMode: input.project.genreGuidanceMode?.trim() || 'reference',
+      genreGuidanceNotes: input.project.genreGuidanceNotes?.trim() || '',
       creativeRules: clean(visible(input.creativeRules)),
     },
   };
@@ -112,7 +121,7 @@ export function buildChapterMeaningContext(
     },
     planned: included.has('planned') ? payload.planned : { plots: [], foreshadowings: [] },
     authorIntent: included.has('author-intent') ? payload.authorIntent : '',
-    interpretiveLens: included.has('interpretive-lens') ? payload.interpretiveLens : { genre: '', creativeRules: [] },
+    interpretiveLens: included.has('interpretive-lens') ? payload.interpretiveLens : { genre: '', genreGuidanceMode: 'reference', genreGuidanceNotes: '', creativeRules: [] },
   };
   return {
     version: STORY_MEANING_CONTEXT_VERSION,

@@ -93,6 +93,10 @@ test('Story Meaning履歴・CHECK・Unicode・cascade・transaction rollbackが�
     projectId: value.id, chapterId: currentChapter.id, contentHash: 'raw-content-hash', contextFingerprint: 'meaning-context',
     fingerprintVersion: 'meaning-v1', promptVersion: 'meaning-prompt-v1', sourceManifest: '{"chapter":"第一章"}', status: 'pending',
   } });
+  await assert.rejects(prisma.storyMeaningAnalysisRun.create({ data: {
+    projectId: value.id, chapterId: currentChapter.id, contentHash: run.contentHash, contextFingerprint: run.contextFingerprint,
+    fingerprintVersion: run.fingerprintVersion, promptVersion: run.promptVersion, sourceManifest: '{}', status: 'pending',
+  } }));
   const event = await prisma.storyMeaningEvent.create({ data: {
     runId: run.id, localEventKey: 'event-1', order: 0, summary: '静かな決意',
     evidenceJson: JSON.stringify([{ chapterId: currentChapter.id, startOffset: 0, endOffset: 4, exactExcerpt: '「確認」', evidenceType: 'primary' }]),

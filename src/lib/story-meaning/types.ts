@@ -89,7 +89,15 @@ export interface MeaningContextProject {
   id: string;
   title: string;
   genre?: string;
+  genreGuidanceMode?: string;
+  genreGuidanceNotes?: string;
   authorIntent?: string;
+  narrativePerspective?: string | null;
+  defaultPovCharacterId?: string | null;
+  defaultNarratorId?: string | null;
+  povNotes?: string;
+  writingStyleNotes?: string;
+  formattingNotes?: string;
 }
 
 export interface MeaningContextChapter {
@@ -101,12 +109,22 @@ export interface MeaningContextChapter {
   purpose?: string;
   povCharacterId?: string | null;
   narratorId?: string | null;
+  targetWordCount?: number | null;
+  endingNotes?: string;
 }
 
 export interface MeaningContextCharacter {
   id: string;
   name: string;
   role?: string;
+  personality?: string;
+  background?: string;
+  arc?: string;
+  firstPerson?: string;
+  defaultSecondPerson?: string;
+  speechRegister?: string;
+  speechStyleNotes?: string;
+  narrationVoiceNotes?: string;
   relevant?: boolean;
 }
 
@@ -114,7 +132,11 @@ export interface MeaningContextNarrator {
   id: string;
   name: string;
   linkedCharacterId?: string | null;
+  description?: string;
+  voiceNotes?: string;
+  identityFactId?: string | null;
   identityDisclosureMode?: string;
+  notes?: string;
   relevant?: boolean;
 }
 
@@ -194,7 +216,13 @@ export interface BuildChapterMeaningContextInput {
 
 export interface MeaningSemanticPayload {
   version: typeof STORY_MEANING_CONTEXT_VERSION;
-  target: Omit<MeaningContextChapter, 'content'> & { projectTitle: string };
+  target: Omit<MeaningContextChapter, 'content'> & {
+    projectTitle: string;
+    narrativePerspective: string | null;
+    povNotes: string;
+    writingStyleNotes: string;
+    formattingNotes: string;
+  };
   actualCanonical: {
     characters: MeaningContextCharacter[];
     narrators: MeaningContextNarrator[];
@@ -210,6 +238,8 @@ export interface MeaningSemanticPayload {
   authorIntent: string;
   interpretiveLens: {
     genre: string;
+    genreGuidanceMode: string;
+    genreGuidanceNotes: string;
     creativeRules: MeaningContextCreativeRule[];
   };
 }

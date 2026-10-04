@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { STORY_MEANING_CONTEXT_VERSION, type ChapterMeaningContext, type MeaningClaim, type MeaningEvidence } from './types';
 
-export const STORY_MEANING_PROMPT_VERSION = 'meaning-prompt-v1' as const;
+export const STORY_MEANING_PROMPT_VERSION = 'chapter-meaning-ja-v1' as const;
 export const STORY_MEANING_RUN_STATUSES = ['pending', 'completed', 'failed'] as const;
 export type StoryMeaningRunStatus = typeof STORY_MEANING_RUN_STATUSES[number];
 export const STORY_MEANING_PROVENANCES = ['ai_analysis', 'author_confirmed', 'author_edited', 'author_added'] as const;
@@ -56,13 +56,15 @@ export interface MeaningFreshness {
   contentHash: string;
   contextFingerprint: string;
   fingerprintVersion: string;
+  promptVersion: string;
 }
 
 export function storyMeaningRunIsFresh(run: MeaningFreshness, current: MeaningFreshness): boolean {
   return run.contentHash === current.contentHash
     && run.contextFingerprint === current.contextFingerprint
     && run.fingerprintVersion === STORY_MEANING_CONTEXT_VERSION
-    && current.fingerprintVersion === STORY_MEANING_CONTEXT_VERSION;
+    && current.fingerprintVersion === STORY_MEANING_CONTEXT_VERSION
+    && run.promptVersion === current.promptVersion;
 }
 
 export function storyMeaningDecisionIsFresh(

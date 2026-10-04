@@ -45,15 +45,16 @@ test('claim fingerprint preserves Unicode and normalization differences', () => 
 });
 
 test('run freshness requires raw content, semantic context and meaning-v1', () => {
-  const current = { contentHash: 'content', contextFingerprint: 'context', fingerprintVersion: 'meaning-v1' };
+  const current = { contentHash: 'content', contextFingerprint: 'context', fingerprintVersion: 'meaning-v1', promptVersion: 'chapter-meaning-ja-v1' };
   assert.equal(storyMeaningRunIsFresh(current, current), true);
   assert.equal(storyMeaningRunIsFresh({ ...current, contentHash: 'changed' }, current), false);
   assert.equal(storyMeaningRunIsFresh({ ...current, contextFingerprint: 'changed' }, current), false);
   assert.equal(storyMeaningRunIsFresh({ ...current, fingerprintVersion: 'meaning-v2' }, current), false);
+  assert.equal(storyMeaningRunIsFresh({ ...current, promptVersion: 'chapter-meaning-ja-v2' }, current), false);
 });
 
 test('decision freshness is conservative across claim/source/context changes', () => {
-  const current = { contentHash: 'content', contextFingerprint: 'context', fingerprintVersion: 'meaning-v1' };
+  const current = { contentHash: 'content', contextFingerprint: 'context', fingerprintVersion: 'meaning-v1', promptVersion: 'chapter-meaning-ja-v1' };
   const decision = { claimFingerprint: 'claim', decidedAgainstContentHash: 'content', decidedAgainstContextFingerprint: 'context', fingerprintVersion: 'meaning-v1' };
   assert.equal(storyMeaningDecisionIsFresh(decision, { claimFingerprint: 'claim' }, current), true);
   assert.equal(storyMeaningDecisionIsFresh(decision, { claimFingerprint: 'other' }, current), false);

@@ -144,6 +144,8 @@ test('latest and latest fresh differ without deleting historical runs', async ()
   const changedContext = context('「帰る」😀', '変更された真実');
   assert.equal((await getLatestStoryMeaningRun('p1', 'ch1', changedContext, database) as { fresh: boolean }).fresh, false);
   assert.equal(await getLatestFreshStoryMeaningRun('p1', 'ch1', changedContext, database), null);
+  state.runs[0].promptVersion = 'chapter-meaning-ja-v0';
+  assert.equal(await getLatestFreshStoryMeaningRun('p1', 'ch1', oldContext, database), null);
   assert.equal(state.runs.length, 1);
 });
 

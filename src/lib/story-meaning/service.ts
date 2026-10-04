@@ -37,7 +37,7 @@ const runInclude = {
 };
 
 function currentFreshness(context: ChapterMeaningContext) {
-  return { contentHash: context.contentHash, contextFingerprint: context.contextFingerprint, fingerprintVersion: context.version };
+  return { contentHash: context.contentHash, contextFingerprint: context.contextFingerprint, fingerprintVersion: context.version, promptVersion: STORY_MEANING_PROMPT_VERSION };
 }
 
 function parseJson(value: string, fallback: unknown) {
@@ -78,7 +78,7 @@ async function ownedChapter(database: MeaningDatabase, projectId: string, chapte
 }
 
 export async function startStoryMeaningRun(
-  input: { projectId: string; chapterId: string; context: ChapterMeaningContext; promptVersion?: string },
+  input: { projectId: string; chapterId: string; context: ChapterMeaningContext; promptVersion?: string; sourceManifest?: unknown },
   database: MeaningDatabase = db,
 ) {
   const chapter = await ownedChapter(database, input.projectId, input.chapterId);
@@ -92,7 +92,7 @@ export async function startStoryMeaningRun(
     contextFingerprint: input.context.contextFingerprint,
     fingerprintVersion: STORY_MEANING_CONTEXT_VERSION,
     promptVersion: input.promptVersion || STORY_MEANING_PROMPT_VERSION,
-    sourceManifest: JSON.stringify(buildStoryMeaningSourceManifest(input.context)),
+    sourceManifest: JSON.stringify(input.sourceManifest || buildStoryMeaningSourceManifest(input.context)),
     status: 'pending',
   } });
 }
@@ -209,9 +209,22 @@ export async function getLatestFreshStoryMeaningRun(projectId: string, chapterId
   const run = await database.storyMeaningAnalysisRun.findFirst({
     where: {
       projectId, chapterId, status: 'completed',
-      contentHash: context.contentHash, contextFingerprint: context.contextFingerprint, fingerprintVersion: STORY_MEANING_CONTEXT_VERSION,
+      contentHash: context.contentHash, contextFingerprint: context.contextFingerprint, fingerprintVersion: STORY_MEANING_CONTEXT_VERSION, promptVersion: STORY_MEANING_PROMPT_VERSION,
     },
     orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], include: runInclude,
+  });
+  return run ? publicRun(run as unknown as Record<string, unknown>, context) : null;
+}
+
+export async function getPendingStoryMeaningRun(projectId: string, chapterId: string, context: ChapterMeaningContext, database: MeaningDatabase = db) {
+  await ownedChapter(database, projectId, chapterId);
+  const run = await database.storyMeaningAnalysisRun.findFirst({
+    where: {
+      projectId, chapterId, status: 'pending', contentHash: context.contentHash,
+      contextFingerprint: context.contextFingerprint, fingerprintVersion: STORY_MEANING_CONTEXT_VERSION,
+      promptVersion: STORY_MEANING_PROMPT_VERSION,
+    },
+    orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
   });
   return run ? publicRun(run as unknown as Record<string, unknown>, context) : null;
 }

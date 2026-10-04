@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 const sql = readFileSync('prisma/migrations/20261004000000_add_story_meaning_analysis/migration.sql', 'utf8');
+const runtimeSql = readFileSync('prisma/migrations/20261004010000_prevent_duplicate_pending_story_meaning_runs/migration.sql', 'utf8');
 
 test('meaning migration is additive and creates the four persistence tables', () => {
   for (const table of ['StoryMeaningAnalysisRun', 'StoryMeaningEvent', 'StoryMeaningClaim', 'StoryMeaningDecision']) {
@@ -10,6 +11,13 @@ test('meaning migration is additive and creates the four persistence tables', ()
   }
   assert.doesNotMatch(sql, /DROP\s+(TABLE|COLUMN|SCHEMA)|TRUNCATE|UPDATE\s+"magic_story"|DELETE\s+FROM|ALTER\s+COLUMN/i);
   assert.doesNotMatch(sql, /INSERT\s+INTO/i);
+});
+
+test('runtime migration only adds a partial unique guard for duplicate pending work', () => {
+  assert.match(runtimeSql, /CREATE UNIQUE INDEX "StoryMeaningAnalysisRun_pending_input_key"/);
+  assert.match(runtimeSql, /WHERE "status" = 'pending'/);
+  for (const field of ['projectId', 'chapterId', 'contentHash', 'contextFingerprint', 'fingerprintVersion', 'promptVersion']) assert.match(runtimeSql, new RegExp(`"${field}"`));
+  assert.doesNotMatch(runtimeSql, /DROP|UPDATE|DELETE|INSERT|ALTER TABLE/i);
 });
 
 test('meaning migration has lifecycle, domain and range constraints', () => {
