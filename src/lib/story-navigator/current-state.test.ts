@@ -4,6 +4,7 @@ import { buildNavigatorContext } from './context.js';
 import { classifyNavigatorFact, deriveNavigatorCurrentState, resolveNavigatorKnowledge } from './current-state.js';
 import { STORY_NAVIGATOR_CONTEXT_HARD_CAP, type NavigatorSource } from './types.js';
 import { STORY_NAVIGATOR_SYSTEM_PROMPT } from '../prompts/ja/story-navigator.js';
+import type { BuiltinCreativeRuleAdoption, CustomCreativeRule } from '../creative-rules/types.js';
 
 const chapter = (id: string, order: number, overrides: Partial<NavigatorSource['anchor']> = {}): NavigatorSource['anchor'] => ({
   id, order, title: `第${order + 1}章`, outlineContent: `outline-${id}`, content: `actual-content-${id}`, summary: `summary-${id}`, status: 'done', ...overrides,
@@ -52,6 +53,16 @@ function source(mode = 'reference'): NavigatorSource {
     storyEdges: [{ id: 'e1', sourceId: 'n1', targetId: 'n2', label: '因果', edgeType: 'causal' }],
   };
 }
+
+const builtin = (values: Partial<BuiltinCreativeRuleAdoption> = {}): BuiltinCreativeRuleAdoption => ({
+  id: 'creative', kind: 'builtin', techniqueKey: 'chapter_end_hook', mode: 'reference', priority: 0,
+  overridable: true, authorAdjustment: '', notes: '', source: 'author', active: true, ...values,
+});
+
+const custom = (values: Partial<CustomCreativeRule> = {}): CustomCreativeRule => ({
+  id: 'custom', kind: 'custom', title: '独自規則', instruction: 'CUSTOM_NAVIGATOR_TOKEN', category: 'structure',
+  mode: 'required', priority: 100, overridable: false, notes: '', source: 'author', active: true, ...values,
+});
 
 describe('Navigator anchor-end temporal semantics', () => {
   test('treats past and anchor reveals as reader-known, and future reveals as hidden', () => {
@@ -112,6 +123,7 @@ test('Navigator budget preserves required entries, degrades optional entries, an
   value.worldSettings = Array.from({ length: 100 }, (_, index) => ({ id: `world-${index}`, name: `世界${index}`, description: '背景'.repeat(600), rules: '規則'.repeat(500), type: 'background', order: index }));
   const result = buildNavigatorContext(value, '今回の明示指示');
   assert.ok(result.context.length <= STORY_NAVIGATOR_CONTEXT_HARD_CAP);
+  assert.equal(result.manifest.version, '3b2-v2');
   assert.match(result.context, /Navigator Task/);
   assert.match(result.context, /今回の作者指示（最優先）/);
   assert.match(result.context, /作者意図（AI提案より上位）/);
@@ -149,4 +161,85 @@ test('Navigator prompt keeps proposals non-canon and separates knowledge layers'
   assert.match(STORY_NAVIGATOR_SYSTEM_PROMPT, /Actual/);
   assert.match(STORY_NAVIGATOR_SYSTEM_PROMPT, /Author Truth、Reader Knowledge、Character Perception/);
   assert.match(STORY_NAVIGATOR_SYSTEM_PROMPT, /作者が意味を与える/);
+});
+
+describe('Navigator Creative Rules integration', () => {
+  test('zero rows preserves the previous context and navigator surface selects only relevant built-ins', () => {
+    const baseline = buildNavigatorContext(source()).context;
+    const explicitZero = source(); explicitZero.creativeRules = [];
+    assert.equal(buildNavigatorContext(explicitZero).context, baseline);
+
+    const value = source();
+    value.creativeRules = [
+      builtin({ id: 'reference', mode: 'reference', authorAdjustment: '静かな局面では強制しない', notes: '😀\r\ne\u0301' }),
+      builtin({ id: 'required', techniqueKey: 'causal_progression', mode: 'required' }),
+      builtin({ id: 'forbidden', techniqueKey: 'cliffhanger', mode: 'forbidden' }),
+      builtin({ id: 'prose', techniqueKey: 'sentence_ending_variety', mode: 'required' }),
+      builtin({ id: 'inactive', techniqueKey: 'opening_hook', active: false }),
+      builtin({ id: 'unknown', techniqueKey: 'future-technique' }),
+      custom(),
+    ];
+    const result = buildNavigatorContext(value);
+    assert.match(result.context, /創作ルール（物語ナビゲーター）/);
+    assert.match(result.context, /\[必須\][\s\S]*因果による進行/);
+    assert.match(result.context, /\[禁止\][\s\S]*クリフハンガー/);
+    assert.match(result.context, /\[参考\][\s\S]*章末の引き/);
+    assert.match(result.context, /静かな局面では強制しない/);
+    assert.match(result.context, /😀\r\né/);
+    assert.doesNotMatch(result.context, /文末の変化|CUSTOM_NAVIGATOR_TOKEN|冒頭の引き|future-technique/);
+    assert.ok(result.manifest.omittedSections.includes('creative-rule:prose'));
+    assert.ok(result.manifest.omittedSections.includes('creative-rule:custom'));
+  });
+
+  test('off, inactive and unset are not sent as guidance or forbidden', () => {
+    const value = source(); value.creativeRules = [builtin({ mode: 'off' })];
+    assert.doesNotMatch(buildNavigatorContext(value).context, /創作ルール（物語ナビゲーター）|章末の引き|\[禁止\]/);
+    value.creativeRules = [builtin({ mode: 'off', active: false })];
+    assert.doesNotMatch(buildNavigatorContext(value).context, /創作ルール（物語ナビゲーター）|章末の引き|\[禁止\]/);
+    delete value.creativeRules;
+    assert.doesNotMatch(buildNavigatorContext(value).context, /創作ルール（物語ナビゲーター）/);
+  });
+
+  test('Creative Rules retain Canon, Knowledge, non-canon and route-diversity contracts', () => {
+    const value = source(); value.creativeRules = [builtin({ techniqueKey: 'reversal_catharsis', mode: 'required' })];
+    const context = buildNavigatorContext(value).context;
+    assert.match(context, /Canon、Canonical Current State/);
+    assert.match(context, /Creative RuleからCanon、Knowledge、実在しない過去要素を推論せず/);
+    assert.match(context, /Proposalは非Canon/);
+    assert.match(context, /全Routeへ強制しない/);
+    assert.match(context, /同じ展開の言い換えに収束させない/);
+    assert.match(context, /Reader Hidden/);
+  });
+
+  test('required or forbidden overflow fails closed while reference overflow is diagnosed', () => {
+    const navigatorKeys = [
+      'scene_focus_change', 'scene_sequel_rhythm', 'opening_hook', 'chapter_end_hook', 'quiet_chapter_ending',
+      'cliffhanger', 'staged_information_reveal', 'fair_play_clues', 'foreshadow_and_payoff', 'tension_escalation',
+      'tension_release', 'causal_progression', 'three_act_structure', 'kishotenketsu', 'character_arc', 'reversal_catharsis',
+    ] as const;
+    const required = source();
+    required.creativeRules = navigatorKeys.map((techniqueKey, index) => builtin({ id: `required-${index}`, techniqueKey, mode: 'required', authorAdjustment: '長い条件'.repeat(400) }));
+    assert.throws(() => buildNavigatorContext(required), /処理を中止/);
+
+    const reference = source();
+    reference.creativeRules = navigatorKeys.map((techniqueKey, index) => builtin({ id: `reference-${index}`, techniqueKey, mode: 'reference', authorAdjustment: '長い参考'.repeat(400) }));
+    const result = buildNavigatorContext(reference);
+    assert.ok(result.manifest.omittedSections.some(id => id.startsWith('creative-rule:')));
+    assert.ok(result.context.length <= STORY_NAVIGATOR_CONTEXT_HARD_CAP);
+  });
+
+  test('reference rules never push baseline Canon or Current State out of the context', () => {
+    const value = source();
+    value.worldSettings = Array.from({ length: 100 }, (_, index) => ({ id: `world-${index}`, name: `世界${index}`, description: '背景'.repeat(600), rules: '規則'.repeat(500), type: 'background', order: index }));
+    const baseline = buildNavigatorContext(value);
+    value.creativeRules = [builtin({ mode: 'reference', authorAdjustment: '参考条件'.repeat(300) })];
+    const integrated = buildNavigatorContext(value);
+    assert.deepEqual(integrated.manifest.storyFactIds, baseline.manifest.storyFactIds);
+    assert.deepEqual(integrated.manifest.characterKnowledgeIds, baseline.manifest.characterKnowledgeIds);
+    assert.deepEqual(integrated.manifest.storyStateIds, baseline.manifest.storyStateIds);
+    assert.deepEqual(integrated.manifest.worldSettingIds, baseline.manifest.worldSettingIds);
+    if (!/創作ルール（物語ナビゲーター）/.test(integrated.context)) {
+      assert.ok(integrated.manifest.omittedSections.includes('creative-rule:creative'));
+    }
+  });
 });

@@ -1,6 +1,7 @@
 import { buildContextWithinBudget, safeContextExcerpt, type ContextEntry } from '@/lib/prompts/ja/context-budget';
 import { formatSemanticLabel } from '@/lib/prompts/ja/semantic-labels';
 import { displayLabel, NARRATIVE_PERSPECTIVE_LABELS } from '@/lib/i18n';
+import { buildCreativeRulePromptContext, type CreativeRulePromptContext } from '@/lib/prompts/ja/creative-rules';
 import { deriveNavigatorCurrentState, loadNavigatorSource } from './current-state';
 import {
   STORY_NAVIGATOR_CONTEXT_HARD_CAP, STORY_NAVIGATOR_CONTEXT_VERSION,
@@ -45,7 +46,7 @@ function knowledgeText(state: NavigatorCurrentState['canonical']['characterKnowl
   return `${character.name}：作者の真実とは別に「${event.beliefNotes || '内容未設定'}」と信じている`;
 }
 
-function buildEntries(source: NavigatorSource, state: NavigatorCurrentState, authorInstruction = ''): NavigatorEntry[] {
+function buildEntries(source: NavigatorSource, state: NavigatorCurrentState, authorInstruction: string, creativeRules: CreativeRulePromptContext): NavigatorEntry[] {
   const anchor = state.actual.anchor;
   const project = state.project;
   const entries: NavigatorEntry[] = [
@@ -78,6 +79,13 @@ function buildEntries(source: NavigatorSource, state: NavigatorCurrentState, aut
       minimum: `【Project設定】${project.title}`,
     } },
   );
+
+  if (creativeRules.text) entries.push({ entry: {
+    id: 'creative-rules', tier: 1,
+    required: creativeRules.semanticRules.some(rule => rule.mode === 'required' || rule.mode === 'forbidden'),
+    relevance: 85,
+    full: creativeRules.text,
+  } });
 
   if (project.genreGuidanceMode !== 'off') {
     const required = project.genreGuidanceMode === 'required';
@@ -169,8 +177,24 @@ function unique(values: string[]): string[] { return [...new Set(values)]; }
 
 export function buildNavigatorContext(source: NavigatorSource, authorInstruction = ''): NavigatorContextResult {
   const currentState = deriveNavigatorCurrentState(source);
-  const navigatorEntries = buildEntries(source, currentState, authorInstruction);
-  const result = buildContextWithinBudget(navigatorEntries.map(item => item.entry), STORY_NAVIGATOR_CONTEXT_HARD_CAP);
+  const creativeRules = buildCreativeRulePromptContext(source.creativeRules || [], 'navigator');
+  const navigatorEntries = buildEntries(source, currentState, authorInstruction, creativeRules);
+  const baselineEntries = navigatorEntries.filter(item => item.entry.id !== 'creative-rules');
+  const baseline = buildContextWithinBudget(baselineEntries.map(item => item.entry), STORY_NAVIGATOR_CONTEXT_HARD_CAP);
+  let result = creativeRules.text
+    ? buildContextWithinBudget(navigatorEntries.map(item => item.entry), STORY_NAVIGATOR_CONTEXT_HARD_CAP)
+    : baseline;
+  let creativeRepresentation = result.included.find(item => item.id === 'creative-rules')?.representation;
+  const hasHardCreativeRule = creativeRules.semanticRules.some(rule => rule.mode === 'required' || rule.mode === 'forbidden');
+  if (hasHardCreativeRule && creativeRepresentation !== 'full') throw new Error('必須または禁止のCreative RulesをNavigator Contextへ完全なentryとして保持できないため、処理を中止しました。');
+  const protectedPrefix = /^(navigator-task|proposal-noncanon|author-instruction|author-intent|anchor-position|knowledge-boundary|project-settings|genre-guidance|actual-|anchor-cast|surrounding-character:|canonical-|relationship:|world:|scene:)/;
+  const protectedBaselineIds = baseline.included.map(item => item.id).filter(id => protectedPrefix.test(id));
+  const combinedIds = new Set(result.included.map(item => item.id));
+  if (creativeRules.text && protectedBaselineIds.some(id => !combinedIds.has(id))) {
+    if (hasHardCreativeRule) throw new Error('Creative Rulesを保持するとNavigatorのCanon／Current Stateが失われるため、処理を中止しました。');
+    result = baseline;
+    creativeRepresentation = undefined;
+  }
   const included = new Set(result.included.map(item => item.id));
   const refs = navigatorEntries.filter(item => included.has(item.entry.id)).map(item => item.refs || {});
   const manifest: NavigatorSourceManifest = {
@@ -189,7 +213,11 @@ export function buildNavigatorContext(source: NavigatorSource, authorInstruction
     sceneIds: unique(refs.flatMap(item => item.sceneIds || [])),
     storyNodeIds: unique(refs.flatMap(item => item.storyNodeIds || [])),
     storyEdgeIds: unique(refs.flatMap(item => item.storyEdgeIds || [])),
-    omittedSections: result.omitted,
+    omittedSections: unique([
+      ...result.omitted,
+      ...creativeRules.omitted.map(id => `creative-rule:${id}`),
+      ...(creativeRules.text && !creativeRepresentation ? creativeRules.evidenceRefs.map(value => `creative-rule:${value.stableId}`) : []),
+    ]),
     finalContextLength: result.text.length,
   };
   return { context: result.text, manifest, currentState };

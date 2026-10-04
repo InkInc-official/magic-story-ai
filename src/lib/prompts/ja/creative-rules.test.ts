@@ -84,3 +84,15 @@ test('Editor system promptも共通fallback keyを構造的に抑止する', () 
   assert.doesNotMatch(suppressed, /語尾の単調さ/); assert.doesNotMatch(suppressed, /同じ接続詞、語尾、構文/);
   assert.match(suppressed, /誤文、助詞、係り受け/);
 });
+
+test('NavigatorはCatalog surfaceだけを使いCustomとprose-onlyを除外する', () => {
+  const result = buildCreativeRulePromptContext([
+    builtin({ id: 'navigator', techniqueKey: 'foreshadow_and_payoff', mode: 'reference' }),
+    builtin({ id: 'prose', techniqueKey: 'sentence_length_variation', mode: 'required' }),
+    custom({ id: 'custom', instruction: 'NAVIGATOR_CUSTOM_TOKEN' }),
+  ], 'navigator');
+  assert.match(result.text, /伏線と回収/);
+  assert.match(result.text, /全Routeへ強制しない/);
+  assert.doesNotMatch(result.text, /文の長短|NAVIGATOR_CUSTOM_TOKEN/);
+  assert.deepEqual(result.omitted, ['custom', 'prose']);
+});

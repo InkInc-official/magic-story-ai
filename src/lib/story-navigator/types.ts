@@ -1,7 +1,8 @@
 import type { CharacterKnowledgeEvent, KnowledgeCharacter } from '@/lib/character-knowledge';
 import type { StoryFactValue } from '@/lib/story-facts';
+import type { ProjectCreativeRule } from '@/lib/creative-rules';
 
-export const STORY_NAVIGATOR_CONTEXT_VERSION = '3b2-v1';
+export const STORY_NAVIGATOR_CONTEXT_VERSION = '3b2-v2';
 export const STORY_NAVIGATOR_CONTEXT_HARD_CAP = 18_000;
 
 export interface NavigatorChapter {
@@ -73,6 +74,7 @@ export interface NavigatorSource {
   scenes: NavigatorScene[];
   storyNodes: NavigatorStoryNode[];
   storyEdges: NavigatorStoryEdge[];
+  creativeRules?: ProjectCreativeRule[];
 }
 
 export type NavigatorReaderState = 'reader-known' | 'reader-hidden';

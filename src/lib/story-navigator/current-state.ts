@@ -1,4 +1,5 @@
 import { db } from '@/lib/db';
+import { loadProjectCreativeRuleRuntime } from '@/lib/creative-rule-service';
 import type {
   NavigatorCurrentState, NavigatorFactState, NavigatorKnowledgeState, NavigatorSource,
 } from './types';
@@ -79,23 +80,27 @@ export function deriveNavigatorCurrentState(source: NavigatorSource): NavigatorC
 export async function loadNavigatorSource(projectId: string, anchorChapterId: string): Promise<NavigatorSource> {
   const anchor = await db.chapter.findFirst({ where: { id: anchorChapterId, projectId }, include: { chapterCharacters: { include: { character: true }, orderBy: { order: 'asc' } } } });
   if (!anchor) throw new Error('Navigator anchor chapter was not found in the project');
-  const project = await db.project.findUnique({
-    where: { id: projectId },
-    include: {
-      chapters: { where: { order: { lte: anchor.order } }, orderBy: { order: 'asc' } },
-      characters: true,
-      characterRelations: { include: { fromCharacter: { select: { name: true } }, toCharacter: { select: { name: true } } } },
-      storyFacts: { include: { plannedRevealChapter: { select: { id: true, order: true, title: true } }, revealedChapter: { select: { id: true, order: true, title: true } }, characterKnowledge: { include: { effectiveChapter: { select: { id: true, order: true, title: true } }, character: { select: { id: true, name: true } } } } } },
-      storyStates: { include: { chapter: { select: { id: true, order: true, title: true } } } },
-      outlines: { orderBy: { version: 'desc' } }, plots: true, foreshadowings: true, worldSettings: true, scenes: true,
-      storyNodes: true, storyEdges: { include: { sourceNode: { select: { title: true } }, targetNode: { select: { title: true } } } },
-    },
-  });
+  const [project, creativeRuleRuntime] = await Promise.all([
+    db.project.findUnique({
+      where: { id: projectId },
+      include: {
+        chapters: { where: { order: { lte: anchor.order } }, orderBy: { order: 'asc' } },
+        characters: true,
+        characterRelations: { include: { fromCharacter: { select: { name: true } }, toCharacter: { select: { name: true } } } },
+        storyFacts: { include: { plannedRevealChapter: { select: { id: true, order: true, title: true } }, revealedChapter: { select: { id: true, order: true, title: true } }, characterKnowledge: { include: { effectiveChapter: { select: { id: true, order: true, title: true } }, character: { select: { id: true, name: true } } } } } },
+        storyStates: { include: { chapter: { select: { id: true, order: true, title: true } } } },
+        outlines: { orderBy: { version: 'desc' } }, plots: true, foreshadowings: true, worldSettings: true, scenes: true,
+        storyNodes: true, storyEdges: { include: { sourceNode: { select: { title: true } }, targetNode: { select: { title: true } } } },
+      },
+    }),
+    loadProjectCreativeRuleRuntime(projectId),
+  ]);
   if (!project) throw new Error('Navigator project was not found');
   return {
     project, anchor, chapters: project.chapters, characters: project.characters, relationships: project.characterRelations,
     storyFacts: project.storyFacts, characterKnowledge: project.storyFacts.flatMap(fact => fact.characterKnowledge),
     storyStates: project.storyStates, outlines: project.outlines, plots: project.plots, foreshadowings: project.foreshadowings,
     worldSettings: project.worldSettings, scenes: project.scenes, storyNodes: project.storyNodes, storyEdges: project.storyEdges,
+    creativeRules: creativeRuleRuntime.rules,
   };
 }

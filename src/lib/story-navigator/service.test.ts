@@ -70,3 +70,13 @@ test('Navigator completion receives no Universal Agent tools', async () => {
   });
   assert.equal('tools' in options, false);
 });
+
+test('Creative Rule context load failure is not treated as zero rules and creates no Run', async () => {
+  const { database, state } = fakeDatabase();
+  await assert.rejects(() => generateStoryNavigatorRun({ projectId: 'p1', anchorChapterId: 'c1' }, {
+    database,
+    buildContext: async () => { throw new Error('creative rule load failed'); },
+    complete: async () => raw,
+  }), /creative rule load failed/);
+  assert.equal(state.runCreate, null);
+});
