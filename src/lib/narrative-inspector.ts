@@ -42,13 +42,18 @@ export class NarrativeInspectorError extends Error {
 }
 
 export function hasUnsavedInspectorChanges(
-  saved: { content: string; title: string; povCharacterId?: string | null; narratorId?: string | null },
-  draft: { content: string; title: string; povCharacterId?: string | null; narratorId?: string | null },
+  saved: { content: string; title: string; outlineContent?: string; summary?: string; purpose?: string; povCharacterId?: string | null; narratorId?: string | null; targetWordCount?: number | string | null; endingNotes?: string },
+  draft: { content: string; title: string; outlineContent?: string; summary?: string; purpose?: string; povCharacterId?: string | null; narratorId?: string | null; targetWordCount?: number | string | null; endingNotes?: string },
 ) {
   return saved.content !== draft.content
     || saved.title !== draft.title
+    || (saved.outlineContent || '') !== (draft.outlineContent || '')
+    || (saved.summary || '') !== (draft.summary || '')
+    || (saved.purpose || '') !== (draft.purpose || '')
     || (saved.povCharacterId || '') !== (draft.povCharacterId || '')
-    || (saved.narratorId || '') !== (draft.narratorId || '');
+    || (saved.narratorId || '') !== (draft.narratorId || '')
+    || String(saved.targetWordCount ?? '') !== String(draft.targetWordCount ?? '')
+    || (saved.endingNotes || '') !== (draft.endingNotes || '');
 }
 
 const ISSUE_TYPE_CATEGORY: Record<InspectorIssueType, InspectorCategory> = {

@@ -16,17 +16,17 @@ async function entityNames(runs: Array<Record<string, unknown>>, projectId: stri
   const ids = (type: string) => [...new Set(refs.filter(ref => ref.type === type && typeof ref.id === 'string').map(ref => ref.id as string))];
   const [characters, facts, relationships, plots, foreshadowings] = await Promise.all([
     db.character.findMany({ where: { projectId, id: { in: ids('character') } }, select: { id: true, name: true } }),
-    db.storyFact.findMany({ where: { projectId, id: { in: ids('story_fact') } }, select: { id: true, content: true } }),
+    db.storyFact.findMany({ where: { projectId, id: { in: ids('story_fact') } }, select: { id: true } }),
     db.characterRelationship.findMany({ where: { projectId, id: { in: ids('relationship') } }, select: { id: true, type: true } }),
     db.plot.findMany({ where: { projectId, id: { in: ids('plot') } }, select: { id: true, name: true } }),
-    db.foreshadowing.findMany({ where: { projectId, id: { in: ids('foreshadowing') } }, select: { id: true, content: true } }),
+    db.foreshadowing.findMany({ where: { projectId, id: { in: ids('foreshadowing') } }, select: { id: true } }),
   ]);
   return {
     character: new Map(characters.map(value => [value.id, value.name])),
-    story_fact: new Map(facts.map(value => [value.id, `作者設定：${value.content.slice(0, 80)}`])),
+    story_fact: new Map(facts.map(value => [value.id, '作者設定（参照）'])),
     relationship: new Map(relationships.map(value => [value.id, `人物関係：${value.type}`])),
     plot: new Map(plots.map(value => [value.id, value.name])),
-    foreshadowing: new Map(foreshadowings.map(value => [value.id, `伏線：${value.content.slice(0, 80)}`])),
+    foreshadowing: new Map(foreshadowings.map(value => [value.id, '伏線（参照）'])),
   };
 }
 

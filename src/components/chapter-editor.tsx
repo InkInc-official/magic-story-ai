@@ -515,7 +515,8 @@ export function ChapterEditor({ projectId }: ChapterEditorProps) {
 
   const selectedChapter = chapters.find(c => c.id === selectedId);
   const inspectorDirty = Boolean(selectedChapter && hasUnsavedInspectorChanges(selectedChapter, {
-    content: editContent, title: editTitle, povCharacterId: editPovCharacterId, narratorId: editNarratorId,
+    content: editContent, title: editTitle, outlineContent: editOutline, summary: editSummary, purpose: editPurpose,
+    povCharacterId: editPovCharacterId, narratorId: editNarratorId, targetWordCount: editTargetWordCount, endingNotes: editEndingNotes,
   }));
   const symbolMetricsDirty = Boolean(selectedChapter && semanticMetricsUseOlderSavedContent(selectedChapter.content, editContent));
   const previewSymbolSemantics = useMemo(() => {
@@ -963,9 +964,11 @@ export function ChapterEditor({ projectId }: ChapterEditorProps) {
                 </div>
               )}
               {sidePanel === 'inspector' && selectedChapter && (
-                <NarrativeInspectorPanel key={`${projectId}:${selectedChapter.id}`} projectId={projectId} chapterId={selectedChapter.id} hasUnsavedChanges={inspectorDirty} onSelectRange={(start, end) => {
-                  contentRef.current?.focus();
-                  contentRef.current?.setSelectionRange(start, end);
+                <NarrativeInspectorPanel key={`${projectId}:${selectedChapter.id}`} projectId={projectId} chapterId={selectedChapter.id} hasUnsavedChanges={inspectorDirty || isSaving} onSelectRange={(start, end) => {
+                  const editor = contentRef.current;
+                  if (!editor || start < 0 || end <= start || end > editor.value.length) return;
+                  editor.focus();
+                  editor.setSelectionRange(start, end);
                 }} />
               )}
               {sidePanel === 'inspector' && !selectedChapter && (
@@ -975,9 +978,11 @@ export function ChapterEditor({ projectId }: ChapterEditorProps) {
                 </div>
               )}
               {sidePanel === 'meaning' && selectedChapter && (
-                <StoryMeaningPanel key={`${projectId}:${selectedChapter.id}`} projectId={projectId} chapterId={selectedChapter.id} hasUnsavedChanges={inspectorDirty} onSelectRange={(start, end) => {
-                  contentRef.current?.focus();
-                  contentRef.current?.setSelectionRange(start, end);
+                <StoryMeaningPanel key={`${projectId}:${selectedChapter.id}`} projectId={projectId} chapterId={selectedChapter.id} hasUnsavedChanges={inspectorDirty || isSaving} onSelectRange={(start, end) => {
+                  const editor = contentRef.current;
+                  if (!editor || start < 0 || end <= start || end > editor.value.length) return;
+                  editor.focus();
+                  editor.setSelectionRange(start, end);
                 }} />
               )}
               {sidePanel === 'meaning' && !selectedChapter && (

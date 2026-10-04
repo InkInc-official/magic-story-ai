@@ -8,8 +8,10 @@ import {
   getLatestFreshStoryMeaningRun,
   getLatestStoryMeaningDecisions,
   getLatestStoryMeaningRun,
+  listStoryMeaningRuns,
   markStoryMeaningRunFailed,
   startStoryMeaningRun,
+  STORY_MEANING_PROMPT_VERSION,
   StoryMeaningPersistenceError,
   StoryMeaningValidationError,
 } from './index.js';
@@ -172,6 +174,13 @@ test('decisions append, derive latest, and never auto-carry across freshness bou
   assert.equal(state.decisions.length, 2); assert.equal(state.claims[0].provenance, 'ai_analysis');
   const latest = await getLatestStoryMeaningDecisions('p1', 'ch1', current, database);
   assert.equal(latest[0].decision, 'alternative'); assert.equal(latest[0].fresh, true);
+  state.runs[0].promptVersion = 'chapter-meaning-ja-v0';
+  const promptStaleRuns = await listStoryMeaningRuns('p1', 'ch1', current, database);
+  const promptStaleClaim = promptStaleRuns[0].events[0].claims[0];
+  assert.ok(promptStaleClaim.latestDecision);
+  assert.equal(promptStaleClaim.latestDecision.fresh, false);
+  assert.equal(promptStaleClaim.decisionHistory[0].fresh, false);
+  state.runs[0].promptVersion = STORY_MEANING_PROMPT_VERSION;
   const changed = context('「帰る」😀', '変更された真実');
   assert.equal((await getLatestStoryMeaningDecisions('p1', 'ch1', changed, database))[0].fresh, false);
   assert.equal(state.decisions.length, 2, 'historical decisions remain stored');

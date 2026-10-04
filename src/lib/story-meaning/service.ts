@@ -62,10 +62,11 @@ function presentedEntityIds(sourceManifest: string): Partial<Record<MeaningEntit
 
 function publicRun(run: Record<string, unknown>, context?: ChapterMeaningContext) {
   const events = Array.isArray(run.events) ? run.events as Array<Record<string, unknown>> : [];
+  const runFresh = context ? storyMeaningRunIsFresh(run as never, currentFreshness(context)) : undefined;
   return {
     ...run,
     sourceManifest: parseJson(String(run.sourceManifest || '{}'), {}),
-    fresh: context ? storyMeaningRunIsFresh(run as never, currentFreshness(context)) : undefined,
+    fresh: runFresh,
     events: events.map(event => ({
       ...event,
       evidence: parseJson(String(event.evidenceJson || '[]'), []),
@@ -83,11 +84,11 @@ function publicRun(run: Record<string, unknown>, context?: ChapterMeaningContext
           decision: decision.decision,
           authorInterpretation: decision.authorInterpretation,
           createdAt: decision.createdAt,
-          fresh: context ? storyMeaningDecisionIsFresh(decision as never, claim as never, currentFreshness(context)) : undefined,
+          fresh: context ? Boolean(runFresh && storyMeaningDecisionIsFresh(decision as never, claim as never, currentFreshness(context))) : undefined,
         })),
         decisions: undefined,
         latestDecision: Array.isArray(claim.decisions) && claim.decisions[0]
-          ? { ...(claim.decisions[0] as Record<string, unknown>), fresh: context ? storyMeaningDecisionIsFresh(claim.decisions[0] as never, claim as never, currentFreshness(context)) : undefined }
+          ? { ...(claim.decisions[0] as Record<string, unknown>), fresh: context ? Boolean(runFresh && storyMeaningDecisionIsFresh(claim.decisions[0] as never, claim as never, currentFreshness(context))) : undefined }
           : null,
       })),
     })),

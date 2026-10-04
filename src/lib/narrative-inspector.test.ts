@@ -150,10 +150,15 @@ test('concealed identityの本文を通常説明からredactする', async () =>
   assert.doesNotMatch(result.issues[0].explanation, /太郎の幽霊/); assert.match(result.issues[0].explanation, /秘匿中の作者設定/);
 });
 
-test('保存済み本文・title・POV・Narratorとの差をdirtyとして検出する', () => {
-  const saved = { content: '保存本文', title: '章', povCharacterId: 'a', narratorId: 'n' };
+test('保存済みの解析対象設定との差を共通dirty判定で検出する', () => {
+  const saved = { content: '保存本文', title: '章', outlineContent: '詳細', summary: '要約', purpose: '目的', povCharacterId: 'a', narratorId: 'n', targetWordCount: 3000, endingNotes: '余韻' };
   assert.equal(hasUnsavedInspectorChanges(saved, { ...saved }), false);
-  for (const draft of [{ ...saved, content: '未保存本文' }, { ...saved, title: '変更' }, { ...saved, povCharacterId: 'b' }, { ...saved, narratorId: null }]) {
+  assert.equal(hasUnsavedInspectorChanges(saved, { ...saved, targetWordCount: '3000' }), false);
+  for (const draft of [
+    { ...saved, content: '未保存本文' }, { ...saved, title: '変更' }, { ...saved, outlineContent: '変更' },
+    { ...saved, summary: '変更' }, { ...saved, purpose: '変更' }, { ...saved, povCharacterId: 'b' },
+    { ...saved, narratorId: null }, { ...saved, targetWordCount: '3500' }, { ...saved, endingNotes: '変更' },
+  ]) {
     assert.equal(hasUnsavedInspectorChanges(saved, draft), true);
   }
 });
