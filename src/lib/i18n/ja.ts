@@ -76,6 +76,36 @@ export const NARRATOR_DISCLOSURE_MODE_LABELS: LabelMap = {
   concealed: '正体を秘匿',
 };
 
+export const STORY_MEANING_LAYER_LABELS: LabelMap = {
+  observed: '本文上の観察', derived: '導かれる変化', interpretive: '解釈',
+};
+
+export const STORY_MEANING_DIMENSION_LABELS: LabelMap = {
+  external_tension: '外的緊張', emotional_intensity: '感情の強さ', narrative_significance: '物語上の意味',
+  state_change: '状態の変化', turning_point: '転換', truth_revelation: '真実・情報の開示',
+  relationship_change: '関係の変化', decision_commitment: '決断・コミットメント', resolution: '解決',
+  aftermath: '余波・その後', reader_knowledge_change: '読者が知ったこと',
+  character_knowledge_change: '登場人物が知ったこと', thematic_significance: 'テーマ上の意味',
+  character_trajectory: '人物の変化方向', other: 'その他',
+};
+
+export const STORY_MEANING_SUPPORT_LABELS: LabelMap = {
+  explicit_text: '本文に明示', strongly_supported: '強く裏付けられる',
+  plausible_interpretation: '成立しうる解釈', uncertain: '不確かな解釈',
+};
+
+export const STORY_MEANING_IMPACT_LABELS: LabelMap = {
+  local: '局所', chapter: 'この章', multi_chapter: '複数章', whole_work: '作品全体', unknown: '未確定',
+};
+
+export const STORY_MEANING_DECISION_LABELS: LabelMap = {
+  adopted: '採用', alternative: '別解釈', held: '保留', not_applicable: '今回は採用しない',
+};
+
+export const STORY_MEANING_EVIDENCE_LABELS: LabelMap = {
+  primary: '主な根拠', supporting: '補助的な根拠',
+};
+
 export const NARRATIVE_RULE_CATEGORY_LABELS: LabelMap = {
   viewpoint: '視点', knowledge: '知識', voice: '語り・人物の声', disclosure: '情報開示',
   structure: '構造', prose: '文章表現', custom: 'その他',

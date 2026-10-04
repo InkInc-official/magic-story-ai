@@ -9,12 +9,13 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAppStore } from '@/lib/store';
-import { BookOpen, Plus, Trash2, Save, Sparkles, ChevronRight, ChevronDown, Shield, Swords, Loader2, FileText, Zap, Eye, PanelRightClose, PanelRightOpen, ArrowUp, ArrowDown, X, ScanSearch } from 'lucide-react';
+import { BookOpen, Plus, Trash2, Save, Sparkles, ChevronRight, ChevronDown, Shield, Swords, Loader2, FileText, Zap, Eye, PanelRightClose, PanelRightOpen, ArrowUp, ArrowDown, X, ScanSearch, BrainCircuit } from 'lucide-react';
 import { AntiAIPanel } from '@/components/anti-ai-panel';
 import { AdversarialReviewPanel } from '@/components/adversarial-review';
 import { ChapterPreview } from '@/components/chapter-preview';
 import { JapaneseTextAnalyticsPanel } from '@/components/japanese-text-analytics-panel';
 import { NarrativeInspectorPanel } from '@/components/narrative-inspector-panel';
+import { StoryMeaningPanel } from '@/components/story-meaning-panel';
 import { hasUnsavedInspectorChanges } from '@/lib/narrative-inspector';
 import { APP_LOCALE, EMOTION_ARC_LABELS, EMOTION_LABELS, HOOK_LABELS } from '@/lib/i18n';
 import { useJapaneseTextAnalysis } from '@/hooks/use-japanese-text-analysis';
@@ -118,7 +119,7 @@ export function ChapterEditor({ projectId }: ChapterEditorProps) {
   const [isSaving, setIsSaving] = useState(false);
   const [showOutline, setShowOutline] = useState(true);
   const [showEmotion, setShowEmotion] = useState(false);
-  const [sidePanel, setSidePanel] = useState<'none' | 'preview' | 'antiAi' | 'adversarial' | 'inspector'>('preview');
+  const [sidePanel, setSidePanel] = useState<'none' | 'preview' | 'antiAi' | 'adversarial' | 'inspector' | 'meaning'>('preview');
   const [generatingPhase, setGeneratingPhase] = useState<'none' | 'summary' | 'full'>('none');
   const [symbolMetrics, setSymbolMetrics] = useState<SymbolSemanticMetrics | null>(null);
   const [symbolMetricsLoading, setSymbolMetricsLoading] = useState(false);
@@ -696,6 +697,16 @@ export function ChapterEditor({ projectId }: ChapterEditorProps) {
                     >
                       <ScanSearch size={14} />
                     </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setSidePanel(sidePanel === 'meaning' ? 'none' : 'meaning')}
+                      className={`text-fuchsia-400 hover:bg-fuchsia-400/10 ${sidePanel === 'meaning' ? 'bg-fuchsia-400/10' : ''}`}
+                      title="物語意味解析"
+                      aria-label="物語意味解析を開く"
+                    >
+                      <BrainCircuit size={14} />
+                    </Button>
                     <Button size="sm" onClick={handleSave} disabled={isSaving}>
                       <Save size={14} className="mr-1" />
                       {isSaving ? '...' : '保存'}
@@ -961,6 +972,18 @@ export function ChapterEditor({ projectId }: ChapterEditorProps) {
                 <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground px-6">
                   <ScanSearch size={28} className="mb-3 opacity-30" />
                   <p className="text-sm">章を選択すると叙述検査を実行できます</p>
+                </div>
+              )}
+              {sidePanel === 'meaning' && selectedChapter && (
+                <StoryMeaningPanel key={`${projectId}:${selectedChapter.id}`} projectId={projectId} chapterId={selectedChapter.id} hasUnsavedChanges={inspectorDirty} onSelectRange={(start, end) => {
+                  contentRef.current?.focus();
+                  contentRef.current?.setSelectionRange(start, end);
+                }} />
+              )}
+              {sidePanel === 'meaning' && !selectedChapter && (
+                <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground px-6">
+                  <BrainCircuit size={28} className="mb-3 opacity-30" />
+                  <p className="text-sm">章を選択すると物語意味解析を利用できます</p>
                 </div>
               )}
             </Card>

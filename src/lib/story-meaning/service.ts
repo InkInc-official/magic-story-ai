@@ -78,6 +78,13 @@ function publicRun(run: Record<string, unknown>, context?: ChapterMeaningContext
         relatedEntityRefs: parseJson(String(claim.relatedEntityRefsJson || '[]'), []),
         evidenceRefsJson: undefined,
         relatedEntityRefsJson: undefined,
+        decisionHistory: (Array.isArray(claim.decisions) ? claim.decisions as Array<Record<string, unknown>> : []).map(decision => ({
+          id: decision.id,
+          decision: decision.decision,
+          authorInterpretation: decision.authorInterpretation,
+          createdAt: decision.createdAt,
+          fresh: context ? storyMeaningDecisionIsFresh(decision as never, claim as never, currentFreshness(context)) : undefined,
+        })),
         decisions: undefined,
         latestDecision: Array.isArray(claim.decisions) && claim.decisions[0]
           ? { ...(claim.decisions[0] as Record<string, unknown>), fresh: context ? storyMeaningDecisionIsFresh(claim.decisions[0] as never, claim as never, currentFreshness(context)) : undefined }
@@ -206,12 +213,18 @@ export async function markStoryMeaningRunFailed(
   if (result.count !== 1) throw new StoryMeaningPersistenceError('ownership', 'pending Runが見つからないかProject境界が不正です。');
 }
 
-export async function listStoryMeaningRuns(projectId: string, chapterId: string, database: MeaningDatabase = db) {
+export async function listStoryMeaningRuns(
+  projectId: string,
+  chapterId: string,
+  context?: ChapterMeaningContext,
+  database: MeaningDatabase = db,
+  limit = 20,
+) {
   await ownedChapter(database, projectId, chapterId);
   const runs = await database.storyMeaningAnalysisRun.findMany({
-    where: { projectId, chapterId }, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], include: runInclude,
+    where: { projectId, chapterId }, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], include: runInclude, take: Math.min(Math.max(limit, 1), 50),
   });
-  return runs.map(run => publicRun(run as unknown as Record<string, unknown>));
+  return runs.map(run => publicRun(run as unknown as Record<string, unknown>, context));
 }
 
 export async function getLatestStoryMeaningRun(projectId: string, chapterId: string, context: ChapterMeaningContext, database: MeaningDatabase = db) {
@@ -248,15 +261,21 @@ export async function getPendingStoryMeaningRun(projectId: string, chapterId: st
 }
 
 export async function appendStoryMeaningDecision(
-  input: { projectId: string; claimId: string; decision: StoryMeaningDecisionValue; authorInterpretation?: string },
+  input: { projectId: string; chapterId?: string; runId?: string; claimId: string; decision: StoryMeaningDecisionValue; authorInterpretation?: string },
   database: MeaningDatabase = db,
 ) {
   const authorInterpretation = input.authorInterpretation || '';
-  if (!STORY_MEANING_DECISIONS.includes(input.decision) || typeof authorInterpretation !== 'string' || authorInterpretation.length > 4000) {
+  if (!STORY_MEANING_DECISIONS.includes(input.decision) || typeof authorInterpretation !== 'string' || authorInterpretation.length > 4000
+    || (input.decision === 'alternative' && !authorInterpretation.trim())
+    || (input.decision !== 'alternative' && authorInterpretation.trim())) {
     throw new StoryMeaningPersistenceError('invalid_input', '作者判断または解釈が不正です。');
   }
   const claim = await database.storyMeaningClaim.findFirst({
-    where: { id: input.claimId, event: { run: { projectId: input.projectId } } },
+    where: { id: input.claimId, event: { run: {
+      projectId: input.projectId,
+      ...(input.chapterId && { chapterId: input.chapterId }),
+      ...(input.runId && { id: input.runId }),
+    } } },
     include: { event: { include: { run: { select: { contentHash: true, contextFingerprint: true, fingerprintVersion: true } } } } },
   });
   if (!claim) throw new StoryMeaningPersistenceError('ownership', 'Claimが見つからないかProject境界が不正です。');

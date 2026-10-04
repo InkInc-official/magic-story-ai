@@ -176,3 +176,13 @@ test('decisions append, derive latest, and never auto-carry across freshness bou
   assert.equal((await getLatestStoryMeaningDecisions('p1', 'ch1', changed, database))[0].fresh, false);
   assert.equal(state.decisions.length, 2, 'historical decisions remain stored');
 });
+
+test('alternative requires author interpretation and other decisions reject stray interpretation', async () => {
+  const { database, state } = fakeDatabase(); const current = context();
+  const run = await startStoryMeaningRun({ projectId: 'p1', chapterId: 'ch1', context: current }, database);
+  await completeStoryMeaningRun({ projectId: 'p1', runId: run.id, output: output() }, database);
+  const claimId = String(state.claims[0].id);
+  await assert.rejects(appendStoryMeaningDecision({ projectId: 'p1', chapterId: 'ch1', runId: run.id, claimId, decision: 'alternative', authorInterpretation: '   ' }), (error: unknown) => error instanceof StoryMeaningPersistenceError && error.code === 'invalid_input');
+  await assert.rejects(appendStoryMeaningDecision({ projectId: 'p1', chapterId: 'ch1', runId: run.id, claimId, decision: 'adopted', authorInterpretation: '不要な文' }), (error: unknown) => error instanceof StoryMeaningPersistenceError && error.code === 'invalid_input');
+  assert.equal(state.decisions.length, 0);
+});

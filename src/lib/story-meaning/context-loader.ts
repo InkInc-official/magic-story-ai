@@ -10,7 +10,7 @@ type MeaningDatabase = typeof db;
 type MeaningCreativeRuleLoader = (projectId: string) => Promise<{ rules: ProjectCreativeRule[]; excluded: Array<{ id: string; reason: string }> }>;
 
 const loadCreativeRuleRuntime: MeaningCreativeRuleLoader = async projectId => {
-  const service = await import('../creative-rule-service.js');
+  const service = await import('../creative-rule-service');
   return service.loadProjectCreativeRuleRuntime(projectId);
 };
 
