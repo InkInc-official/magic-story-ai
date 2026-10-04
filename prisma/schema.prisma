@@ -63,6 +63,7 @@ model Project {
   symbolOccurrenceOverrides SymbolOccurrenceOverride[]
   creativeTechniques ProjectCreativeTechnique[]
   customCreativeRules ProjectCustomCreativeRule[]
+  storyMeaningRuns StoryMeaningAnalysisRun[]
   defaultPovCharacter Character? @relation("ProjectDefaultPov", fields: [defaultPovCharacterId], references: [id], onDelete: SetNull)
   defaultNarrator NarratorProfile? @relation("ProjectDefaultNarrator", fields: [defaultNarratorId], references: [id], onDelete: SetNull)
 
@@ -346,6 +347,7 @@ model Chapter {
   narrativeIssues NarrativeIssue[]
   narrativeLearningSessions NarrativeLearningSession[]
   symbolOccurrenceOverrides SymbolOccurrenceOverride[]
+  storyMeaningRuns StoryMeaningAnalysisRun[]
 
   @@index([povCharacterId])
   @@index([narratorId])
@@ -521,6 +523,92 @@ model SymbolOccurrenceOverride {
   @@index([definitionId])
   @@index([usageRuleId])
   @@unique([chapterId, startOffset, endOffset])
+  @@schema("magic_story")
+}
+
+model StoryMeaningAnalysisRun {
+  id                 String   @id @default(cuid())
+  projectId          String
+  chapterId          String
+  contentHash        String
+  contextFingerprint String
+  fingerprintVersion String   @default("meaning-v1")
+  promptVersion      String
+  sourceManifest     String
+  status             String   @default("pending")
+  error              String   @default("")
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  completedAt        DateTime?
+
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  chapter   Chapter @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  events    StoryMeaningEvent[]
+
+  @@index([projectId, chapterId, createdAt, id])
+  @@index([chapterId, status])
+  @@schema("magic_story")
+}
+
+model StoryMeaningEvent {
+  id            String   @id @default(cuid())
+  runId         String
+  localEventKey String
+  order         Int
+  summary       String
+  evidenceJson  String
+  actorRefsJson String   @default("[]")
+  createdAt     DateTime @default(now())
+
+  run       StoryMeaningAnalysisRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  claims    StoryMeaningClaim[]
+
+  @@unique([runId, localEventKey])
+  @@index([runId, order])
+  @@schema("magic_story")
+}
+
+model StoryMeaningClaim {
+  id                    String   @id @default(cuid())
+  eventId               String
+  localClaimKey         String
+  order                 Int
+  layer                 String
+  dimension             String
+  statement             String
+  supportLevel          String
+  impactScope           String?
+  subtype               String?
+  evidenceRefsJson      String
+  relatedEntityRefsJson String   @default("[]")
+  provenance            String   @default("ai_analysis")
+  claimFingerprint      String
+  createdAt             DateTime @default(now())
+
+  event      StoryMeaningEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  decisions  StoryMeaningDecision[]
+
+  @@unique([eventId, localClaimKey])
+  @@index([claimFingerprint])
+  @@index([eventId, order])
+  @@schema("magic_story")
+}
+
+model StoryMeaningDecision {
+  id                               String   @id @default(cuid())
+  claimId                          String
+  claimFingerprint                 String
+  decision                         String
+  authorInterpretation             String   @default("")
+  decidedAgainstContentHash        String
+  decidedAgainstContextFingerprint String
+  fingerprintVersion               String   @default("meaning-v1")
+  createdAt                        DateTime @default(now())
+
+  claim StoryMeaningClaim @relation(fields: [claimId], references: [id], onDelete: Cascade)
+
+  @@index([claimId, createdAt, id])
+  @@index([claimFingerprint])
   @@schema("magic_story")
 }
 

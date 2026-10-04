@@ -86,6 +86,43 @@ test('fresh databaseへ全migrationを順番どおりdeployできる', async () 
   assert.ok(applied.rows.every(value => value.finished_at && !value.rolled_back_at));
 });
 
+test('Story Meaning履歴・CHECK・Unicode・cascade・transaction rollbackが実DBで成立する', async () => {
+  const value = await project('Story Meaning');
+  const currentChapter = await chapter(value.id);
+  const run = await prisma.storyMeaningAnalysisRun.create({ data: {
+    projectId: value.id, chapterId: currentChapter.id, contentHash: 'raw-content-hash', contextFingerprint: 'meaning-context',
+    fingerprintVersion: 'meaning-v1', promptVersion: 'meaning-prompt-v1', sourceManifest: '{"chapter":"第一章"}', status: 'pending',
+  } });
+  const event = await prisma.storyMeaningEvent.create({ data: {
+    runId: run.id, localEventKey: 'event-1', order: 0, summary: '静かな決意',
+    evidenceJson: JSON.stringify([{ chapterId: currentChapter.id, startOffset: 0, endOffset: 4, exactExcerpt: '「確認」', evidenceType: 'primary' }]),
+    actorRefsJson: '[]',
+  } });
+  const rawStatement = 'か\u3099\r\n👨‍👩‍👧‍👦';
+  const claim = await prisma.storyMeaningClaim.create({ data: {
+    eventId: event.id, localClaimKey: 'claim-1', order: 0, layer: 'interpretive', dimension: 'narrative_significance',
+    statement: rawStatement, supportLevel: 'uncertain', evidenceRefsJson: '["evidence-1"]', relatedEntityRefsJson: '[]',
+    provenance: 'ai_analysis', claimFingerprint: 'claim-fingerprint',
+  } });
+  await prisma.storyMeaningDecision.create({ data: {
+    claimId: claim.id, claimFingerprint: claim.claimFingerprint, decision: 'adopted', authorInterpretation: '作者の読み',
+    decidedAgainstContentHash: run.contentHash, decidedAgainstContextFingerprint: run.contextFingerprint, fingerprintVersion: 'meaning-v1',
+  } });
+  assert.equal((await prisma.storyMeaningClaim.findUniqueOrThrow({ where: { id: claim.id } })).statement, rawStatement);
+  await assert.rejects(admin.query(`INSERT INTO magic_story."StoryMeaningClaim"
+    (id, "eventId", "localClaimKey", "order", layer, dimension, statement, "supportLevel", "evidenceRefsJson", "claimFingerprint")
+    VALUES ('invalid-layer', $1, 'invalid', 1, 'fact', 'other', 'invalid', 'explicit_text', '[]', 'invalid')`, [event.id]));
+  await assert.rejects(prisma.$transaction(async transaction => {
+    await transaction.storyMeaningEvent.create({ data: { runId: run.id, localEventKey: 'rollback', order: 1, summary: 'rollback', evidenceJson: '[]' } });
+    throw new Error('intentional rollback');
+  }));
+  assert.equal(await prisma.storyMeaningEvent.count({ where: { runId: run.id, localEventKey: 'rollback' } }), 0);
+  await prisma.project.delete({ where: { id: value.id } });
+  assert.equal(await prisma.storyMeaningAnalysisRun.count({ where: { projectId: value.id } }), 0);
+  assert.equal(await prisma.storyMeaningClaim.count({ where: { id: claim.id } }), 0);
+  assert.equal(await prisma.storyMeaningDecision.count({ where: { claimId: claim.id } }), 0);
+});
+
 test('Symbol Dictionaryの循環参照とProject cascadeが実DBで成立する', async () => {
   const value = await project('Cascade');
   const speaker = await character(value.id);
