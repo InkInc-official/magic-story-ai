@@ -324,3 +324,74 @@ test('④以前のmigration pointからsample Projectを保持したままremain
   assert.equal((await admin.query('SELECT COUNT(*)::int AS count FROM magic_story."ProjectCreativeTechnique"')).rows[0].count, 0);
   assert.equal((await admin.query('SELECT COUNT(*)::int AS count FROM magic_story."ProjectCustomCreativeRule"')).rows[0].count, 0);
 });
+
+test('Story Architecture workspaceのCHECK・FK・delete・decision履歴が実DBで成立する', async () => {
+  const value = await project('Architecture'); const other = await project('Other');
+  const currentChapter = await chapter(value.id); const foreignChapter = await chapter(other.id);
+  assert.equal(await prisma.storyArchitecture.count({ where: { projectId: value.id } }), 0, 'migrationは既存Projectをseedしない');
+  const architecture = await prisma.storyArchitecture.create({ data: { projectId: value.id, title: '作品設計' } });
+  await assert.rejects(prisma.storyArchitecture.create({ data: { projectId: value.id, title: '重複' } }));
+  await assert.rejects(admin.query(`INSERT INTO magic_story."StoryArchitecture"
+    (id, "projectId", title, "frameworkMode", "customFrameworkNotes", "canonMode", revision, "updatedAt")
+    VALUES ('invalid-custom', $1, 'invalid', 'custom', '', 'respect_current_canon', 1, NOW())`, [other.id]));
+
+  const thread = await prisma.storyArchitectureThread.create({ data: {
+    architectureId: architecture.id, title: '人物の選択', threadType: 'character', provenance: 'author', order: 0,
+  } });
+  const beat = await prisma.storyArchitectureBeat.create({ data: {
+    architectureId: architecture.id, threadId: thread.id, chapterId: currentChapter.id, title: '決意', storyOrder: 2, presentationOrder: 0,
+    provenance: 'author',
+  } });
+  const crossProjectBeat = await prisma.storyArchitectureBeat.create({ data: {
+    architectureId: architecture.id, chapterId: foreignChapter.id, title: 'DB FKだけではProject境界を保証しない', provenance: 'author',
+  } });
+  assert.equal(crossProjectBeat.chapterId, foreignChapter.id, 'same-Project制約はAPI transactionで保証する');
+  await prisma.storyArchitectureBeat.delete({ where: { id: crossProjectBeat.id } });
+  const constraint = await prisma.storyArchitectureConstraint.create({ data: {
+    architectureId: architecture.id, title: '秘密', statement: '第三章までは明かさない', mode: 'required', scope: 'thread', threadId: thread.id,
+  } });
+  await assert.rejects(admin.query(`INSERT INTO magic_story."StoryArchitectureQuestion"
+    (id, "architectureId", question, state, resolution, scope, status, provenance, "updatedAt")
+    VALUES ('invalid-resolution', $1, '未解決', 'open', '回答あり', 'architecture', 'draft', 'author', NOW())`, [architecture.id]));
+  const question = await prisma.storyArchitectureQuestion.create({ data: {
+    architectureId: architecture.id, question: '帰郷の理由は？', state: 'resolved', resolution: '家族との約束', scope: 'beat', beatId: beat.id,
+  } });
+  const relationTarget = await prisma.storyArchitectureBeat.create({ data: { architectureId: architecture.id, title: '帰結', provenance: 'author' } });
+  await prisma.storyArchitectureBeatRelation.create({ data: { architectureId: architecture.id, fromBeatId: beat.id, toBeatId: relationTarget.id, type: 'precedes' } });
+  await assert.rejects(prisma.storyArchitectureBeatRelation.create({ data: { architectureId: architecture.id, fromBeatId: beat.id, toBeatId: beat.id, type: 'causes' } }));
+  await assert.rejects(prisma.storyArchitectureThread.delete({ where: { id: thread.id } }));
+  await assert.rejects(prisma.storyArchitectureBeat.delete({ where: { id: beat.id } }));
+  await prisma.chapter.delete({ where: { id: currentChapter.id } });
+  assert.equal((await prisma.storyArchitectureBeat.findUniqueOrThrow({ where: { id: beat.id } })).chapterId, null);
+
+  const run = await prisma.storyArchitectureProposalRun.create({ data: {
+    projectId: value.id, architectureId: architecture.id, canonMode: 'respect_current_canon', status: 'pending',
+  } });
+  assert.equal(run.contextVersion, null); assert.equal(run.promptVersion, null); assert.equal(run.sourceManifest, null);
+  const proposal = await prisma.storyArchitectureThread.create({ data: {
+    architectureId: architecture.id, proposalRunId: run.id, title: 'AI候補', threadType: 'theme', status: 'proposed', provenance: 'ai_proposal', order: 1,
+  } });
+  await assert.rejects(prisma.storyArchitectureThread.create({ data: {
+    architectureId: architecture.id, title: 'spoof', threadType: 'theme', status: 'proposed', provenance: 'ai_proposal', order: 2,
+  } }));
+  const first = await prisma.storyArchitectureDecision.create({ data: {
+    projectId: value.id, architectureId: architecture.id, proposalRunId: run.id, itemType: 'thread', itemId: proposal.id, decision: 'held', note: '',
+  } });
+  const second = await prisma.storyArchitectureDecision.create({ data: {
+    projectId: value.id, architectureId: architecture.id, proposalRunId: run.id, itemType: 'thread', itemId: proposal.id, decision: 'approved', note: '',
+  } });
+  const sameTimestamp = new Date('2026-10-06T00:00:00.000Z');
+  await prisma.storyArchitectureDecision.updateMany({ where: { id: { in: [first.id, second.id] } }, data: { createdAt: sameTimestamp } });
+  const history = await prisma.storyArchitectureDecision.findMany({ where: { architectureId: architecture.id, itemId: proposal.id }, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }] });
+  assert.deepEqual(new Set(history.map(row => row.id)), new Set([first.id, second.id]));
+  assert.equal(history[0].id, [first.id, second.id].sort().reverse()[0], '同一timestampでもidで決定的に並ぶ');
+  assert.equal(await prisma.storyFact.count({ where: { projectId: value.id } }), 0, 'approved designはCanonへ書き込まない');
+  assert.equal(await prisma.plot.count({ where: { projectId: value.id } }), 0);
+
+  await prisma.storyArchitectureQuestion.delete({ where: { id: question.id } });
+  await prisma.storyArchitectureConstraint.delete({ where: { id: constraint.id } });
+  await prisma.project.delete({ where: { id: value.id } });
+  assert.equal(await prisma.storyArchitecture.count({ where: { projectId: value.id } }), 0);
+  assert.equal(await prisma.storyArchitectureDecision.count({ where: { projectId: value.id } }), 0);
+  await prisma.project.delete({ where: { id: other.id } });
+});
