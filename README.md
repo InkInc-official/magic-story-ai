@@ -194,7 +194,15 @@ npm run start
 
 ---
 
-## 致谢
+## Upstream / Acknowledgements
+
+本プロジェクトは、[Magic Story AI](https://github.com/dav-niu474/magic-story-ai) を基盤として開発している独立した fork です。元プロジェクトの作者およびコントリビューターの皆様が公開された設計・実装と、その継続的な貢献に深く感謝します。
+
+この fork は Magic Story AI の「公式日本語版」ではありません。日本語小説の制作に適した生成・プロンプト基盤、日本語文章解析、視点・語り手・人物知識の管理、作品固有の表記ルール、創作支援、章の意味解析、物語ナビゲーションおよび物語構造設計などを、独自に再設計・拡張している開発途中のプロジェクトです。
+
+元プロジェクトの MIT License と attribution を尊重し、関連するライセンスおよび著作権表示を維持します。
+
+その他の謝辞：
 
 - 原始灵感来源：[wfcz10086/AI-automatically-generates-novels](https://github.com/wfcz10086/AI-automatically-generates-novels)
 - UI 组件：[shadcn/ui](https://ui.shadcn.com/)
