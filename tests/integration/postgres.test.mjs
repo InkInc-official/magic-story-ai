@@ -414,3 +414,61 @@ test('Story Architecture workspaceのCHECK・FK・delete・decision履歴が実D
   assert.equal(await prisma.storyArchitectureDecision.count({ where: { projectId: value.id } }), 0);
   await prisma.project.delete({ where: { id: other.id } });
 });
+
+test('Story Architecture Apply Actionのpartial unique・CAS・rollback・reverse traceが実DBで成立する', async () => {
+  const value = await project('Architecture Apply');
+  const architecture = await prisma.storyArchitecture.create({ data: { projectId: value.id, title: 'Apply設計' } });
+  const thread = await prisma.storyArchitectureThread.create({ data: { architectureId: architecture.id, title: '静かな帰路', description: '余韻', threadType: 'theme', status: 'approved', provenance: 'author' } });
+  const openQuestion = await prisma.storyArchitectureQuestion.create({ data: { architectureId: architecture.id, question: '二人は話すか？', state: 'open', scope: 'architecture', status: 'approved', provenance: 'author' } });
+  const common = { projectId: value.id, architectureId: architecture.id, sourceItemType: 'thread', sourceItemId: thread.id, targetType: 'plot', operation: 'create', proposedPayload: '{"name":"静かな帰路","description":"余韻","plotType":"main","priority":0,"status":"planned","tags":[],"order":0}', sourceSnapshot: '{}', targetSnapshot: '{}', sourceFingerprint: 'source', targetFingerprint: 'target' };
+  const action = await prisma.storyArchitectureApplyAction.create({ data: { ...common, status: 'approved', approvedAt: new Date() } });
+  const duplicateDraft = await prisma.storyArchitectureApplyAction.create({ data: { ...common, status: 'draft' } });
+  await assert.rejects(prisma.storyArchitectureApplyAction.update({ where: { id: duplicateDraft.id }, data: { status: 'approved', approvedAt: new Date() } }), '同じsourceのactive Applyはpartial uniqueで拒否する');
+
+  const beat = await prisma.storyArchitectureBeat.create({ data: { architectureId: architecture.id, title: '決意', status: 'approved', provenance: 'author' } });
+  const rollbackAction = await prisma.storyArchitectureApplyAction.create({ data: { ...common, sourceItemType: 'beat', sourceItemId: beat.id, status: 'approved', approvedAt: new Date() } });
+  await assert.rejects(prisma.$transaction(async transaction => {
+    await transaction.storyArchitectureApplyAction.updateMany({ where: { id: rollbackAction.id, status: 'approved' }, data: { status: 'applying' } });
+    await transaction.plot.create({ data: { projectId: value.id, name: 'rollback', status: 'planned' } });
+    throw new Error('rollback');
+  }));
+  assert.equal(await prisma.plot.count({ where: { projectId: value.id } }), 0);
+  assert.equal((await prisma.storyArchitectureApplyAction.findUniqueOrThrow({ where: { id: rollbackAction.id } })).status, 'approved');
+
+  const first = new Client({ connectionString: directUrl }); const second = new Client({ connectionString: directUrl });
+  await first.connect(); await second.connect();
+  try {
+    await first.query('BEGIN'); await second.query('BEGIN');
+    await first.query('SELECT id FROM magic_story."Project" WHERE id = $1 FOR UPDATE', [value.id]);
+    const claimed = await first.query(`UPDATE magic_story."StoryArchitectureApplyAction" SET status = 'applying', "updatedAt" = NOW() WHERE id = $1 AND status = 'approved' RETURNING id`, [action.id]);
+    assert.equal(claimed.rowCount, 1);
+    let secondFinished = false;
+    const competing = (async () => {
+      await second.query('SELECT id FROM magic_story."Project" WHERE id = $1 FOR UPDATE', [value.id]);
+      const result = await second.query(`UPDATE magic_story."StoryArchitectureApplyAction" SET status = 'applying', "updatedAt" = NOW() WHERE id = $1 AND status = 'approved' RETURNING id`, [action.id]);
+      secondFinished = true; return result;
+    })();
+    await new Promise(resolve => setImmediate(resolve));
+    assert.equal(secondFinished, false, 'competing Apply waits for the Project Plot-order lock');
+    const plotId = randomUUID();
+    await first.query(`INSERT INTO magic_story."Plot" (id, "projectId", name, "plotType", priority, status, tags, "order", version, "createdAt", "updatedAt") VALUES ($1,$2,$3,'main',0,'planned','[]',0,1,NOW(),NOW())`, [plotId, value.id, '静かな帰路']);
+    await first.query(`UPDATE magic_story."StoryArchitectureApplyAction" SET status = 'applied', "resultTargetId" = $1, "appliedAt" = NOW(), "updatedAt" = NOW() WHERE id = $2 AND status = 'applying'`, [plotId, action.id]);
+    await first.query('COMMIT');
+    const competingResult = await competing;
+    assert.equal(competingResult.rowCount, 0, 'second CAS cannot claim an already-applied Action');
+    await second.query('ROLLBACK');
+    const applied = await prisma.storyArchitectureApplyAction.findUniqueOrThrow({ where: { id: action.id } });
+    assert.equal(applied.status, 'applied'); assert.equal(applied.resultTargetId, plotId);
+    assert.equal((await prisma.plot.findUniqueOrThrow({ where: { id: applied.resultTargetId } })).status, 'planned');
+    assert.equal(await prisma.plot.count({ where: { projectId: value.id } }), 1);
+    assert.equal(await prisma.storyFact.count({ where: { projectId: value.id } }), 0);
+    assert.equal(await prisma.characterKnowledge.count({ where: { fact: { projectId: value.id } } }), 0);
+    assert.equal(await prisma.characterRelationship.count({ where: { projectId: value.id } }), 0);
+    assert.equal(await prisma.foreshadowing.count({ where: { projectId: value.id } }), 0);
+    assert.equal((await prisma.storyArchitectureThread.findUniqueOrThrow({ where: { id: thread.id } })).status, 'approved');
+    assert.equal((await prisma.storyArchitectureQuestion.findUniqueOrThrow({ where: { id: openQuestion.id } })).state, 'open');
+  } finally {
+    await first.end(); await second.end();
+    await prisma.project.delete({ where: { id: value.id } });
+  }
+});

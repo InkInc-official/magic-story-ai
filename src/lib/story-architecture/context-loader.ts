@@ -14,7 +14,7 @@ export class ArchitectContextLoadError extends Error {
   constructor(public readonly code:'not_found'|'ownership'|'source_load_failed',message:string){super(message);this.name='ArchitectContextLoadError';}
 }
 
-export async function loadArchitectContext(input:{projectId:string;scope:ArchitectScope;currentInstruction:string},dependencies:{database?:ArchitectDatabase}={}) {
+export async function loadArchitectContext(input:{projectId:string;scope:ArchitectScope;currentInstruction:string;excludeProposalRunId?:string},dependencies:{database?:ArchitectDatabase}={}) {
   const database=dependencies.database||db;
   const [project,architecture]=await Promise.all([
     database.project.findUnique({where:{id:input.projectId},select:{id:true,title:true,genre:true,description:true,authorIntent:true,genreGuidanceMode:true,genreGuidanceNotes:true}}),
@@ -22,6 +22,17 @@ export async function loadArchitectContext(input:{projectId:string;scope:Archite
   ]);
   if(!project) throw new ArchitectContextLoadError('not_found','Projectが見つかりません。');
   if(!architecture) throw new ArchitectContextLoadError('not_found','Story Architectureが見つかりません。');
+  if(input.excludeProposalRunId){
+    const [threads,beats,constraints,questions,relations]=await Promise.all([
+      database.storyArchitectureThread.findMany({where:{architectureId:architecture.id,proposalRunId:input.excludeProposalRunId},select:{id:true}}),
+      database.storyArchitectureBeat.findMany({where:{architectureId:architecture.id,proposalRunId:input.excludeProposalRunId},select:{id:true}}),
+      database.storyArchitectureConstraint.findMany({where:{architectureId:architecture.id,proposalRunId:input.excludeProposalRunId},select:{id:true}}),
+      database.storyArchitectureQuestion.findMany({where:{architectureId:architecture.id,proposalRunId:input.excludeProposalRunId},select:{id:true}}),
+      database.storyArchitectureBeatRelation.findMany({where:{architectureId:architecture.id,proposalRunId:input.excludeProposalRunId},select:{id:true}}),
+    ]);
+    const excluded=new Set([...threads,...beats,...constraints,...questions].map(value=>value.id));const relationIds=new Set(relations.map(value=>value.id));
+    architecture.threads=architecture.threads.filter(value=>!excluded.has(value.id));architecture.beats=architecture.beats.filter(value=>!excluded.has(value.id));architecture.constraints=architecture.constraints.filter(value=>!excluded.has(value.id));architecture.questions=architecture.questions.filter(value=>!excluded.has(value.id));architecture.relations=architecture.relations.filter(value=>!relationIds.has(value.id));architecture.decisions=architecture.decisions.filter(value=>!excluded.has(value.itemId));
+  }
   let selected;
   try{selected=selectArchitectDesign(architecture,input.scope);}catch(error){throw new ArchitectContextLoadError('ownership',error instanceof Error?error.message:'scopeが不正です。');}
   const assignedValues:string[]=[];

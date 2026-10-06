@@ -66,6 +66,7 @@ model Project {
   storyMeaningRuns StoryMeaningAnalysisRun[]
   storyArchitecture StoryArchitecture?
   storyArchitectureProposalRuns StoryArchitectureProposalRun[]
+  storyArchitectureApplyActions StoryArchitectureApplyAction[]
   storyArchitectureDecisions StoryArchitectureDecision[]
   defaultPovCharacter Character? @relation("ProjectDefaultPov", fields: [defaultPovCharacterId], references: [id], onDelete: SetNull)
   defaultNarrator NarratorProfile? @relation("ProjectDefaultNarrator", fields: [defaultNarratorId], references: [id], onDelete: SetNull)
@@ -255,6 +256,7 @@ model Plot {
   updatedAt   DateTime @updatedAt
 
   project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  architectureApplyActions StoryArchitectureApplyAction[]
 
   @@schema("magic_story")
 }
@@ -911,6 +913,7 @@ model StoryArchitecture {
   questions StoryArchitectureQuestion[]
   relations StoryArchitectureBeatRelation[]
   proposalRuns StoryArchitectureProposalRun[]
+  applyActions StoryArchitectureApplyAction[]
   decisions StoryArchitectureDecision[]
 
   @@schema("magic_story")
@@ -1111,6 +1114,7 @@ model StoryArchitectureProposalRun {
   relations StoryArchitectureBeatRelation[]
   alternatives StoryArchitectureProposalAlternative[]
   proposalSources StoryArchitectureProposalSource[]
+  applyActions StoryArchitectureApplyAction[]
   decisions StoryArchitectureDecision[]
 
   @@index([architectureId, createdAt])
@@ -1157,6 +1161,41 @@ model StoryArchitectureProposalSource {
 
   @@unique([proposalAlternativeId, itemType, itemId, sourceType, sourceId], map: "StoryArchitectureProposalSource_alt_item_source_key")
   @@index([proposalRunId], map: "StoryArchitectureProposalSource_run_idx")
+  @@schema("magic_story")
+}
+
+model StoryArchitectureApplyAction {
+  id String @id @default(cuid())
+  projectId String
+  architectureId String
+  sourceItemType String
+  sourceItemId String
+  sourceProposalRunId String?
+  targetType String @default("plot")
+  operation String @default("create")
+  proposedPayload String
+  sourceSnapshot String
+  targetSnapshot String
+  sourceFingerprint String
+  targetFingerprint String
+  status String @default("draft")
+  resultTargetId String?
+  errorCode String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  approvedAt DateTime?
+  appliedAt DateTime?
+  failedAt DateTime?
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  architecture StoryArchitecture @relation(fields: [architectureId], references: [id], onDelete: Cascade)
+  sourceProposalRun StoryArchitectureProposalRun? @relation(fields: [sourceProposalRunId], references: [id], onDelete: Restrict)
+  resultTarget Plot? @relation(fields: [resultTargetId], references: [id], onDelete: Restrict)
+
+  @@index([projectId, createdAt], map: "StoryArchitectureApplyAction_project_created_idx")
+  @@index([architectureId, sourceItemType, sourceItemId], map: "StoryArchitectureApplyAction_source_idx")
+  @@index([sourceProposalRunId], map: "StoryArchitectureApplyAction_sourceRun_idx")
+  @@index([resultTargetId], map: "StoryArchitectureApplyAction_result_idx")
   @@schema("magic_story")
 }
 
