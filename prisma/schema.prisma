@@ -920,6 +920,7 @@ model StoryArchitectureThread {
   id String @id @default(cuid())
   architectureId String
   proposalRunId String?
+  proposalAlternativeId String?
   title String
   description String @default("")
   threadType String
@@ -933,12 +934,14 @@ model StoryArchitectureThread {
 
   architecture StoryArchitecture @relation(fields: [architectureId], references: [id], onDelete: Cascade)
   proposalRun StoryArchitectureProposalRun? @relation("ArchitectureRunThreads", fields: [proposalRunId], references: [id], onDelete: Restrict)
+  proposalAlternative StoryArchitectureProposalAlternative? @relation(fields: [proposalAlternativeId], references: [id], onDelete: Restrict)
   beats StoryArchitectureBeat[]
   constraints StoryArchitectureConstraint[]
   questions StoryArchitectureQuestion[]
 
   @@index([architectureId, order])
   @@index([proposalRunId])
+  @@index([proposalAlternativeId])
   @@schema("magic_story")
 }
 
@@ -946,6 +949,7 @@ model StoryArchitectureBeat {
   id String @id @default(cuid())
   architectureId String
   proposalRunId String?
+  proposalAlternativeId String?
   threadId String?
   chapterId String?
   title String
@@ -963,6 +967,7 @@ model StoryArchitectureBeat {
 
   architecture StoryArchitecture @relation(fields: [architectureId], references: [id], onDelete: Cascade)
   proposalRun StoryArchitectureProposalRun? @relation("ArchitectureRunBeats", fields: [proposalRunId], references: [id], onDelete: Restrict)
+  proposalAlternative StoryArchitectureProposalAlternative? @relation(fields: [proposalAlternativeId], references: [id], onDelete: Restrict)
   thread StoryArchitectureThread? @relation(fields: [threadId], references: [id], onDelete: SetNull)
   chapter Chapter? @relation(fields: [chapterId], references: [id], onDelete: SetNull)
   constraints StoryArchitectureConstraint[]
@@ -973,6 +978,7 @@ model StoryArchitectureBeat {
   @@index([architectureId, storyOrder])
   @@index([architectureId, presentationOrder])
   @@index([proposalRunId])
+  @@index([proposalAlternativeId])
   @@index([threadId])
   @@index([chapterId])
   @@schema("magic_story")
@@ -982,6 +988,7 @@ model StoryArchitectureConstraint {
   id String @id @default(cuid())
   architectureId String
   proposalRunId String?
+  proposalAlternativeId String?
   title String
   statement String
   mode String
@@ -997,11 +1004,13 @@ model StoryArchitectureConstraint {
 
   architecture StoryArchitecture @relation(fields: [architectureId], references: [id], onDelete: Cascade)
   proposalRun StoryArchitectureProposalRun? @relation("ArchitectureRunConstraints", fields: [proposalRunId], references: [id], onDelete: Restrict)
+  proposalAlternative StoryArchitectureProposalAlternative? @relation(fields: [proposalAlternativeId], references: [id], onDelete: Restrict)
   thread StoryArchitectureThread? @relation(fields: [threadId], references: [id], onDelete: Restrict)
   beat StoryArchitectureBeat? @relation(fields: [beatId], references: [id], onDelete: Restrict)
 
   @@index([architectureId, order])
   @@index([proposalRunId])
+  @@index([proposalAlternativeId])
   @@index([threadId])
   @@index([beatId])
   @@schema("magic_story")
@@ -1011,6 +1020,9 @@ model StoryArchitectureQuestion {
   id String @id @default(cuid())
   architectureId String
   proposalRunId String?
+  proposalAlternativeId String?
+  answerToQuestionId String?
+  resolutionCandidate String?
   question String
   notes String @default("")
   state String @default("open")
@@ -1027,11 +1039,16 @@ model StoryArchitectureQuestion {
 
   architecture StoryArchitecture @relation(fields: [architectureId], references: [id], onDelete: Cascade)
   proposalRun StoryArchitectureProposalRun? @relation("ArchitectureRunQuestions", fields: [proposalRunId], references: [id], onDelete: Restrict)
+  proposalAlternative StoryArchitectureProposalAlternative? @relation(fields: [proposalAlternativeId], references: [id], onDelete: Restrict)
+  answerTarget StoryArchitectureQuestion? @relation("ArchitectureQuestionAnswerTarget", fields: [answerToQuestionId], references: [id], onDelete: SetNull)
+  answerProposals StoryArchitectureQuestion[] @relation("ArchitectureQuestionAnswerTarget")
   thread StoryArchitectureThread? @relation(fields: [threadId], references: [id], onDelete: Restrict)
   beat StoryArchitectureBeat? @relation(fields: [beatId], references: [id], onDelete: Restrict)
 
   @@index([architectureId, order])
   @@index([proposalRunId])
+  @@index([proposalAlternativeId])
+  @@index([answerToQuestionId])
   @@index([threadId])
   @@index([beatId])
   @@schema("magic_story")
@@ -1040,17 +1057,23 @@ model StoryArchitectureQuestion {
 model StoryArchitectureBeatRelation {
   id String @id @default(cuid())
   architectureId String
+  proposalRunId String?
+  proposalAlternativeId String?
   fromBeatId String
   toBeatId String
   type String
   createdAt DateTime @default(now())
 
   architecture StoryArchitecture @relation(fields: [architectureId], references: [id], onDelete: Cascade)
+  proposalRun StoryArchitectureProposalRun? @relation(fields: [proposalRunId], references: [id], onDelete: Restrict)
+  proposalAlternative StoryArchitectureProposalAlternative? @relation(fields: [proposalAlternativeId], references: [id], onDelete: Restrict)
   fromBeat StoryArchitectureBeat @relation("ArchitectureRelationFrom", fields: [fromBeatId], references: [id], onDelete: Restrict)
   toBeat StoryArchitectureBeat @relation("ArchitectureRelationTo", fields: [toBeatId], references: [id], onDelete: Restrict)
 
-  @@unique([architectureId, fromBeatId, toBeatId, type])
+  @@index([architectureId, fromBeatId, toBeatId, type], map: "StoryArchitectureBeatRelation_architecture_refs_idx")
   @@index([architectureId])
+  @@index([proposalRunId])
+  @@index([proposalAlternativeId])
   @@index([fromBeatId])
   @@index([toBeatId])
   @@schema("magic_story")
@@ -1063,6 +1086,8 @@ model StoryArchitectureProposalRun {
   scopeType String?
   scopeId String?
   request String @default("")
+  operation String @default("design_scope")
+  identityKey String?
   canonMode String
   contextVersion String?
   promptVersion String?
@@ -1070,6 +1095,9 @@ model StoryArchitectureProposalRun {
   sourceManifest String?
   status String @default("pending")
   errorCode String?
+  summary String @default("")
+  impactNotes String @default("[]")
+  unresolvedQuestions String @default("[]")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   completedAt DateTime?
@@ -1080,10 +1108,55 @@ model StoryArchitectureProposalRun {
   beats StoryArchitectureBeat[] @relation("ArchitectureRunBeats")
   constraints StoryArchitectureConstraint[] @relation("ArchitectureRunConstraints")
   questions StoryArchitectureQuestion[] @relation("ArchitectureRunQuestions")
+  relations StoryArchitectureBeatRelation[]
+  alternatives StoryArchitectureProposalAlternative[]
+  proposalSources StoryArchitectureProposalSource[]
   decisions StoryArchitectureDecision[]
 
   @@index([architectureId, createdAt])
   @@index([projectId])
+  @@index([identityKey])
+  @@schema("magic_story")
+}
+
+model StoryArchitectureProposalAlternative {
+  id String @id @default(cuid())
+  proposalRunId String
+  alternativeKey String
+  label String
+  rationale String @default("")
+  tradeoffs String @default("[]")
+  order Int @default(0)
+  createdAt DateTime @default(now())
+
+  proposalRun StoryArchitectureProposalRun @relation(fields: [proposalRunId], references: [id], onDelete: Cascade)
+  threads StoryArchitectureThread[]
+  beats StoryArchitectureBeat[]
+  constraints StoryArchitectureConstraint[]
+  questions StoryArchitectureQuestion[]
+  relations StoryArchitectureBeatRelation[]
+  proposalSources StoryArchitectureProposalSource[]
+
+  @@unique([proposalRunId, alternativeKey], map: "StoryArchitectureProposalAlternative_run_key_key")
+  @@index([proposalRunId, order], map: "StoryArchitectureProposalAlternative_run_order_idx")
+  @@schema("magic_story")
+}
+
+model StoryArchitectureProposalSource {
+  id String @id @default(cuid())
+  proposalRunId String
+  proposalAlternativeId String
+  itemType String
+  itemId String
+  sourceType String
+  sourceId String
+  createdAt DateTime @default(now())
+
+  proposalRun StoryArchitectureProposalRun @relation(fields: [proposalRunId], references: [id], onDelete: Cascade)
+  proposalAlternative StoryArchitectureProposalAlternative @relation(fields: [proposalAlternativeId], references: [id], onDelete: Cascade)
+
+  @@unique([proposalAlternativeId, itemType, itemId, sourceType, sourceId], map: "StoryArchitectureProposalSource_alt_item_source_key")
+  @@index([proposalRunId], map: "StoryArchitectureProposalSource_run_idx")
   @@schema("magic_story")
 }
 

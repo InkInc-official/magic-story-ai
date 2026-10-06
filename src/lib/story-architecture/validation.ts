@@ -112,10 +112,12 @@ export function validateStoryArchitecture(value: StoryArchitecture): StoryArchit
     if (!beats.has(item.fromBeatId) || !beats.has(item.toBeatId)) throw new StoryArchitectureValidationError(path, 'RelationのBeatが同じArchitectureにありません。');
     if (item.fromBeatId === item.toBeatId) throw new StoryArchitectureValidationError(path, 'self relationは禁止です。');
     if (!includes(STORY_ARCHITECTURE_RELATION_TYPES, item.type)) throw new StoryArchitectureValidationError(`${path}.type`, 'relation typeが不正です。');
-    const key = `${item.fromBeatId}\u0000${item.toBeatId}\u0000${item.type}`;
+    const alternativeId=item.proposalAlternativeId??'author';
+    const key = `${alternativeId}\u0000${item.fromBeatId}\u0000${item.toBeatId}\u0000${item.type}`;
     if (relationKeys.has(key)) throw new StoryArchitectureValidationError(path, 'Relationが重複しています。'); relationKeys.add(key);
   });
-  for (const type of STORY_ARCHITECTURE_ACYCLIC_RELATIONS) if (relationHasCycle(value.relations, type)) throw new StoryArchitectureValidationError('architecture.relations', `${type}にcycleがあります。`);
+  const baseline=value.relations.filter(item=>!item.proposalAlternativeId);const alternativeIds=[...new Set(value.relations.flatMap(item=>item.proposalAlternativeId?[item.proposalAlternativeId]:[]))];
+  for (const relations of [baseline,...alternativeIds.map(alternativeId=>[...baseline,...value.relations.filter(item=>item.proposalAlternativeId===alternativeId)])]) for (const type of STORY_ARCHITECTURE_ACYCLIC_RELATIONS) if (relationHasCycle(relations, type)) throw new StoryArchitectureValidationError('architecture.relations', `${type}にcycleがあります。`);
   const itemByType: Record<StoryArchitectureItemType, Set<string>> = {
     thread: new Set(value.threads.map(item => item.id)), beat: new Set(value.beats.map(item => item.id)),
     constraint: new Set(value.constraints.map(item => item.id)), question: new Set(value.questions.map(item => item.id)),

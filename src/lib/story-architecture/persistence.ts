@@ -64,7 +64,7 @@ function toDomain(row: any): StoryArchitecture {
     beats: row.beats.map(({ proposalRunId: _run, createdAt: _created, updatedAt: _updated, ...item }: any) => item),
     constraints: row.constraints.map(({ proposalRunId: _run, createdAt: _created, updatedAt: _updated, ...item }: any) => item),
     questions: row.questions.map(({ proposalRunId: _run, createdAt: _created, updatedAt: _updated, ...item }: any) => item),
-    relations: row.relations.map(({ createdAt: _created, ...item }: any) => item),
+    relations: row.relations.map(({ proposalRunId: _run, createdAt: _created, ...item }: any) => item),
     decisions: row.decisions.map(({ projectId: _project, proposalRunId: _run, createdAt: _created, ...item }: any) => item),
   } as StoryArchitecture);
 }

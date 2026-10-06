@@ -374,6 +374,25 @@ test('Story Architecture workspaceのCHECK・FK・delete・decision履歴が実D
   await assert.rejects(prisma.storyArchitectureThread.create({ data: {
     architectureId: architecture.id, title: 'spoof', threadType: 'theme', status: 'proposed', provenance: 'ai_proposal', order: 2,
   } }));
+  await prisma.storyArchitectureProposalRun.update({ where: { id: run.id }, data: {
+    operation: 'design_scope', identityKey: 'architect-pending-key', contextVersion: 'architect-v1', promptVersion: 'story-architect-ja-v1', contextFingerprint: 'context-1',
+  } });
+  await assert.rejects(prisma.storyArchitectureProposalRun.create({ data: {
+    projectId: value.id, architectureId: architecture.id, canonMode: 'respect_current_canon', operation: 'design_scope', identityKey: 'architect-pending-key', status: 'pending',
+  } }), '同一semantic inputのpending Runはpartial unique indexで拒否する');
+  const alternative = await prisma.storyArchitectureProposalAlternative.create({ data: {
+    proposalRunId: run.id, alternativeKey: 'alternative_1', label: '静かな案', rationale: '余韻を守る', tradeoffs: '["進行は緩やか"]', order: 0,
+  } });
+  await prisma.storyArchitectureThread.update({ where: { id: proposal.id }, data: { proposalAlternativeId: alternative.id } });
+  await prisma.storyArchitectureProposalSource.create({ data: {
+    proposalRunId: run.id, proposalAlternativeId: alternative.id, itemType: 'thread', itemId: proposal.id, sourceType: 'architecture_thread', sourceId: thread.id,
+  } });
+  await prisma.storyArchitectureProposalRun.update({ where: { id: run.id }, data: { status: 'completed', summary: '提案', impactNotes: '[]', unresolvedQuestions: '[]', completedAt: new Date() } });
+  const retry = await prisma.storyArchitectureProposalRun.create({ data: {
+    projectId: value.id, architectureId: architecture.id, canonMode: 'respect_current_canon', operation: 'design_scope', identityKey: 'architect-pending-key', status: 'pending',
+  } });
+  assert.equal(retry.status, 'pending', 'completed履歴を保持したまま同一identityの再実行を開始できる');
+  await prisma.storyArchitectureProposalRun.update({ where: { id: retry.id }, data: { status: 'failed', errorCode: 'integration_cleanup', completedAt: new Date() } });
   const first = await prisma.storyArchitectureDecision.create({ data: {
     projectId: value.id, architectureId: architecture.id, proposalRunId: run.id, itemType: 'thread', itemId: proposal.id, decision: 'held', note: '',
   } });

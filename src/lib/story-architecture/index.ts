@@ -5,3 +5,5 @@ export * from './relations';
 export * from './ordering';
 export * from './context';
 export * from './fingerprint';
+export * from './proposal';
+export * from './prompt';

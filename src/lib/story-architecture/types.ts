@@ -30,6 +30,7 @@ export interface StoryArchitectureItemBase {
   status: StoryArchitectureDesignStatus;
   provenance: StoryArchitectureProvenance;
   revision: number;
+  proposalAlternativeId?: string | null;
 }
 
 /** A continuing line of design, not merely a folder and not a required arc. */
@@ -83,6 +84,7 @@ export interface StoryArchitectureBeatRelation {
   fromBeatId: string;
   toBeatId: string;
   type: StoryArchitectureRelationType;
+  proposalAlternativeId?: string | null;
 }
 
 /** Append-only persistence is introduced later; this contract preserves source-item identity. */
