@@ -28,6 +28,9 @@ const safeError=(error:unknown)=>error&&typeof error==='object'&&'code'in error?
 
 export async function persistStoryArchitectOutput(database:ArchitectDatabase,run:{id:string;projectId:string;architectureId:string},output:StoryArchitectOutput){
   return database.$transaction(async tx=>{
+    await tx.$queryRaw(Prisma.sql`SELECT id FROM magic_story."StoryArchitectureProposalRun" WHERE id = ${run.id} FOR UPDATE`);
+    const pending=await tx.storyArchitectureProposalRun.findFirst({where:{id:run.id,projectId:run.projectId,architectureId:run.architectureId,status:'pending'},select:{id:true}});
+    if(!pending)throw new StoryArchitectRuntimeError('persistence_failed','Proposal Runは既に回収または完了されています。');
     for(let alternativeIndex=0;alternativeIndex<output.alternatives.length;alternativeIndex+=1){
       const alternative=output.alternatives[alternativeIndex];const alternativeId=randomUUID();
       await tx.storyArchitectureProposalAlternative.create({data:{id:alternativeId,proposalRunId:run.id,alternativeKey:alternative.localId,label:alternative.label,rationale:alternative.rationale,tradeoffs:JSON.stringify(alternative.tradeoffs),order:alternativeIndex}});

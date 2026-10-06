@@ -31,6 +31,7 @@ test('proposal alternatives remain isolated and decisions are item-level', () =>
   assert.match(source, /alternative\.threads/); assert.match(source, /alternative\.beats/);
   assert.match(source, /Object\.entries\(DECISION\)/); assert.match(source, /AI提案：却下/);
   assert.match(source, /使用終了/);
+  assert.match(source, /if \(!latest\.has\(key\)\) latest\.set\(key, value\.decision\)/);
 });
 
 test('dirty state blocks proposal and apply while project switch clears transient state', () => {

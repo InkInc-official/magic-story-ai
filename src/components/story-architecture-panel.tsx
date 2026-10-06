@@ -99,7 +99,14 @@ export function StoryArchitecturePanel({ projectId }: { projectId: string }) {
     return () => window.clearInterval(timer);
   }, [hasPendingProposal, load]);
 
-  const decisions = useMemo(() => new Map((architecture?.decisions || []).map(value => [`${value.itemType}:${value.itemId}`, value.decision])), [architecture?.decisions]);
+  const decisions = useMemo(() => {
+    const latest = new Map<string, string>();
+    for (const value of architecture?.decisions || []) {
+      const key = `${value.itemType}:${value.itemId}`;
+      if (!latest.has(key)) latest.set(key, value.decision);
+    }
+    return latest;
+  }, [architecture?.decisions]);
   const selected = useMemo<Item | null>(() => {
     if (!architecture || !selection) return null;
     const key = `${selection.type}s` as 'threads' | 'beats' | 'constraints' | 'questions';
