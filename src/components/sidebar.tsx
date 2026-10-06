@@ -9,6 +9,7 @@ import {
   ListTree,
   Route,
   Compass,
+  PanelsTopLeft,
   MessageSquare,
   Archive,
   Network,
@@ -43,6 +44,7 @@ const CREATION_ITEMS: { id: CreationSubView; label: string; icon: React.ReactNod
   { id: 'chapters', label: ja.nav.chapters, icon: <BookOpen size={16} /> },
   { id: 'tracking', label: ja.nav.tracking, icon: <Route size={16} /> },
   { id: 'navigator', label: ja.nav.navigator, icon: <Compass size={16} /> },
+  { id: 'architecture', label: '物語設計', icon: <PanelsTopLeft size={16} /> },
 ];
 
 export function Sidebar({

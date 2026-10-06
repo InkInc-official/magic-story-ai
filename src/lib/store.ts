@@ -7,7 +7,7 @@ import { create } from 'zustand';
 export type CoreModule = 'creation' | 'assets' | 'graph';
 
 // 创作中心子视图
-export type CreationSubView = 'chat' | 'chapters' | 'outline' | 'tracking' | 'navigator' | 'settings';
+export type CreationSubView = 'chat' | 'chapters' | 'outline' | 'tracking' | 'navigator' | 'architecture' | 'settings';
 
 // 项目管理子视图
 export type AssetSubView = 'overview' | 'characters' | 'plots' | 'scenes' | 'world' | 'library';
@@ -157,6 +157,7 @@ const VIEW_MAP: Record<string, { module: CoreModule; sub?: string }> = {
   chapters:   { module: 'creation', sub: 'chapters' },
   tracking:   { module: 'creation', sub: 'tracking' },
   navigator:  { module: 'creation', sub: 'navigator' },
+  architecture: { module: 'creation', sub: 'architecture' },
   prompts:    { module: 'creation', sub: 'chat' },
   settings:   { module: 'creation', sub: 'settings' },
 };
@@ -261,6 +262,7 @@ export const useAppStore = create<AppState>((set) => ({
         ...(mapping.sub === 'chapters' ? { creationSubView: 'chapters' as CreationSubView } : {}),
         ...(mapping.sub === 'tracking' ? { creationSubView: 'tracking' as CreationSubView } : {}),
         ...(mapping.sub === 'navigator' ? { creationSubView: 'navigator' as CreationSubView } : {}),
+        ...(mapping.sub === 'architecture' ? { creationSubView: 'architecture' as CreationSubView } : {}),
         ...(mapping.sub === 'settings' ? { creationSubView: 'settings' as CreationSubView } : {}),
         ...(mapping.sub === 'world' ? { assetSubView: 'world' as AssetSubView } : {}),
         ...(mapping.sub === 'characters' ? { assetSubView: 'characters' as AssetSubView } : {}),
